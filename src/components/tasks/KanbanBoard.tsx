@@ -245,50 +245,62 @@ export function KanbanBoard() {
                       </button>
                     </div>
                   ) : (
-                    columnTasks.map(task => (
-                      <div
-                        key={task.id}
-                        id={`task-card-${task.id}`}
-                        className={`kanban-card ${draggedTaskId === task.id ? 'is-dragging' : ''} ${taskEditor?.taskId === task.id ? 'is-selected' : ''}`}
-                        draggable
-                        onDragStart={e => handleDragStart(e, task)}
-                        onDragEnd={handleDragEnd}
-                        title="Drag to move across columns or drop onto Assistant chat"
-                      >
-                        <div className="kanban-card-top">
-                          <div className="kanban-card-id-group">
-                            <GripVertical size={13} className="drag-grip" />
-                            <span className="kanban-card-id">{task.id}</span>
-                          </div>
-                          <span className={getPriorityBadgeClass(task.priority)}>
-                            {task.priority === 'urgent' && <AlertCircle size={10} />}
-                            {task.priority}
-                          </span>
-                        </div>
+                    columnTasks.map(task => {
+                      const isAiOrigin =
+                        task.lastEditedBy === 'model' ||
+                        task.author === 'model' ||
+                        Boolean(task.lastEditedBy?.startsWith('model:'));
 
-                        <h3 className="kanban-card-title">{task.title}</h3>
-
-                        {task.description && (
-                          <p className="kanban-card-desc">{task.description}</p>
-                        )}
-
-                        <div className="kanban-card-footer">
-                          <div className="kanban-card-meta">
-                            <span className="kanban-card-tag">#{task.tag}</span>
-                            <span
-                              className={`kanban-edit-origin ${task.lastEditedBy?.startsWith('model:') ? 'assistant' : 'human'}`}
-                              title={`Last edited by ${task.lastEditedBy?.startsWith('model:') ? task.lastEditedBy.slice(6) : 'human'}`}
-                            >
-                              {task.lastEditedBy?.startsWith('model:') ? <Bot size={9} /> : <User size={9} />}
-                              {task.lastEditedBy?.startsWith('model:') ? 'Assistant' : 'Human'}
-                            </span>
-                            <span className="kanban-card-time">
-                              <Clock size={10} />
-                              {task.createdAt}
+                      return (
+                        <div
+                          key={task.id}
+                          id={`task-card-${task.id}`}
+                          className={`kanban-card ${draggedTaskId === task.id ? 'is-dragging' : ''} ${
+                            taskEditor?.taskId === task.id ? 'is-selected ring-2 ring-indigo-500/40' : ''
+                          } ${isAiOrigin ? 'model-hatched border-l-2 border-indigo-500/80' : ''}`}
+                          draggable
+                          onDragStart={e => handleDragStart(e, task)}
+                          onDragEnd={handleDragEnd}
+                          title="Drag to move across columns or drop onto Assistant chat"
+                        >
+                          <div className="kanban-card-top">
+                            <div className="kanban-card-id-group">
+                              <GripVertical size={13} className="drag-grip" />
+                              <span className="kanban-card-id">{task.id}</span>
+                            </div>
+                            <span className={getPriorityBadgeClass(task.priority)}>
+                              {task.priority === 'urgent' && <AlertCircle size={10} />}
+                              {task.priority}
                             </span>
                           </div>
 
-                          <div className="kanban-card-actions">
+                          <h3 className="kanban-card-title">{task.title}</h3>
+
+                          {task.description && (
+                            <p className="kanban-card-desc">{task.description}</p>
+                          )}
+
+                          <div className="kanban-card-footer">
+                            <div className="kanban-card-meta">
+                              <span className="kanban-card-tag">#{task.tag}</span>
+                              <span
+                                className={`kanban-edit-origin ${isAiOrigin ? 'assistant' : 'human'}`}
+                                title={
+                                  isAiOrigin
+                                    ? 'Tạo/soạn thảo bởi AI (model)'
+                                    : 'Người dùng tự soạn/chỉnh sửa (human)'
+                                }
+                              >
+                                {isAiOrigin ? <Bot size={9} /> : <User size={9} />}
+                                {isAiOrigin ? 'AI' : 'Human'}
+                              </span>
+                              <span className="kanban-card-time">
+                                <Clock size={10} />
+                                {task.createdAt}
+                              </span>
+                            </div>
+
+                            <div className="kanban-card-actions">
                             {colIdx > 0 && (
                               <button
                                 className="card-action-btn"
@@ -328,8 +340,9 @@ export function KanbanBoard() {
                           </div>
                         </div>
                       </div>
-                    ))
-                  )}
+                    );
+                  })
+                )}
                 </div>
               </div>
             );

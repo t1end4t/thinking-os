@@ -31,14 +31,41 @@ async function call(dir: string, init?: RequestInit) {
 }
 
 export async function loadVault(dir: string): Promise<{ dir: string; data: VaultSnapshot }> {
-  const payload = await call(dir);
-  return { dir: payload.dir, data: { ...EMPTY_SNAPSHOT, ...payload.data } };
+  try {
+    const payload = await call(dir);
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(`thinking_os_vault_${payload.dir}`, JSON.stringify(payload.data));
+      } catch {}
+    }
+    return { dir: payload.dir, data: { ...EMPTY_SNAPSHOT, ...payload.data } };
+  } catch (error) {
+    console.warn('Vault API call failed, attempting local cache fallback:', error);
+    if (typeof localStorage !== 'undefined') {
+      const cached = localStorage.getItem(`thinking_os_vault_${dir}`);
+      if (cached) {
+        try {
+          return { dir, data: { ...EMPTY_SNAPSHOT, ...JSON.parse(cached) } };
+        } catch {}
+      }
+    }
+    return { dir, data: EMPTY_SNAPSHOT };
+  }
 }
 
 export async function saveVault(dir: string, snapshot: VaultSnapshot): Promise<void> {
-  await call(dir, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(snapshot)
-  });
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(`thinking_os_vault_${dir}`, JSON.stringify(snapshot));
+    } catch {}
+  }
+  try {
+    await call(dir, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(snapshot)
+    });
+  } catch (error) {
+    console.warn('Vault API save failed, saved to local cache:', error);
+  }
 }

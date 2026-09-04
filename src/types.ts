@@ -1,6 +1,6 @@
 // Strict Instrument domain types matching AGENTS.md and docs/storage-design.md
 
-export type EntityAuthor = 'user' | 'system' | `model:${string}`;
+export type EntityAuthor = 'user' | 'system' | 'model' | `model:${string}`;
 
 export interface Question {
   id: string;
@@ -164,7 +164,7 @@ export interface AssistantMessage {
   timestamp: number;
   isRefusal?: boolean;
   structuredAction?: {
-    type: 'check_link' | 'cluster_notes' | 'weaken_claim' | 'add_experiment' | 'reject';
+    type: 'check_link' | 'cluster_notes' | 'weaken_claim' | 'add_experiment' | 'reject' | 'draft_task' | `create_task:${string}` | string;
     status?: string;
     undoAvailable?: boolean;
   };

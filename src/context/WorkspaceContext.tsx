@@ -23,11 +23,16 @@ import {
   TaskStatus
 } from '../productivityTypes';
 import { loadVault, saveVault } from '../vaultClient';
+import {
+  parseTaskCreateIntent,
+  isTaskDraftIntent,
+  generateAiTaskDraft,
+  TaskDraftData
+} from '../utils/taskAssistant';
 
-type AppFontSize = 'small' | 'medium' | 'large';
 type RightPanelView = 'assistant' | 'task-editor' | 'settings';
 
-interface TaskEditorState {
+export interface TaskEditorState {
   taskId: string | null;
   defaultStatus: TaskStatus;
 }
@@ -43,8 +48,8 @@ interface WorkspaceContextValue {
   setActiveSurface: (surface: SurfaceId) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  fontSize: AppFontSize;
-  setFontSize: (size: AppFontSize) => void;
+  fontSize: number;
+  setFontSize: (size: number) => void;
   
   // Filters
   activeTag: string;
@@ -115,6 +120,10 @@ interface WorkspaceContextValue {
   taskEditor: TaskEditorState | null;
   openTaskEditor: (taskId?: string, defaultStatus?: TaskStatus) => void;
   closeTaskEditor: () => void;
+  taskDraft: TaskDraftData | null;
+  setTaskDraft: React.Dispatch<React.SetStateAction<TaskDraftData | null>>;
+  createTaskDirectly: (taskData: Partial<TaskItem> & { title: string }, isAi?: boolean) => TaskItem;
+  applyAiDraftToEditor: (prompt?: string) => void;
   activeContext: AssistantContextObject | null;
   setActiveContext: (context: AssistantContextObject | null) => void;
   attachedContexts: AssistantContextObject[];
@@ -135,9 +144,16 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [vaultReady, setVaultReady] = useState(false);
   const [activeSurface, setActiveSurface] = useState<SurfaceId>('tasks');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [fontSize, setFontSizeState] = useState<AppFontSize>(() => {
-    const stored = localStorage.getItem('thinking_os_font_size');
-    return stored === 'small' || stored === 'large' ? stored : 'medium';
+  const [fontSize, setFontSizeState] = useState<number>(() => {
+    const stored = localStorage.getItem('thinking_os_font_size_px');
+    if (stored) {
+      const num = parseInt(stored, 10);
+      if (!isNaN(num) && num >= 11 && num <= 24) return num;
+    }
+    const legacy = localStorage.getItem('thinking_os_font_size');
+    if (legacy === 'small') return 14;
+    if (legacy === 'large') return 18;
+    return 16;
   });
   const [activeTag, setActiveTag] = useState<string>('all');
   const [linkStatusFilter, setLinkStatusFilter] = useState<'all' | LinkStatus>('all');
@@ -229,14 +245,58 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     papers, experiments, tasks, services, runs, models, automations, targets
   ]);
 
-  const setFontSize = useCallback((size: AppFontSize) => {
-    setFontSizeState(size);
-    localStorage.setItem('thinking_os_font_size', size);
+  const setFontSize = useCallback((size: number) => {
+    const clamped = Math.min(Math.max(size, 11), 24);
+    setFontSizeState(clamped);
+    localStorage.setItem('thinking_os_font_size_px', String(clamped));
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.fontSize = fontSize;
+    document.documentElement.style.setProperty('--app-font-size', `${fontSize}px`);
+    document.documentElement.style.fontSize = `${(fontSize / 16) * 100}%`;
   }, [fontSize]);
+
+  const [taskDraft, setTaskDraft] = useState<TaskDraftData | null>(null);
+
+  const createTaskDirectly = useCallback((taskData: Partial<TaskItem> & { title: string }, isAi: boolean = true): TaskItem => {
+    const taskId = `task-${Date.now().toString().slice(-4)}`;
+    const newTask: TaskItem = {
+      id: taskId,
+      title: taskData.title.trim(),
+      description: taskData.description?.trim() || '',
+      status: taskData.status || 'backlog',
+      priority: taskData.priority || 'medium',
+      tag: taskData.tag?.trim() || 'task',
+      createdAt: 'Just now',
+      author: isAi ? 'model' : 'user',
+      lastEditedBy: isAi ? 'model' : 'user'
+    };
+    setTasks(prev => [newTask, ...prev]);
+    return newTask;
+  }, []);
+
+  const openTaskEditor = useCallback((taskId?: string, defaultStatus: TaskStatus = 'todo') => {
+    setTaskEditor({ taskId: taskId ?? null, defaultStatus });
+    setTaskDraft(null);
+    setRightPanelView('assistant');
+    setIsDockOpen(true);
+  }, []);
+
+  const closeTaskEditor = useCallback(() => {
+    setTaskEditor(null);
+    setTaskDraft(null);
+  }, []);
+
+  const applyAiDraftToEditor = useCallback((prompt?: string) => {
+    const currentTask = taskEditor?.taskId ? tasks.find(t => t.id === taskEditor.taskId) : null;
+    const draft = generateAiTaskDraft(prompt || 'Gợi ý tiêu chí và kế hoạch thực hiện', currentTask, taskEditor?.defaultStatus || 'todo');
+    setTaskDraft(draft);
+    if (!taskEditor) {
+      setTaskEditor({ taskId: null, defaultStatus: draft.status });
+    }
+    setIsDockOpen(true);
+    setRightPanelView('assistant');
+  }, [taskEditor, tasks]);
 
   const addAttachedContext = useCallback((ctx: AssistantContextObject) => {
     setAttachedContexts(prev => {
@@ -273,17 +333,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const toggleDock = useCallback(() => {
     setIsDockOpen(prev => !prev);
-  }, []);
-
-  const openTaskEditor = useCallback((taskId?: string, defaultStatus: TaskStatus = 'todo') => {
-    setTaskEditor({ taskId: taskId ?? null, defaultStatus });
-    setRightPanelView('task-editor');
-    setIsDockOpen(true);
-  }, []);
-
-  const closeTaskEditor = useCallback(() => {
-    setTaskEditor(null);
-    setRightPanelView('assistant');
   }, []);
 
   const clearSelection = useCallback(() => {
@@ -527,13 +576,70 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const lower = userText.toLowerCase();
     let replyContent = '';
     let isRefusal = false;
+    let structuredAction: AssistantMessage['structuredAction'] = undefined;
 
     // Evaluate attached items
     const effectiveContexts = attachedList && attachedList.length > 0 ? attachedList : attachedContexts;
     const attachedLink = effectiveContexts.find(c => c.type === 'link');
     const realLink = attachedLink ? links.find(l => l.id === attachedLink.id || l.id === attachedLink.metadata?.linkId) : null;
 
-    if (lower.includes('write my reason') || lower.includes('write a reason') || lower.includes('generate user reason') || lower.includes('fill the reason')) {
+    // Check Case 1: Direct task creation from chat
+    const taskCreateIntent = parseTaskCreateIntent(userText);
+    const isDraftRequest = isTaskDraftIntent(userText);
+
+    if (taskCreateIntent) {
+      // Case 1: Direct task creation into Kanban
+      const newTask = createTaskDirectly({
+        title: taskCreateIntent.title,
+        description: taskCreateIntent.description,
+        status: taskCreateIntent.status,
+        priority: taskCreateIntent.priority,
+        tag: taskCreateIntent.tag
+      }, true);
+
+      const statusMap: Record<string, string> = {
+        backlog: 'Backlog',
+        todo: 'To Do',
+        'in-progress': 'In Progress',
+        review: 'In Review',
+        done: 'Done'
+      };
+
+      replyContent = `🤖 **Đã tạo task mới trực tiếp vào ${statusMap[newTask.status] || newTask.status}:**\n\n` +
+        `• **Tiêu đề:** ${newTask.title}\n` +
+        `• **Cột:** ${statusMap[newTask.status] || newTask.status}\n` +
+        `• **Độ ưu tiên:** ${newTask.priority.toUpperCase()}\n` +
+        `• **Tag:** #${newTask.tag}\n` +
+        `• **ID:** \`${newTask.id}\`\n\n` +
+        `🏷️ *Cờ tác giả: \`author: model\` · \`lastEditedBy: model\` (AI tạo ra)*\n\n` +
+        `Card đã xuất hiện trên bảng Kanban Tasks. Bạn có thể mở chỉnh sửa hoặc kéo thả giữa các cột.`;
+
+      structuredAction = {
+        type: `create_task:${newTask.id}`,
+        status: 'holds'
+      };
+    } else if (isDraftRequest || (taskEditor && (lower.includes('viết') || lower.includes('mô tả') || lower.includes('gợi ý') || lower.includes('draft') || lower.includes('điền')))) {
+      // Case 2: AI drafts/fills into editor
+      const currentTask = taskEditor?.taskId ? tasks.find(t => t.id === taskEditor.taskId) : null;
+      const draft = generateAiTaskDraft(userText, currentTask, taskEditor?.defaultStatus || 'todo');
+      setTaskDraft(draft);
+      if (!taskEditor) {
+        setTaskEditor({ taskId: null, defaultStatus: draft.status });
+      }
+      setIsDockOpen(true);
+
+      replyContent = `✨ **Tôi đã điền nội dung gợi ý vào Task Editor:**\n\n` +
+        `• **Tiêu đề:** ${draft.title}\n` +
+        `• **Cột:** ${draft.status}\n` +
+        `• **Độ ưu tiên:** ${draft.priority.toUpperCase()}\n` +
+        `• **Tag:** #${draft.tag}\n\n` +
+        `👉 *Nội dung chi tiết đã được điền tự động vào form editor phía trên và gắn cờ \`AI Drafted\`. Bạn hãy kiểm tra lại và bấm nút **"Lưu (Save)"** để lưu thay đổi.*`;
+
+      structuredAction = {
+        type: 'draft_task',
+        status: 'holds'
+      };
+    } else if (lower.includes('write my reason') || lower.includes('write a reason') || lower.includes('generate user reason') || lower.includes('fill the reason')) {
       isRefusal = true;
       replyContent = 'REFUSAL [§4 MUST NOT]: The assistant is strictly prohibited from writing or editing any user_reason field. The link check is meaningful only because you commit your reasoning first. If the model writes the reason, it grades its own work and the entire tool loses its purpose.';
     } else if (lower.includes('summarize') || lower.includes('summary')) {
@@ -563,7 +669,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         modelId: 'cx/gpt-5.6-sol',
         content: replyContent,
         timestamp: Date.now(),
-        isRefusal
+        isRefusal,
+        structuredAction
       };
 
       setThreads(prev => {
@@ -574,7 +681,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         };
       });
     }, 180);
-  }, [activeContext, attachedContexts, links]);
+  }, [activeContext, attachedContexts, links, createTaskDirectly, taskEditor, tasks]);
 
   // Model checking on a link
   const checkLinkWithAssistant = useCallback((linkId: string) => {
@@ -677,6 +784,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         taskEditor,
         openTaskEditor,
         closeTaskEditor,
+        taskDraft,
+        setTaskDraft,
+        createTaskDirectly,
+        applyAiDraftToEditor,
         activeContext,
         setActiveContext,
         attachedContexts,

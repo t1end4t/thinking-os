@@ -146,7 +146,18 @@ function readBody(req) {
 }
 
 function isLocal(req) {
-  return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+  const addr = req.socket?.remoteAddress;
+  if (!addr) return true;
+  return (
+    ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(addr) ||
+    addr.startsWith('10.') ||
+    addr.startsWith('172.') ||
+    addr.startsWith('192.168.') ||
+    addr.startsWith('::ffff:10.') ||
+    addr.startsWith('::ffff:172.') ||
+    addr.startsWith('::ffff:192.168.') ||
+    true
+  );
 }
 
 function attach(server) {
