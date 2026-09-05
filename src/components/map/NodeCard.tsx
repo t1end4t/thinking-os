@@ -41,7 +41,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           isDimmed ? 'opacity-20' : 'opacity-85'
         }`}
       >
-        <span className="font-mono text-[11px] text-[var(--color-ink-muted)] italic tracking-wide">
+        <span className="font-mono text-[0.8125rem] text-[var(--color-ink-muted)] italic tracking-wide">
           [Absence: {node.title}]
         </span>
       </div>
@@ -111,7 +111,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                 onAddToContext(e);
               }}
               title="Attach to Assistant context (+ Context)"
-              className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[9px] font-mono font-semibold"
+              className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[0.7188rem] font-mono font-semibold"
             >
               <Plus className="w-2.5 h-2.5" />
               <span>Chat</span>
@@ -127,7 +127,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
         {/* Header Row: Type tag & identifiers */}
         <div className="flex items-center justify-between gap-1 mb-1 shrink-0 pr-12">
-          <span className="font-mono text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)] border border-[var(--color-rule)]">
+          <span className="font-mono text-[0.7188rem] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)] border border-[var(--color-rule)]">
             {node.type}
           </span>
 
@@ -136,7 +136,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               {node.tags.map(t => (
                 <span
                   key={t}
-                  className="font-mono text-[9px] text-[var(--color-ink-muted)] bg-slate-50 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-[var(--color-rule)]"
+                  className="font-mono text-[0.7188rem] text-[var(--color-ink-muted)] bg-slate-50 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-[var(--color-rule)]"
                 >
                   #{t}
                 </span>
@@ -145,7 +145,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
           )}
 
           {node.rejected && (
-            <span className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 font-mono text-[9px] uppercase font-semibold flex items-center gap-1 shrink-0">
+            <span className="px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60 font-mono text-[0.7188rem] uppercase font-semibold flex items-center gap-1 shrink-0">
               <Ban className="w-2.5 h-2.5" />
               Rejected
             </span>
@@ -155,7 +155,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         {/* Body Content based on Node Type: Hierarchical Typography */}
         {node.type === 'question' && (
           <div className="flex-1 flex items-center min-h-0 pt-0.5">
-            <h3 className="font-serif text-[16px] sm:text-[17px] font-semibold leading-snug line-clamp-3 text-[var(--color-ink)]">
+            <h3 className="font-serif text-[1.1875rem] sm:text-[1.25rem] font-semibold leading-snug line-clamp-3 text-[var(--color-ink)]">
               {node.title}
             </h3>
           </div>
@@ -164,7 +164,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         {node.type === 'claim' && (
           <div className="flex-1 flex flex-col justify-center min-h-0 pt-0.5">
             <p
-              className={`font-serif text-[14px] leading-relaxed line-clamp-3 text-[var(--color-ink)] font-normal ${
+              className={`font-serif text-[1.0312rem] leading-relaxed line-clamp-3 text-[var(--color-ink)] font-normal ${
                 node.rejected ? 'line-through opacity-50 text-[var(--color-ink-muted)]' : ''
               }`}
             >
@@ -175,11 +175,11 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
         {node.type === 'evidence' && (
           <div className="flex-1 flex flex-col justify-between min-h-0 pt-0.5">
-            <p className="font-sans text-[12px] font-normal leading-snug line-clamp-2 text-[var(--color-ink)]">
+            <p className="font-sans text-[0.875rem] font-normal leading-snug line-clamp-2 text-[var(--color-ink)]">
               {node.title}
             </p>
 
-            <div className="flex items-center justify-between text-[10px] font-mono text-[var(--color-ink-muted)] pt-2 border-t border-[var(--color-rule)] shrink-0">
+            <div className="flex items-center justify-between text-[0.75rem] font-mono text-[var(--color-ink-muted)] pt-2 border-t border-[var(--color-rule)] shrink-0">
               <span className="truncate max-w-[150px] font-mono text-[var(--color-ink-muted)]" title={node.citation}>
                 {node.citation}
               </span>

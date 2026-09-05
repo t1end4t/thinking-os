@@ -331,7 +331,7 @@ export const MapSurface: React.FC = () => {
           style={{ left: 80, top: Math.max(layout.bounds.minY - 32, 16) }}
           className="absolute flex items-center gap-1.5 pointer-events-none"
         >
-          <span className="font-mono text-[10px] tracking-widest uppercase font-semibold text-[var(--color-ink-muted)] opacity-70">
+          <span className="font-mono text-[0.75rem] tracking-widest uppercase font-semibold text-[var(--color-ink-muted)] opacity-70">
             QUESTIONS
           </span>
         </div>
@@ -339,7 +339,7 @@ export const MapSurface: React.FC = () => {
           style={{ left: 580, top: Math.max(layout.bounds.minY - 32, 16) }}
           className="absolute flex items-center gap-1.5 pointer-events-none"
         >
-          <span className="font-mono text-[10px] tracking-widest uppercase font-semibold text-[var(--color-ink-muted)] opacity-70">
+          <span className="font-mono text-[0.75rem] tracking-widest uppercase font-semibold text-[var(--color-ink-muted)] opacity-70">
             CLAIMS
           </span>
         </div>
@@ -347,7 +347,7 @@ export const MapSurface: React.FC = () => {
           style={{ left: 1060, top: Math.max(layout.bounds.minY - 32, 16) }}
           className="absolute flex items-center gap-1.5 pointer-events-none"
         >
-          <span className="font-mono text-[10px] tracking-widest uppercase font-semibold text-[var(--color-ink-muted)] opacity-70">
+          <span className="font-mono text-[0.75rem] tracking-widest uppercase font-semibold text-[var(--color-ink-muted)] opacity-70">
             EVIDENCE (FINDINGS)
           </span>
         </div>
@@ -475,7 +475,7 @@ export const MapSurface: React.FC = () => {
               title={`Link: ${edge.status} (Drag to Assistant Dock or click to inspect)`}
             >
               <span className={`w-1.5 h-1.5 rounded-full ${statusDot}`} />
-              <span className={`font-mono text-[9px] uppercase tracking-wider font-semibold ${statusText}`}>
+              <span className={`font-mono text-[0.7188rem] uppercase tracking-wider font-semibold ${statusText}`}>
                 {edge.status}
               </span>
 
@@ -530,7 +530,7 @@ export const MapSurface: React.FC = () => {
           <ZoomOut className="w-4 h-4" />
         </button>
 
-        <span className="font-mono text-[11px] font-semibold text-[var(--color-ink)] px-1 min-w-[42px] text-center">
+        <span className="font-mono text-[0.8125rem] font-semibold text-[var(--color-ink)] px-1 min-w-[42px] text-center">
           {Math.round(scale * 100)}%
         </span>
 
@@ -555,7 +555,7 @@ export const MapSurface: React.FC = () => {
 
         {/* Semantic Level Pill Badge */}
         <span
-          className="ml-1 font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-[var(--color-rule)] text-[var(--color-ink-muted)]"
+          className="ml-1 font-mono text-[0.75rem] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-[var(--color-rule)] text-[var(--color-ink-muted)]"
           title={`Semantic Level: ${zoomLevel.toUpperCase()}`}
         >
           {zoomLevel}
@@ -563,7 +563,7 @@ export const MapSurface: React.FC = () => {
       </div>
 
       {/* Interactive Helper Toast Hint */}
-      <div className="absolute top-4 right-4 z-20 pointer-events-none hidden md:flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface)]/90 backdrop-blur-xs border border-[var(--color-rule)] rounded-full text-[11px] font-mono text-slate-500 shadow-2xs">
+      <div className="absolute top-4 right-4 z-20 pointer-events-none hidden md:flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface)]/90 backdrop-blur-xs border border-[var(--color-rule)] rounded-full text-[0.8125rem] font-mono text-slate-500 shadow-2xs">
         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
         <span>Hover to highlight relation branch • Drag node/link to Assistant Dock</span>
       </div>

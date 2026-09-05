@@ -18,17 +18,8 @@ import {
   ArrowDownCircle,
   AlertCircle,
   Pencil,
-  Settings,
-  ChevronDown,
-  ChevronUp,
-  Plus,
-  Sliders,
-  Type,
-  Sun,
-  Moon,
-  Folder
+  Plus
 } from 'lucide-react';
-import { TaskEditorPanel } from '../shell/TaskEditorPanel';
 
 const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, className = 'w-3 h-3' }) => {
   switch (type) {
@@ -48,8 +39,6 @@ const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, cla
   }
 };
 
-const FONT_SIZE_PRESETS = [12, 13, 14, 15, 16, 17, 18, 20];
-
 export const AssistantDock: React.FC = () => {
   const {
     isDockOpen,
@@ -58,12 +47,6 @@ export const AssistantDock: React.FC = () => {
     setDockWidth,
     taskEditor,
     openTaskEditor,
-    closeTaskEditor,
-    fontSize,
-    setFontSize,
-    theme,
-    toggleTheme,
-    workspaceDir,
     activeContext,
     setActiveContext,
     attachedContexts,
@@ -78,8 +61,6 @@ export const AssistantDock: React.FC = () => {
   const [inputMessage, setInputMessage] = useState<string>('');
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [isEditorCollapsed, setIsEditorCollapsed] = useState<boolean>(false);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   // Get active thread
@@ -181,48 +162,31 @@ export const AssistantDock: React.FC = () => {
   return (
     <aside
       id="instrument-assistant-dock"
-      style={{ width: `${dockWidth}px` }}
+      style={{ width: `min(${dockWidth}px, 100vw)` }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative h-full border-l border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 select-none z-30 transition-all duration-75 ${
+      className={`assistant-dock relative h-full border-l border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 select-none z-30 ${
         isDragOver ? 'ring-2 ring-indigo-500/40 bg-indigo-50/20 dark:bg-indigo-950/20' : ''
       }`}
     >
       {/* Resizing Handle on Left Edge */}
       <div
         onMouseDown={handleMouseDownResize}
-        title="Kéo để thay đổi chiều rộng panel"
+        title="Drag to resize panel"
         className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-[var(--color-ink)]/20 transition-colors z-40 -translate-x-1/2"
       />
 
       {/* Dock Top Header */}
-      <div className="h-12 border-b border-[var(--color-rule)] bg-[var(--color-paper)] px-3.5 flex items-center justify-between shrink-0">
+      <div className="assistant-dock-header">
         <div className="flex items-center gap-2 min-w-0">
           <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-          <span className="font-mono text-xs uppercase tracking-wider font-bold text-slate-900 dark:text-slate-100 truncate">
-            Assistant & Task Studio
+          <span className="assistant-dock-title">
+            Assistant
           </span>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {/* Top Settings Button (Moved to top as requested) */}
-          <button
-            id="dock-top-settings-btn"
-            onClick={() => setShowSettings(prev => !prev)}
-            title="Cài đặt hiển thị & Cỡ chữ (Settings)"
-            className={`px-2 py-1 rounded text-xs font-mono flex items-center gap-1.5 transition-colors ${
-              showSettings
-                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300 font-semibold'
-                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span className="text-[11px]">{fontSize}px</span>
-            {showSettings ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-
-          {/* Close Dock Button */}
           <button
             id="assistant-dock-close-btn"
             onClick={() => setIsDockOpen(false)}
@@ -234,158 +198,16 @@ export const AssistantDock: React.FC = () => {
         </div>
       </div>
 
-      {/* TOP SETTINGS DRAWER (Tách phần settings lên trên và dùng con số cụ thể) */}
-      {showSettings && (
-        <div
-          id="top-settings-drawer"
-          className="p-3.5 border-b border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-3.5 shrink-0 shadow-inner animate-in fade-in slide-in-from-top-2 duration-150"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">
-              <Type className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Cài đặt phông chữ (Font Size)</span>
-            </div>
-            <span className="text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
-              {fontSize} px
-            </span>
-          </div>
-
-          {/* Direct Numeric Value Buttons */}
-          <div>
-            <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
-              <span>Chọn kích thước cụ thể:</span>
-              <span className="italic">16px là chuẩn mặc định</span>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {FONT_SIZE_PRESETS.map(sizeNum => (
-                <button
-                  key={sizeNum}
-                  type="button"
-                  onClick={() => setFontSize(sizeNum)}
-                  className={`py-1.5 px-2 text-xs font-mono rounded border transition-all ${
-                    fontSize === sizeNum
-                      ? 'border-indigo-500 bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-slate-700 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-700'
-                  }`}
-                >
-                  {sizeNum}px
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Fine-tuning Slider & Stepper */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setFontSize(Math.max(fontSize - 1, 11))}
-              className="p-1 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] text-xs font-mono hover:bg-slate-100 dark:hover:bg-slate-800 px-2"
-              title="Giảm 1px"
-            >
-              -1px
-            </button>
-            <input
-              type="range"
-              min="11"
-              max="22"
-              step="1"
-              value={fontSize}
-              onChange={e => setFontSize(Number(e.target.value))}
-              className="flex-1 accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-            />
-            <button
-              type="button"
-              onClick={() => setFontSize(Math.min(fontSize + 1, 24))}
-              className="p-1 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] text-xs font-mono hover:bg-slate-100 dark:hover:bg-slate-800 px-2"
-              title="Tăng 1px"
-            >
-              +1px
-            </button>
-          </div>
-
-          {/* Live Preview Sample */}
-          <div className="p-2 rounded bg-[var(--color-surface)] border border-[var(--color-rule)] text-slate-600 dark:text-slate-400 text-[11px] font-mono">
-            <span>Xem trước: </span>
-            <span style={{ fontSize: `${fontSize}px` }} className="text-slate-900 dark:text-slate-100 font-sans">
-              Thinking-OS Workspace ({fontSize}px)
-            </span>
-          </div>
-
-          {/* Quick theme & workspace meta */}
-          <div className="pt-2 border-t border-[var(--color-rule)] flex items-center justify-between text-[11px] font-mono">
-            <div className="flex items-center gap-1 text-slate-500 truncate max-w-[200px]" title={workspaceDir}>
-              <Folder className="w-3 h-3 shrink-0" />
-              <span className="truncate">{workspaceDir}</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="px-2 py-1 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center gap-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              {theme === 'dark' ? <Moon className="w-3 h-3 text-amber-400" /> : <Sun className="w-3 h-3 text-amber-500" />}
-              <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MERGED EDIT SECTION (Hợp nhất Edit với Assistant) */}
-      {taskEditor && (
-        <div className="border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 shadow-xs">
-          <div className="px-3.5 py-2 bg-indigo-50/50 dark:bg-indigo-950/30 border-b border-[var(--color-rule)]/80 flex items-center justify-between text-xs font-mono">
-            <div className="flex items-center gap-2 min-w-0">
-              <Pencil className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">
-                {taskEditor.taskId ? `Đang sửa task: ${taskEditor.taskId}` : 'Soạn Task mới'}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setIsEditorCollapsed(prev => !prev)}
-                className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                title={isEditorCollapsed ? 'Mở rộng form Editor' : 'Thu gọn form Editor'}
-              >
-                {isEditorCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-              </button>
-              <button
-                type="button"
-                onClick={closeTaskEditor}
-                className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                title="Đóng editor"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-
-          {!isEditorCollapsed && <TaskEditorPanel embedded={true} />}
-        </div>
-      )}
-
       {/* Active Thread Scope Bar */}
-      <div className="px-3.5 py-2 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between text-[11px] font-mono shrink-0">
+      <div className="assistant-thread-bar">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-slate-400 uppercase text-[9px] tracking-wider font-semibold shrink-0">Thread:</span>
+          <span className="assistant-thread-label">Conversation</span>
           <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
             {activeContext?.label || 'Global Graph'}
           </span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {!taskEditor && (
-            <button
-              onClick={() => openTaskEditor(undefined, 'todo')}
-              className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 font-medium"
-              title="Mở Task Editor trong panel này"
-            >
-              <Plus size={11} />
-              <span>Mở Editor</span>
-            </button>
-          )}
-
           {activeContext?.type !== 'graph' && (
             <button
               onClick={() =>
@@ -396,7 +218,7 @@ export const AssistantDock: React.FC = () => {
                   secondaryLabel: 'Argument tree'
                 })
               }
-              className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:underline"
+              className="text-[0.75rem] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:underline"
             >
               Reset
             </button>
@@ -407,53 +229,58 @@ export const AssistantDock: React.FC = () => {
       {/* Transcript Area (Isolated Per Context) */}
       <div
         id="assistant-transcript-list"
-        className="relative flex-1 overflow-y-auto p-4 flex flex-col gap-4 bg-[var(--color-surface)] font-mono text-xs select-text"
+        className="assistant-transcript relative flex-1 overflow-y-auto flex flex-col select-text"
       >
         {/* Visual Drop Overlay indicator when dragging over dock */}
         {isDragOver && (
           <div className="absolute inset-2 z-20 rounded-xl border-2 border-dashed border-indigo-500 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs flex flex-col items-center justify-center gap-2 p-6 text-center pointer-events-none animate-in fade-in duration-150">
             <ArrowDownCircle className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-bounce" />
             <p className="font-mono text-xs font-bold text-indigo-700 dark:text-indigo-300">
-              Kéo thả object vào đây để đính kèm context
+              Drop an object here to attach context
             </p>
-            <p className="text-[11px] font-sans text-slate-500">
-              Hỗ trợ kéo Card Task, Question, Claim, Evidence
+            <p className="text-[0.8125rem] font-sans text-slate-500">
+              Supports Task Cards, Questions, Claims, and Evidence
             </p>
           </div>
         )}
 
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 p-6 gap-2.5">
-            <Sparkles className="w-7 h-7 text-indigo-400/50" />
-            <p className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Assistant & Task Automation
-            </p>
-            <p className="text-[11px] font-sans text-slate-500 max-w-xs leading-relaxed">
-              Bạn có thể chat để:
-              <br />
-              <strong>1. Tạo task trực tiếp:</strong> &quot;Tạo task trong backlog...&quot;
-              <br />
-              <strong>2. Soạn thảo cho Editor:</strong> &quot;Viết mô tả tiêu chí cho task này...&quot;
-            </p>
-
-            {/* Quick action chips */}
-            <div className="flex flex-wrap gap-1.5 justify-center mt-2">
-              <button
-                type="button"
-                onClick={() => handleQuickPrompt('Tạo task trong backlog: Thiết lập pipeline kiểm thử và benchmark cho GPU kernel')}
-                className="px-2.5 py-1 rounded-full text-[10px] font-mono border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-indigo-400 hover:text-indigo-600 text-slate-600 dark:text-slate-300 transition-colors"
-              >
-                + Tạo task trong backlog (Case 1)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickPrompt('Gợi ý điền nội dung chi tiết cho Task Editor với kế hoạch và tiêu chí cụ thể')}
-                className="px-2.5 py-1 rounded-full text-[10px] font-mono border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-indigo-400 hover:text-indigo-600 text-slate-600 dark:text-slate-300 transition-colors"
-              >
-                ✨ Gợi ý điền vào Editor (Case 2)
-              </button>
+          taskEditor ? (
+            <div className="assistant-empty-state is-compact">
+              <div className="assistant-empty-icon"><Sparkles size={18} /></div>
+              <div>
+                <p className="assistant-empty-title">Need help drafting?</p>
+                <p className="assistant-empty-copy">Ask below for clearer task details.</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="assistant-empty-state">
+              <div className="assistant-empty-icon"><Sparkles size={18} /></div>
+              <p className="assistant-empty-title">Plan the work</p>
+              <p className="assistant-empty-copy">
+                Describe the outcome. The assistant can create a task or draft the details.
+              </p>
+
+              <div className="assistant-quick-actions">
+                <button
+                  type="button"
+                  onClick={() => handleQuickPrompt('Create a task in backlog: Set up a test and benchmark pipeline for the GPU kernel')}
+                  className="assistant-quick-action"
+                >
+                  <Plus size={15} />
+                  <span><strong>Create a task</strong><small>Add it directly to the backlog</small></span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickPrompt('Draft detailed Task Editor content with a concrete plan and acceptance criteria')}
+                  className="assistant-quick-action"
+                >
+                  <Pencil size={15} />
+                  <span><strong>Draft this task</strong><small>Fill in clear execution criteria</small></span>
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           messages.map(msg => {
             const isModel = msg.role === 'assistant';
@@ -468,7 +295,7 @@ export const AssistantDock: React.FC = () => {
                 }`}
               >
                 {/* Author tag */}
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400 px-1 font-mono">
+                <div className="flex items-center gap-1.5 text-[0.75rem] text-slate-400 px-1 font-mono">
                   {isModel ? (
                     <>
                       <span className="font-semibold text-indigo-600 dark:text-indigo-400">
@@ -492,17 +319,17 @@ export const AssistantDock: React.FC = () => {
                       : 'bg-indigo-600 text-white rounded-tr-xs'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap font-mono text-[12px]">
+                  <p className="assistant-message-copy whitespace-pre-wrap">
                     {msg.content}
                   </p>
 
                   {/* Structured Action with Direct Interactive Button */}
                   {msg.structuredAction && (
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1.5 text-[10px]">
+                    <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1.5 text-[0.75rem]">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          Hoàn tất tác vụ: {msg.structuredAction.type}
+                          Action completed: {msg.structuredAction.type}
                         </span>
                         {msg.structuredAction.undoAvailable && (
                           <button
@@ -520,10 +347,10 @@ export const AssistantDock: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => openTaskEditor(createdTaskId)}
-                          className="self-start mt-1 px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-mono text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                          className="self-start mt-1 px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-mono text-[0.8125rem] font-semibold flex items-center gap-1 transition-colors"
                         >
                           <Pencil size={11} />
-                          <span>Mở trong Editor ({createdTaskId})</span>
+                          <span>Open in Editor ({createdTaskId})</span>
                         </button>
                       )}
                     </div>
@@ -539,11 +366,11 @@ export const AssistantDock: React.FC = () => {
       {/* Input Box Area with Context Attachment Row */}
       <form
         onSubmit={handleSend}
-        className="p-3 border-t border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2 shrink-0"
+        className="assistant-composer"
       >
         {/* Warning if any attached link has no user reason */}
         {uncommittedLink && (
-          <div className="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-lg flex items-start gap-1.5 text-[10px] font-mono text-rose-700 dark:text-rose-300">
+          <div className="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-lg flex items-start gap-1.5 text-[0.75rem] font-mono text-rose-700 dark:text-rose-300">
             <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5 text-rose-600" />
             <span>
               Link [<strong>{uncommittedLink.id}</strong>] has no <em>user_reason</em>. Assistant refuses to inspect uncommitted reasoning links.
@@ -560,7 +387,7 @@ export const AssistantDock: React.FC = () => {
               {attachedContexts.map(ctx => (
                 <div
                   key={ctx.id}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[11px] font-mono shadow-2xs group"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[0.8125rem] font-mono shadow-2xs group"
                 >
                   <ContextIcon type={ctx.type} className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span
@@ -584,7 +411,7 @@ export const AssistantDock: React.FC = () => {
                 <button
                   type="button"
                   onClick={clearAttachedContexts}
-                  className="text-[10px] font-mono text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:underline px-1 ml-auto"
+                  className="text-[0.75rem] font-mono text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:underline px-1 ml-auto"
                 >
                   Clear all
                 </button>
@@ -606,18 +433,18 @@ export const AssistantDock: React.FC = () => {
               }}
               placeholder={
                 taskEditor
-                  ? "Chat để điền text vào Editor (Case 2) hoặc tạo task mới (Case 1)..."
+                  ? 'Ask the assistant to draft this task…'
                   : attachedContexts.length > 0
-                  ? `Hỏi về ${attachedContexts.length} đối tượng đính kèm... (Enter để gửi)`
-                  : "Chat tạo task ('Tạo task...'), gợi ý nội dung, hoặc hỏi đáp..."
+                  ? `Ask about ${attachedContexts.length} attached object(s)... (Enter to send)`
+                  : 'Ask a question or create a task…'
               }
-              className="w-full p-2.5 pr-10 bg-transparent text-xs font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none resize-none"
+              className="assistant-composer-input"
             />
 
             <button
               type="submit"
               disabled={!inputMessage.trim()}
-              title="Gửi tin nhắn (Enter)"
+              title="Send message (Enter)"
               className="absolute right-2.5 bottom-2.5 p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-30 transition-all shadow-xs"
             >
               <CornerDownLeft className="w-3.5 h-3.5" />
@@ -626,11 +453,8 @@ export const AssistantDock: React.FC = () => {
         </div>
 
         {/* Footer info note with Quick prompt helpers */}
-        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 px-0.5">
-          <span className="truncate">
-            Cờ tác giả: <strong>AI (model)</strong> vs <strong>Human (user)</strong>
-          </span>
-          <span className="text-indigo-600 dark:text-indigo-400 shrink-0">cx/gpt-5.6-sol</span>
+        <div className="assistant-composer-hint">
+          Enter to send · Shift+Enter for a new line
         </div>
       </form>
     </aside>

@@ -287,8 +287,8 @@ export function KanbanBoard() {
                                 className={`kanban-edit-origin ${isAiOrigin ? 'assistant' : 'human'}`}
                                 title={
                                   isAiOrigin
-                                    ? 'Tạo/soạn thảo bởi AI (model)'
-                                    : 'Người dùng tự soạn/chỉnh sửa (human)'
+                                    ? 'Created or drafted by AI (model)'
+                                    : 'Created or edited by a human (user)'
                                 }
                               >
                                 {isAiOrigin ? <Bot size={9} /> : <User size={9} />}

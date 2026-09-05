@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext';
 import { TopBar } from './components/shell/TopBar';
 import { Rail } from './components/shell/Rail';
@@ -10,6 +11,7 @@ import { ExperimentsSurface } from './components/experiments/ExperimentsSurface'
 import { AssistantDock } from './components/assistant/AssistantDock';
 import { TasksSurface } from './components/tasks/TasksSurface';
 import { RuntimeSurface } from './components/runtime/RuntimeSurface';
+import { TaskEditorPanel } from './components/shell/TaskEditorPanel';
 
 const WorkspaceShell: React.FC = () => {
   const {
@@ -17,7 +19,9 @@ const WorkspaceShell: React.FC = () => {
     selectedLinkId,
     setSelectedLinkId,
     clearSelection,
-    toggleDock
+    toggleDock,
+    taskEditor,
+    closeTaskEditor
   } = useWorkspace();
 
   // Global Keyboard Shortcuts (Ctrl/Cmd+J for dock, Esc for inspector/clear selection, / for search)
@@ -31,6 +35,7 @@ const WorkspaceShell: React.FC = () => {
 
       // Close inspector or selection: Escape
       if (e.key === 'Escape') {
+        closeTaskEditor();
         clearSelection();
       }
 
@@ -43,7 +48,7 @@ const WorkspaceShell: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleDock, clearSelection]);
+  }, [toggleDock, clearSelection, closeTaskEditor]);
 
   return (
     <div
@@ -76,6 +81,37 @@ const WorkspaceShell: React.FC = () => {
         {/* Right panel: assistant, editors, and settings */}
         <AssistantDock />
       </div>
+
+      {taskEditor && (
+        <div
+          className="kanban-modal-backdrop"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) closeTaskEditor();
+          }}
+        >
+          <div
+            className="kanban-modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="task-editor-title"
+          >
+            <div className="kanban-modal-header">
+              <h2 id="task-editor-title" className="kanban-modal-heading">
+                {taskEditor.taskId ? `Edit ${taskEditor.taskId}` : 'New task'}
+              </h2>
+              <button
+                type="button"
+                onClick={closeTaskEditor}
+                aria-label="Close task editor"
+                className="p-1 rounded text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <TaskEditorPanel />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

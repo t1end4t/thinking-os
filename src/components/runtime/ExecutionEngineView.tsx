@@ -590,7 +590,7 @@ export function ExecutionEngineView({
                     {mdl.instructFormat && (
                       <div className="llm-prompt-row">
                         <span className="hash-label">Template:</span>
-                        <span className="font-mono text-[10px] text-[var(--accent)]">{mdl.instructFormat}</span>
+                        <span className="font-mono text-[0.75rem] text-[var(--accent)]">{mdl.instructFormat}</span>
                       </div>
                     )}
 

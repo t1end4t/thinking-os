@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, X, Sparkles, User, Bot, RefreshCw } from 'lucide-react';
+import { Check, X, Sparkles, User, MessageSquare, PencilLine } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { TaskItem, TaskPriority, TaskStatus } from '../../productivityTypes';
 
@@ -11,11 +11,14 @@ const STATUS_OPTIONS: { id: TaskStatus; title: string }[] = [
   { id: 'done', title: 'Done' }
 ];
 
-interface TaskEditorPanelProps {
-  embedded?: boolean;
+interface EditorSelection {
+  field: 'title' | 'description';
+  text: string;
+  x: number;
+  y: number;
 }
 
-export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = false }) => {
+export const TaskEditorPanel: React.FC = () => {
   const {
     taskEditor,
     tasks,
@@ -23,7 +26,10 @@ export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = fal
     closeTaskEditor,
     taskDraft,
     setTaskDraft,
-    applyAiDraftToEditor
+    applyAiDraftToEditor,
+    setActiveContext,
+    addAttachedContext,
+    sendAssistantMessage
   } = useWorkspace();
 
   const editingTask = taskEditor?.taskId ? tasks.find(task => task.id === taskEditor.taskId) ?? null : null;
@@ -34,6 +40,7 @@ export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = fal
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [tag, setTag] = useState('task');
   const [isAiDrafted, setIsAiDrafted] = useState(false);
+  const [editorSelection, setEditorSelection] = useState<EditorSelection | null>(null);
 
   // Initialize from editing task or default status
   useEffect(() => {
@@ -63,8 +70,56 @@ export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = fal
 
   if (!taskEditor) return null;
 
-  const handleAiSuggest = () => {
-    applyAiDraftToEditor(title ? `Chi tiết hóa task: ${title}` : undefined);
+  const openSelectionTools = (
+    event: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>,
+    field: EditorSelection['field'],
+    value: string,
+    selectAllOnEmpty = false
+  ) => {
+    const input = event.currentTarget;
+    let start = input.selectionStart ?? 0;
+    let end = input.selectionEnd ?? 0;
+
+    if (start === end && selectAllOnEmpty && value.trim()) {
+      start = 0;
+      end = value.length;
+      input.setSelectionRange(start, end);
+    }
+
+    const text = value.slice(start, end).trim();
+    if (!text) {
+      setEditorSelection(null);
+      return;
+    }
+
+    setEditorSelection({
+      field,
+      text,
+      x: Math.min(Math.max(event.clientX, 150), window.innerWidth - 150),
+      y: Math.max(event.clientY - 52, 12)
+    });
+  };
+
+  const handleChatAboutSelection = () => {
+    if (!editorSelection) return;
+    const contextId = `task-selection-${Date.now()}`;
+    const context = {
+      type: 'passage' as const,
+      id: contextId,
+      label: 'Task editor selection',
+      secondaryLabel: `“${editorSelection.text.slice(0, 42)}${editorSelection.text.length > 42 ? '…' : ''}”`,
+      metadata: { passage: editorSelection.text, field: editorSelection.field }
+    };
+    addAttachedContext(context);
+    setActiveContext(context);
+    sendAssistantMessage(contextId, `Discuss this selected task text:\n\n"${editorSelection.text}"`);
+    setEditorSelection(null);
+  };
+
+  const handleAiEditSelection = () => {
+    if (!editorSelection) return;
+    applyAiDraftToEditor(`Rewrite this selected task text for clarity and precision: ${editorSelection.text}`);
+    setEditorSelection(null);
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -111,97 +166,80 @@ export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = fal
   return (
     <form
       onSubmit={handleSubmit}
-      className={`flex flex-col bg-[var(--color-surface)] ${
-        embedded
-          ? 'border-b border-[var(--color-rule)] p-3.5 gap-3 max-h-[50vh] overflow-y-auto'
-          : 'flex-1 min-h-0 overflow-y-auto kanban-modal-form'
-      }`}
+      className="task-editor-form kanban-modal-form"
       id="task-editor-panel"
     >
-      {/* Header bar with Mode and Provenance flag */}
-      <div className="flex items-center justify-between pb-2 border-b border-[var(--color-rule)]/60 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-mono font-bold text-slate-800 dark:text-slate-100">
-            {editingTask ? `Edit Task [${editingTask.id}]` : 'Create Task'}
-          </span>
+      <div className="task-editor-meta">
+        <div className="flex items-center gap-2 min-w-0">
           {isAiDrafted ? (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+              className="task-origin-badge is-ai"
               title="Content drafted by Assistant. Will save with author: model flag."
             >
-              <Sparkles size={10} className="text-indigo-500 animate-pulse" />
-              AI Drafted
+              <Sparkles size={12} />
+              Assistant draft
             </span>
           ) : (
             <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+              className="task-origin-badge is-human"
               title="Manual human input. Will save with author: user flag."
             >
-              <User size={10} />
-              Human Edit
+              <User size={12} />
+              Your draft
             </span>
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={handleAiSuggest}
-          className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-mono rounded bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors"
-          title="Assistant fills or enriches task description and details"
-        >
-          <Sparkles size={12} />
-          <span>AI Auto-fill</span>
-        </button>
+        <span className="task-editor-tip">
+          Select text for assistant actions
+        </span>
       </div>
 
       <div className="form-field">
-        <div className="flex items-center justify-between">
-          <label htmlFor="task-title-input" className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300">
-            Task Title *
-          </label>
-        </div>
+        <label htmlFor="task-title-input">Title <span aria-hidden="true">*</span></label>
         <input
           id="task-title-input"
           type="text"
           required
-          autoFocus={!embedded}
-          placeholder="e.g. Build neural kernel benchmark pipeline"
+          autoFocus
+          placeholder="What needs to be done?"
           value={title}
+          onMouseUp={event => openSelectionTools(event, 'title', title)}
+          onContextMenu={event => {
+            event.preventDefault();
+            openSelectionTools(event, 'title', title, true);
+          }}
           onChange={event => {
             setTitle(event.target.value);
           }}
-          className="w-full mt-1 px-2.5 py-1.5 text-xs font-mono rounded border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
 
       <div className="form-field">
-        <div className="flex items-center justify-between">
-          <label htmlFor="task-desc-input" className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300">
-            Description / Execution Criteria
-          </label>
-        </div>
+        <label htmlFor="task-desc-input">Description</label>
         <textarea
           id="task-desc-input"
-          rows={embedded ? 3 : 5}
-          placeholder="Execution criteria, notes, or ask assistant in chat below to draft this..."
+          rows={5}
+          placeholder="Add context, constraints, and a clear definition of done."
           value={description}
+          onMouseUp={event => openSelectionTools(event, 'description', description)}
+          onContextMenu={event => {
+            event.preventDefault();
+            openSelectionTools(event, 'description', description, true);
+          }}
           onChange={event => {
             setDescription(event.target.value);
           }}
-          className="w-full mt-1 px-2.5 py-1.5 text-xs font-mono rounded border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="task-editor-grid">
         <div className="form-field">
-          <label htmlFor="task-status-select" className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300">
-            Status / Column
-          </label>
+          <label htmlFor="task-status-select">Status</label>
           <select
             id="task-status-select"
             value={status}
             onChange={event => setStatus(event.target.value as TaskStatus)}
-            className="w-full mt-1 px-2 py-1.5 text-xs font-mono rounded border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none"
           >
             {STATUS_OPTIONS.map(option => (
               <option key={option.id} value={option.id}>
@@ -212,14 +250,11 @@ export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = fal
         </div>
 
         <div className="form-field">
-          <label htmlFor="task-priority-select" className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300">
-            Priority
-          </label>
+          <label htmlFor="task-priority-select">Priority</label>
           <select
             id="task-priority-select"
             value={priority}
             onChange={event => setPriority(event.target.value as TaskPriority)}
-            className="w-full mt-1 px-2 py-1.5 text-xs font-mono rounded border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -230,51 +265,82 @@ export const TaskEditorPanel: React.FC<TaskEditorPanelProps> = ({ embedded = fal
       </div>
 
       <div className="form-field">
-        <label htmlFor="task-tag-input" className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300">
-          Tag / Category
-        </label>
+        <label htmlFor="task-tag-input">Tag</label>
         <input
           id="task-tag-input"
           type="text"
-          placeholder="service, runner, model, runtime, backlog..."
+          placeholder="e.g. benchmark"
           value={tag}
           onChange={event => setTag(event.target.value)}
-          className="w-full mt-1 px-2.5 py-1.5 text-xs font-mono rounded border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none"
         />
       </div>
 
       {editingTask && (
-        <p className="text-[10px] font-mono text-[var(--color-ink-muted)] flex items-center gap-1.5">
-          <span>Tác giả ban đầu:</span>
+        <p className="text-[0.75rem] font-mono text-[var(--color-ink-muted)] flex items-center gap-1.5">
+          <span>Original author:</span>
           <span className="font-semibold text-slate-700 dark:text-slate-300">
             {editingTask.author === 'model' ? 'AI (model)' : 'Human (user)'}
           </span>
-          <span>· Sửa lần cuối:</span>
+          <span>· Last edited by:</span>
           <span className="font-semibold text-slate-700 dark:text-slate-300">
             {editingTask.lastEditedBy === 'model' ? 'AI (model)' : 'Human (user)'}
           </span>
         </p>
       )}
 
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-rule)]/60">
+      <div className="task-editor-actions">
         <button
           type="button"
-          className="px-3 py-1.5 text-xs font-mono rounded border border-[var(--color-rule)] hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center gap-1 transition-colors"
+          className="task-editor-button is-secondary"
           onClick={closeTaskEditor}
         >
           <X size={13} />
-          <span>Hủy (Cancel)</span>
+          <span>Cancel</span>
         </button>
         <button
           type="submit"
           id="save-task-btn"
-          className="px-3 py-1.5 text-xs font-mono rounded bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 shadow-xs"
+          className="task-editor-button is-primary"
           disabled={!title.trim()}
         >
           <Check size={14} />
-          <span>{editingTask ? 'Lưu cập nhật' : 'Lưu vào Board'}</span>
+          <span>{editingTask ? 'Save changes' : 'Create task'}</span>
         </button>
       </div>
+
+      {editorSelection && (
+        <div
+          id="task-selection-toolbar"
+          style={{ left: editorSelection.x, top: editorSelection.y }}
+          className="fixed z-60 flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-700/70 bg-slate-950/95 p-1 text-white shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+        >
+          <button
+            type="button"
+            onClick={handleChatAboutSelection}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[0.75rem] font-medium hover:bg-white/12"
+          >
+            <MessageSquare className="h-3.5 w-3.5 text-cyan-300" />
+            Chat about this
+          </button>
+          <div className="h-4 w-px bg-white/20" />
+          <button
+            type="button"
+            onClick={handleAiEditSelection}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[0.75rem] font-medium hover:bg-white/12"
+          >
+            <PencilLine className="h-3.5 w-3.5 text-violet-300" />
+            Edit with AI
+          </button>
+          <button
+            type="button"
+            aria-label="Close selection tools"
+            onClick={() => setEditorSelection(null)}
+            className="rounded-full p-1.5 text-slate-400 hover:bg-white/12 hover:text-white"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
     </form>
   );
 };

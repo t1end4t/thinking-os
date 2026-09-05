@@ -143,19 +143,19 @@ export const Inspector: React.FC = () => {
     switch (status) {
       case 'pass':
         return (
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 text-[10px] font-mono uppercase font-semibold">
+          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800 text-[0.75rem] font-mono uppercase font-semibold">
             Pass
           </span>
         );
       case 'partial':
         return (
-          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800 text-[10px] font-mono uppercase font-semibold">
+          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800 text-[0.75rem] font-mono uppercase font-semibold">
             Partial
           </span>
         );
       case 'mismatch':
         return (
-          <span className="px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800 text-[10px] font-mono uppercase font-semibold">
+          <span className="px-2.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200/60 dark:border-rose-800 text-[0.75rem] font-mono uppercase font-semibold">
             Mismatch
           </span>
         );
@@ -171,7 +171,7 @@ export const Inspector: React.FC = () => {
       {/* Inspector Header */}
       <div className="px-6 py-3 border-b border-[var(--color-rule)] flex items-center justify-between bg-[var(--color-paper)]/70 backdrop-blur-xs shrink-0">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+          <span className="font-mono text-[0.8125rem] uppercase tracking-wider text-slate-500 font-semibold">
             Relationship Inspector
           </span>
           <span className="text-slate-300 dark:text-slate-700">|</span>
@@ -185,7 +185,7 @@ export const Inspector: React.FC = () => {
                   : 'bg-rose-500 ring-4 ring-rose-100 dark:ring-rose-950'
               }`}
             />
-            <span className="font-mono text-[11px] uppercase font-bold text-slate-800 dark:text-slate-200">
+            <span className="font-mono text-[0.8125rem] uppercase font-bold text-slate-800 dark:text-slate-200">
               Link Status: {currentLink.status}
             </span>
           </div>
@@ -210,7 +210,7 @@ export const Inspector: React.FC = () => {
             }}
             onClick={handleSendToDock}
             title="Drag to Assistant Dock or click to attach"
-            className="px-3 py-1 flex items-center gap-1.5 text-[11px] font-mono border border-slate-200 dark:border-slate-800 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-300 text-slate-600 dark:text-slate-400 transition-all shadow-2xs cursor-grab active:cursor-grabbing"
+            className="px-3 py-1 flex items-center gap-1.5 text-[0.8125rem] font-mono border border-slate-200 dark:border-slate-800 rounded-full hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-300 text-slate-600 dark:text-slate-400 transition-all shadow-2xs cursor-grab active:cursor-grabbing"
           >
             <GripVertical className="w-3 h-3" />
             <span>+ Attach to Assistant</span>
@@ -235,27 +235,27 @@ export const Inspector: React.FC = () => {
           <div className="flex flex-col gap-2.5 p-4 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg shadow-2xs">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <span className="text-[10px] font-mono tracking-wider text-[var(--color-ink-muted)] uppercase font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-[var(--color-rule)]">
+                <span className="text-[0.75rem] font-mono tracking-wider text-[var(--color-ink-muted)] uppercase font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-[var(--color-rule)]">
                   Parent ({parentType})
                 </span>
-                <p className="font-serif text-[15px] font-medium text-[var(--color-ink)] leading-snug mt-1.5">
+                <p className="font-serif text-[1.0938rem] font-medium text-[var(--color-ink)] leading-snug mt-1.5">
                   {parentTitle}
                 </p>
               </div>
             </div>
 
             <div className="h-[1px] bg-[var(--color-rule)] my-1 flex items-center justify-center">
-              <span className="bg-[var(--color-surface)] px-3 font-mono text-[10px] text-[var(--color-ink-muted)] uppercase tracking-widest font-semibold">
+              <span className="bg-[var(--color-surface)] px-3 font-mono text-[0.75rem] text-[var(--color-ink-muted)] uppercase tracking-widest font-semibold">
                 supports ↓
               </span>
             </div>
 
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <span className="text-[10px] font-mono tracking-wider text-[var(--color-ink-muted)] uppercase font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-[var(--color-rule)]">
+                <span className="text-[0.75rem] font-mono tracking-wider text-[var(--color-ink-muted)] uppercase font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-[var(--color-rule)]">
                   Child ({childType})
                 </span>
-                <p className="font-serif text-[15px] font-medium text-[var(--color-ink)] leading-snug mt-1.5">
+                <p className="font-serif text-[1.0938rem] font-medium text-[var(--color-ink)] leading-snug mt-1.5">
                   {childTitle}
                 </p>
               </div>
@@ -265,7 +265,7 @@ export const Inspector: React.FC = () => {
           {/* 2. User Reason (In serif, visually dominant, NEVER written by model) */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--color-ink)] flex items-center gap-1.5">
+              <span className="text-[0.8125rem] font-mono font-bold uppercase tracking-wider text-[var(--color-ink)] flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 2. User Reason (Committed)
               </span>
@@ -276,7 +276,7 @@ export const Inspector: React.FC = () => {
                     setEditedReason(currentLink.userReason);
                     setIsEditingReason(true);
                   }}
-                  className="text-[11px] text-[var(--color-ink)] hover:underline font-mono font-medium"
+                  className="text-[0.8125rem] text-[var(--color-ink)] hover:underline font-mono font-medium"
                 >
                   Edit reason
                 </button>
@@ -284,13 +284,13 @@ export const Inspector: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleSaveReason}
-                    className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono font-semibold hover:underline"
+                    className="text-[0.8125rem] text-emerald-700 dark:text-emerald-400 font-mono font-semibold hover:underline"
                   >
                     Save
                   </button>
                   <button
                     onClick={() => setIsEditingReason(false)}
-                    className="text-[11px] text-[var(--color-ink-muted)] font-mono hover:underline"
+                    className="text-[0.8125rem] text-[var(--color-ink-muted)] font-mono hover:underline"
                   >
                     Cancel
                   </button>
@@ -303,15 +303,15 @@ export const Inspector: React.FC = () => {
                 value={editedReason}
                 onChange={e => setEditedReason(e.target.value)}
                 rows={3}
-                className="w-full p-3 font-serif text-[15px] bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-slate-400"
+                className="w-full p-3 font-serif text-[1.0938rem] bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-slate-400"
                 placeholder="Why does the child support the parent? (Required)"
               />
             ) : currentLink.userReason ? (
               <blockquote className="p-4 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-lg">
-                <p className="font-serif text-[16px] text-[var(--color-ink)] leading-relaxed italic">
+                <p className="font-serif text-[1.1875rem] text-[var(--color-ink)] leading-relaxed italic">
                   "{currentLink.userReason}"
                 </p>
-                <span className="block mt-2 font-mono text-[10px] text-[var(--color-ink-muted)] font-medium">
+                <span className="block mt-2 font-mono text-[0.75rem] text-[var(--color-ink-muted)] font-medium">
                   Authored by: user • Required before link check
                 </span>
               </blockquote>
@@ -326,11 +326,11 @@ export const Inspector: React.FC = () => {
           {derivationValidity && (
             <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col gap-1.5 text-xs shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase font-semibold text-slate-500">
+                <span className="font-mono text-[0.75rem] uppercase font-semibold text-slate-500">
                   3. Derivation Validity (Independent of link)
                 </span>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase font-semibold ${
+                  className={`px-2.5 py-0.5 rounded-full text-[0.75rem] font-mono uppercase font-semibold ${
                     derivationValidity === 'valid'
                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200'
                       : derivationValidity === 'invalid'
@@ -342,7 +342,7 @@ export const Inspector: React.FC = () => {
                 </span>
               </div>
               {derivationReason && (
-                <p className="text-[12px] text-slate-700 dark:text-slate-300 font-sans mt-0.5">
+                <p className="text-[0.875rem] text-slate-700 dark:text-slate-300 font-sans mt-0.5">
                   {derivationReason}
                 </p>
               )}
@@ -354,18 +354,18 @@ export const Inspector: React.FC = () => {
         <div className="lg:col-span-5 flex flex-col gap-5 border-t lg:border-t-0 lg:border-l lg:pl-6 border-[var(--color-rule)]">
           {/* 4. Model Finding in Mono with Model ID */}
           <div className="flex flex-col gap-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-semibold">
+            <span className="text-[0.8125rem] font-mono uppercase tracking-wider text-slate-500 font-semibold">
               4. Model Finding
             </span>
 
             {currentLink.check ? (
               <div className="model-hatched p-3.5 bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl shadow-xs">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50">
+                  <span className="font-mono text-[0.75rem] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50">
                     {currentLink.check.modelId}
                   </span>
                   <span
-                    className={`font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                    className={`font-mono text-[0.75rem] uppercase font-bold px-2 py-0.5 rounded-full ${
                       currentLink.check.tagColor === 'emerald'
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                         : currentLink.check.tagColor === 'amber'
@@ -376,7 +376,7 @@ export const Inspector: React.FC = () => {
                     [{currentLink.check.tag}]
                   </span>
                 </div>
-                <p className="font-mono text-[12px] text-slate-800 dark:text-slate-200 leading-relaxed">
+                <p className="font-mono text-[0.875rem] text-slate-800 dark:text-slate-200 leading-relaxed">
                   {currentLink.check.note}
                 </p>
               </div>
@@ -402,14 +402,14 @@ export const Inspector: React.FC = () => {
 
           {/* 5. Type / Scope / Target Verdicts */}
           <div className="flex flex-col gap-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-semibold">
+            <span className="text-[0.8125rem] font-mono uppercase tracking-wider text-slate-500 font-semibold">
               5. Three-Axis Verdicts
             </span>
 
             {currentLink.check?.items ? (
               <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[10px] font-mono uppercase text-slate-500">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[0.75rem] font-mono uppercase text-slate-500">
                     <tr>
                       <th className="px-3 py-2 font-semibold">Dimension</th>
                       <th className="px-3 py-2 font-semibold">Verdict</th>
@@ -419,13 +419,13 @@ export const Inspector: React.FC = () => {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {currentLink.check.items.map(item => (
                       <tr key={item.label} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <td className="px-3 py-2.5 font-mono font-semibold text-[11px]">
+                        <td className="px-3 py-2.5 font-mono font-semibold text-[0.8125rem]">
                           {item.label}
                         </td>
                         <td className="px-3 py-2.5">
                           {getStatusBadge(item.status)}
                         </td>
-                        <td className="px-3 py-2.5 text-[11px] text-slate-600 dark:text-slate-400">
+                        <td className="px-3 py-2.5 text-[0.8125rem] text-slate-600 dark:text-slate-400">
                           {item.detail}
                         </td>
                       </tr>
@@ -442,7 +442,7 @@ export const Inspector: React.FC = () => {
 
           {/* 6. Actions: Weaken claim, Add experiment, Reject */}
           <div className="flex flex-col gap-2 pt-2 border-t border-[var(--color-rule)]">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-semibold">
+            <span className="text-[0.8125rem] font-mono uppercase tracking-wider text-slate-500 font-semibold">
               6. Structural Actions
             </span>
 
@@ -562,7 +562,7 @@ export const Inspector: React.FC = () => {
                 <FlaskConical className="w-4 h-4 text-indigo-600" />
                 Pre-Run Contract (Gate 7)
               </h3>
-              <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50 font-semibold">
+              <span className="text-[0.75rem] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50 font-semibold">
                 MANDATORY BEFORE RUN
               </span>
             </div>
@@ -571,7 +571,7 @@ export const Inspector: React.FC = () => {
             </p>
 
             <div className="flex flex-col gap-2.5 text-xs">
-              <label className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-300">Experiment Title:</label>
+              <label className="font-mono text-[0.8125rem] font-medium text-slate-700 dark:text-slate-300">Experiment Title:</label>
               <input
                 type="text"
                 value={newExpTitle}
@@ -580,7 +580,7 @@ export const Inspector: React.FC = () => {
                 className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
               />
 
-              <label className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-300">Target Metric:</label>
+              <label className="font-mono text-[0.8125rem] font-medium text-slate-700 dark:text-slate-300">Target Metric:</label>
               <input
                 type="text"
                 value={newExpTarget}
@@ -589,7 +589,7 @@ export const Inspector: React.FC = () => {
                 className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
               />
 
-              <label className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-300">Baseline / Comparison:</label>
+              <label className="font-mono text-[0.8125rem] font-medium text-slate-700 dark:text-slate-300">Baseline / Comparison:</label>
               <input
                 type="text"
                 value={newExpBaseline}
@@ -598,7 +598,7 @@ export const Inspector: React.FC = () => {
                 className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
               />
 
-              <label className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-300">Prediction / Expected Threshold:</label>
+              <label className="font-mono text-[0.8125rem] font-medium text-slate-700 dark:text-slate-300">Prediction / Expected Threshold:</label>
               <input
                 type="text"
                 value={newExpPrediction}
@@ -607,7 +607,7 @@ export const Inspector: React.FC = () => {
                 className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl"
               />
 
-              <label className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-300">Condition that weakens claim:</label>
+              <label className="font-mono text-[0.8125rem] font-medium text-slate-700 dark:text-slate-300">Condition that weakens claim:</label>
               <input
                 type="text"
                 value={newExpFailure}

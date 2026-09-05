@@ -99,7 +99,7 @@ export const SurveySurface: React.FC = () => {
               <Compass className="w-4 h-4 text-amber-600" />
               Survey Field
             </h1>
-            <span className="font-mono text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 border border-amber-200/60 dark:border-amber-800/60 rounded-full font-semibold">
+            <span className="font-mono text-[0.75rem] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 border border-amber-200/60 dark:border-amber-800/60 rounded-full font-semibold">
               Pre-Question Exploration
             </span>
           </div>
@@ -111,7 +111,7 @@ export const SurveySurface: React.FC = () => {
         {/* Gate 2: 15-Note Counter Meter */}
         <div className="flex items-center gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-4 py-2 rounded-full shadow-xs">
           <div className="flex flex-col">
-            <span className="font-mono text-[10px] uppercase text-slate-400 font-medium">
+            <span className="font-mono text-[0.75rem] uppercase text-slate-400 font-medium">
               Unclustered Notes
             </span>
             <span className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
@@ -133,7 +133,7 @@ export const SurveySurface: React.FC = () => {
           </div>
 
           <div className="flex flex-col border-l border-slate-200 dark:border-slate-700 pl-3">
-            <span className="font-mono text-[10px] uppercase text-slate-400 font-medium">
+            <span className="font-mono text-[0.75rem] uppercase text-slate-400 font-medium">
               Candidates
             </span>
             <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
@@ -166,7 +166,7 @@ export const SurveySurface: React.FC = () => {
         onSubmit={handleAddNote}
         className="p-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col gap-3 shadow-xs"
       >
-        <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
+        <span className="font-mono text-[0.8125rem] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
           <Plus className="w-3.5 h-3.5 text-amber-600" />
           Record Open-Problem Note (Single assertion: "What is still open here?")
         </span>
@@ -216,7 +216,7 @@ export const SurveySurface: React.FC = () => {
               <Layers className="w-4 h-4 text-amber-600" />
               Candidate Question Clusters ({clusters.length})
             </span>
-            <span className="text-[11px] font-mono text-slate-400">
+            <span className="text-[0.8125rem] font-mono text-slate-400">
               Visible group boundaries around accepted note material
             </span>
           </div>
@@ -231,17 +231,17 @@ export const SurveySurface: React.FC = () => {
                 {/* Cluster Boundary Header */}
                 <div className="flex items-start justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                   <div className="flex-1">
-                    <span className="font-mono text-[10px] uppercase text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50 tracking-wider">
+                    <span className="font-mono text-[0.75rem] uppercase text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50 tracking-wider">
                       Candidate Question [CQ]
                     </span>
-                    <h3 className="font-serif text-[18px] font-bold text-slate-900 dark:text-slate-100 mt-2 leading-snug">
+                    <h3 className="font-serif text-[1.3125rem] font-bold text-slate-900 dark:text-slate-100 mt-2 leading-snug">
                       {candidate.title}
                     </h3>
                   </div>
 
                   {/* Promote Action Button */}
                   {candidate.promotedQuestionId ? (
-                    <span className="font-mono text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 uppercase font-bold">
+                    <span className="font-mono text-[0.8125rem] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 uppercase font-bold">
                       Promoted to {candidate.promotedQuestionId}
                     </span>
                   ) : (
@@ -258,7 +258,7 @@ export const SurveySurface: React.FC = () => {
 
                 {/* Material Notes Inside Cluster */}
                 <div className="flex flex-col gap-2.5">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+                  <span className="font-mono text-[0.75rem] uppercase tracking-wider text-slate-500 font-semibold">
                     Constituent Open-Problem Notes ({memberNotes.length}):
                   </span>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -267,10 +267,10 @@ export const SurveySurface: React.FC = () => {
                         key={note.id}
                         className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 rounded-xl flex flex-col justify-between gap-2.5"
                       >
-                        <p className="font-sans text-[13px] text-slate-800 dark:text-slate-200 leading-snug">
+                        <p className="font-sans text-[0.9688rem] text-slate-800 dark:text-slate-200 leading-snug">
                           {note.text}
                         </p>
-                        <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 border-t border-slate-200/50 dark:border-slate-700/50 pt-1.5">
+                        <div className="flex items-center justify-between text-[0.75rem] font-mono text-slate-400 border-t border-slate-200/50 dark:border-slate-700/50 pt-1.5">
                           <span className="truncate">{note.citation}</span>
                           <span>{note.id}</span>
                         </div>
@@ -290,7 +290,7 @@ export const SurveySurface: React.FC = () => {
               <FileText className="w-4 h-4 text-amber-600" />
               Loose Open Problems ({looseNotes.length})
             </span>
-            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+            <span className="text-[0.75rem] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
               Unclustered
             </span>
           </div>
@@ -307,10 +307,10 @@ export const SurveySurface: React.FC = () => {
                   id={`loose-note-${note.id}`}
                   className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex flex-col gap-2.5 shadow-2xs hover:border-amber-300 dark:hover:border-amber-700 transition-all"
                 >
-                  <p className="font-sans text-[13px] text-slate-800 dark:text-slate-200 leading-relaxed">
+                  <p className="font-sans text-[0.9688rem] text-slate-800 dark:text-slate-200 leading-relaxed">
                     {note.text}
                   </p>
-                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-2">
+                  <div className="flex items-center justify-between text-[0.75rem] font-mono text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-2">
                     <span className="truncate font-medium">{note.citation}</span>
                     <span>{note.id}</span>
                   </div>
@@ -326,10 +326,10 @@ export const SurveySurface: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50">
+              <span className="font-mono text-[0.75rem] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50">
                 Gate 3 Question Promotion Contract
               </span>
-              <h3 className="font-serif text-[18px] font-bold text-slate-900 dark:text-slate-100 mt-2">
+              <h3 className="font-serif text-[1.3125rem] font-bold text-slate-900 dark:text-slate-100 mt-2">
                 {selectedCandidate.title}
               </h3>
             </div>
@@ -340,7 +340,7 @@ export const SurveySurface: React.FC = () => {
 
             {/* Mandatory User Claim Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-[11px] uppercase text-slate-900 dark:text-slate-100 font-bold">
+              <label className="font-mono text-[0.8125rem] uppercase text-slate-900 dark:text-slate-100 font-bold">
                 1. Your Initial Claim (Answers this question):
               </label>
               <textarea
@@ -348,7 +348,7 @@ export const SurveySurface: React.FC = () => {
                 value={claimText}
                 onChange={e => setClaimText(e.target.value)}
                 placeholder="e.g. Runtime memory contention accounts for over 65% of latency variance on sub-milliwatt devices."
-                className="w-full p-3 font-serif text-[14px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full p-3 font-serif text-[1.0312rem] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
 
@@ -366,7 +366,7 @@ export const SurveySurface: React.FC = () => {
                 <span className="font-sans font-medium text-slate-900 dark:text-slate-100">
                   I confirm this claim could be false.
                 </span>
-                <span className="text-[11px] text-slate-500 mt-0.5">
+                <span className="text-[0.8125rem] text-slate-500 mt-0.5">
                   An empirical or formal observation exists that would refute this assertion.
                 </span>
               </div>
@@ -386,7 +386,7 @@ export const SurveySurface: React.FC = () => {
                 <span className="font-sans font-medium text-slate-900 dark:text-slate-100">
                   I confirm this claim could be settled within a year.
                 </span>
-                <span className="text-[11px] text-slate-500 mt-0.5">
+                <span className="text-[0.8125rem] text-slate-500 mt-0.5">
                   The methodology and resources exist to empirically test this relationship.
                 </span>
               </div>

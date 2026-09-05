@@ -47,7 +47,6 @@ interface WorkspaceContextValue {
   activeSurface: SurfaceId;
   setActiveSurface: (surface: SurfaceId) => void;
   theme: 'light' | 'dark';
-  toggleTheme: () => void;
   fontSize: number;
   setFontSize: (size: number) => void;
   
@@ -143,7 +142,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
   const [activeSurface, setActiveSurface] = useState<SurfaceId>('tasks');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  );
   const [fontSize, setFontSizeState] = useState<number>(() => {
     const stored = localStorage.getItem('thinking_os_font_size_px');
     if (stored) {
@@ -278,8 +279,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const openTaskEditor = useCallback((taskId?: string, defaultStatus: TaskStatus = 'todo') => {
     setTaskEditor({ taskId: taskId ?? null, defaultStatus });
     setTaskDraft(null);
-    setRightPanelView('assistant');
-    setIsDockOpen(true);
   }, []);
 
   const closeTaskEditor = useCallback(() => {
@@ -289,7 +288,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const applyAiDraftToEditor = useCallback((prompt?: string) => {
     const currentTask = taskEditor?.taskId ? tasks.find(t => t.id === taskEditor.taskId) : null;
-    const draft = generateAiTaskDraft(prompt || 'Gợi ý tiêu chí và kế hoạch thực hiện', currentTask, taskEditor?.defaultStatus || 'todo');
+    const draft = generateAiTaskDraft(prompt || 'Suggest acceptance criteria and an implementation plan', currentTask, taskEditor?.defaultStatus || 'todo');
     setTaskDraft(draft);
     if (!taskEditor) {
       setTaskEditor({ taskId: null, defaultStatus: draft.status });
@@ -318,17 +317,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Isolated transcript threads per context ID
   const [threads, setThreads] = useState<Record<string, AssistantMessage[]>>({});
 
-  // Toggle Theme
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => {
-      const next = prev === 'light' ? 'dark' : 'light';
-      if (next === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      return next;
-    });
+  // Theme follows the OS colour scheme
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = (isDark: boolean) => {
+      setTheme(isDark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', isDark);
+    };
+    apply(query.matches);
+    const onChange = (event: MediaQueryListEvent) => apply(event.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
   }, []);
 
   const toggleDock = useCallback(() => {
@@ -605,20 +604,20 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         done: 'Done'
       };
 
-      replyContent = `🤖 **Đã tạo task mới trực tiếp vào ${statusMap[newTask.status] || newTask.status}:**\n\n` +
-        `• **Tiêu đề:** ${newTask.title}\n` +
-        `• **Cột:** ${statusMap[newTask.status] || newTask.status}\n` +
-        `• **Độ ưu tiên:** ${newTask.priority.toUpperCase()}\n` +
+      replyContent = `🤖 **Created a new task directly in ${statusMap[newTask.status] || newTask.status}:**\n\n` +
+        `• **Title:** ${newTask.title}\n` +
+        `• **Column:** ${statusMap[newTask.status] || newTask.status}\n` +
+        `• **Priority:** ${newTask.priority.toUpperCase()}\n` +
         `• **Tag:** #${newTask.tag}\n` +
         `• **ID:** \`${newTask.id}\`\n\n` +
-        `🏷️ *Cờ tác giả: \`author: model\` · \`lastEditedBy: model\` (AI tạo ra)*\n\n` +
-        `Card đã xuất hiện trên bảng Kanban Tasks. Bạn có thể mở chỉnh sửa hoặc kéo thả giữa các cột.`;
+        `🏷️ *Author flags: \`author: model\` · \`lastEditedBy: model\` (AI-generated)*\n\n` +
+        `The card now appears on the Kanban board. You can edit it or drag it between columns.`;
 
       structuredAction = {
         type: `create_task:${newTask.id}`,
         status: 'holds'
       };
-    } else if (isDraftRequest || (taskEditor && (lower.includes('viết') || lower.includes('mô tả') || lower.includes('gợi ý') || lower.includes('draft') || lower.includes('điền')))) {
+    } else if (isDraftRequest || (taskEditor && (lower.includes('write') || lower.includes('description') || lower.includes('suggest') || lower.includes('draft') || lower.includes('fill')))) {
       // Case 2: AI drafts/fills into editor
       const currentTask = taskEditor?.taskId ? tasks.find(t => t.id === taskEditor.taskId) : null;
       const draft = generateAiTaskDraft(userText, currentTask, taskEditor?.defaultStatus || 'todo');
@@ -628,12 +627,12 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       setIsDockOpen(true);
 
-      replyContent = `✨ **Tôi đã điền nội dung gợi ý vào Task Editor:**\n\n` +
-        `• **Tiêu đề:** ${draft.title}\n` +
-        `• **Cột:** ${draft.status}\n` +
-        `• **Độ ưu tiên:** ${draft.priority.toUpperCase()}\n` +
+      replyContent = `✨ **Drafted content in the Task Editor:**\n\n` +
+        `• **Title:** ${draft.title}\n` +
+        `• **Column:** ${draft.status}\n` +
+        `• **Priority:** ${draft.priority.toUpperCase()}\n` +
         `• **Tag:** #${draft.tag}\n\n` +
-        `👉 *Nội dung chi tiết đã được điền tự động vào form editor phía trên và gắn cờ \`AI Drafted\`. Bạn hãy kiểm tra lại và bấm nút **"Lưu (Save)"** để lưu thay đổi.*`;
+        `👉 *The editor above was filled automatically and marked \`AI Drafted\`. Review it, then click **"Save"** to keep the changes.*`;
 
       structuredAction = {
         type: 'draft_task',
@@ -734,7 +733,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activeSurface,
         setActiveSurface,
         theme,
-        toggleTheme,
         fontSize,
         setFontSize,
         activeTag,

@@ -133,7 +133,7 @@ export const PapersSurface: React.FC = () => {
             >
               <FileText className="w-3.5 h-3.5" />
               <span className="truncate max-w-[180px]">{p.title}</span>
-              <span className="text-[10px] text-teal-600/70 dark:text-teal-400/70">
+              <span className="text-[0.75rem] text-teal-600/70 dark:text-teal-400/70">
                 ({p.year})
               </span>
             </button>
@@ -146,22 +146,22 @@ export const PapersSurface: React.FC = () => {
         {/* Left Rail: Section TOC & Linked Passages */}
         <aside className="w-72 border-r border-[var(--color-rule)] bg-[var(--color-surface)] p-5 flex flex-col gap-5 shrink-0 overflow-y-auto hidden md:flex">
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col gap-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50 w-fit">
+            <span className="font-mono text-[0.75rem] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50 w-fit">
               Document Metadata
             </span>
-            <h3 className="font-serif text-[15px] font-bold text-slate-900 dark:text-slate-100 leading-snug mt-1">
+            <h3 className="font-serif text-[1.0938rem] font-bold text-slate-900 dark:text-slate-100 leading-snug mt-1">
               {activePaper.title}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               {activePaper.authors}
             </p>
-            <p className="font-mono text-[11px] text-slate-400 mt-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <p className="font-mono text-[0.8125rem] text-slate-400 mt-1 pt-1 border-t border-slate-100 dark:border-slate-800">
               {activePaper.citation} • {activePaper.pageCount} pp
             </p>
           </div>
 
           <div className="flex flex-col gap-2.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
+            <span className="font-mono text-[0.75rem] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
               <LinkIcon className="w-3 h-3 text-teal-600" />
               Linked Passages in Graph
             </span>
@@ -174,10 +174,10 @@ export const PapersSurface: React.FC = () => {
                     key={sec.id}
                     className="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex flex-col gap-1.5 shadow-2xs"
                   >
-                    <span className="font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200">
+                    <span className="font-mono text-[0.8125rem] font-semibold text-slate-800 dark:text-slate-200">
                       {sec.title}
                     </span>
-                    <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/50 flex items-center gap-1 w-fit font-medium">
+                    <span className="font-mono text-[0.75rem] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/50 flex items-center gap-1 w-fit font-medium">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       Linked to Claim #{linked[0].linkedClaimId}
                     </span>
@@ -196,7 +196,7 @@ export const PapersSurface: React.FC = () => {
         >
           <div className="max-w-[72ch] w-full flex flex-col gap-6">
             <header className="border-b border-slate-200 dark:border-slate-800 pb-5">
-              <h1 className="font-serif text-[28px] font-bold text-slate-900 dark:text-slate-100 leading-tight">
+              <h1 className="font-serif text-[2.0625rem] font-bold text-slate-900 dark:text-slate-100 leading-tight">
                 {activePaper.title}
               </h1>
               <div className="flex items-center justify-between text-xs text-slate-500 mt-3">
@@ -208,13 +208,13 @@ export const PapersSurface: React.FC = () => {
             </header>
 
             {/* Render paper markdown / formatted text */}
-            <div className="font-serif text-[16px] text-slate-800 dark:text-slate-200 leading-relaxed space-y-5 select-text">
+            <div className="font-serif text-[1.1875rem] text-slate-800 dark:text-slate-200 leading-relaxed space-y-5 select-text">
               {activePaper.markdown.split('\n\n').map((block, idx) => {
                 if (block.startsWith('### ')) {
                   return (
                     <h3
                       key={idx}
-                      className="font-sans font-bold text-[18px] text-slate-900 dark:text-slate-100 pt-5 border-t border-slate-200/60 dark:border-slate-800"
+                      className="font-sans font-bold text-[1.3125rem] text-slate-900 dark:text-slate-100 pt-5 border-t border-slate-200/60 dark:border-slate-800"
                     >
                       {block.replace('### ', '')}
                     </h3>
@@ -288,10 +288,10 @@ export const PapersSurface: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50">
+              <span className="font-mono text-[0.75rem] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50">
                 Gate 5 Evidence Capture
               </span>
-              <h3 className="font-serif text-[18px] font-bold text-slate-900 dark:text-slate-100 mt-2">
+              <h3 className="font-serif text-[1.3125rem] font-bold text-slate-900 dark:text-slate-100 mt-2">
                 Attach Finding to Argument Tree
               </h3>
             </div>
@@ -299,26 +299,26 @@ export const PapersSurface: React.FC = () => {
             <div className="flex flex-col gap-3.5 text-xs">
               {/* Finding summary */}
               <div className="flex flex-col gap-1">
-                <label className="font-mono text-[11px] text-slate-700 dark:text-slate-300 uppercase font-semibold">
+                <label className="font-mono text-[0.8125rem] text-slate-700 dark:text-slate-300 uppercase font-semibold">
                   Finding Statement (Extracted finding, NOT the paper itself):
                 </label>
                 <input
                   type="text"
                   value={findingTitle}
                   onChange={e => setFindingTitle(e.target.value)}
-                  className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[14px]"
+                  className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[1.0312rem]"
                 />
               </div>
 
               {/* Target Claim */}
               <div className="flex flex-col gap-1">
-                <label className="font-mono text-[11px] text-slate-700 dark:text-slate-300 uppercase font-semibold">
+                <label className="font-mono text-[0.8125rem] text-slate-700 dark:text-slate-300 uppercase font-semibold">
                   Target Claim to Support:
                 </label>
                 <select
                   value={selectedClaimId}
                   onChange={e => setSelectedClaimId(e.target.value)}
-                  className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[13px]"
+                  className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[0.9688rem]"
                 >
                   {claims.map(c => (
                     <option key={c.id} value={c.id}>
@@ -330,7 +330,7 @@ export const PapersSurface: React.FC = () => {
 
               {/* Form Vocabulary */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[11px] text-slate-700 dark:text-slate-300 uppercase font-semibold">
+                <label className="font-mono text-[0.8125rem] text-slate-700 dark:text-slate-300 uppercase font-semibold">
                   Evidence Form:
                 </label>
                 <div className="flex items-center gap-2">
@@ -354,10 +354,10 @@ export const PapersSurface: React.FC = () => {
               {/* Mandatory User Reason */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="font-mono text-[11px] text-slate-900 dark:text-slate-100 uppercase font-bold">
+                  <label className="font-mono text-[0.8125rem] text-slate-900 dark:text-slate-100 uppercase font-bold">
                     Your Reason (REQUIRED by Gate 5):
                   </label>
-                  <span className="font-mono text-[10px] text-rose-500 font-semibold">
+                  <span className="font-mono text-[0.75rem] text-rose-500 font-semibold">
                     * Never written by model
                   </span>
                 </div>
@@ -366,7 +366,7 @@ export const PapersSurface: React.FC = () => {
                   value={userReason}
                   onChange={e => setUserReason(e.target.value)}
                   placeholder="Why does this passage support the chosen claim?"
-                  className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[14px]"
+                  className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[1.0312rem]"
                 />
               </div>
 

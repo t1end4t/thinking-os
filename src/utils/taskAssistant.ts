@@ -33,9 +33,7 @@ export function parseTaskCreateIntent(rawText: string): ParsedTaskIntent | null 
     'create card',
     'add card',
     'make task',
-    'insert task',
-    'tạo task',
-    'thêm task'
+    'insert task'
   ];
 
   const matchedKeyword = createKeywords.find(kw => lower.includes(kw));
@@ -86,7 +84,7 @@ export function parseTaskCreateIntent(rawText: string): ParsedTaskIntent | null 
 
   // Strip leading colons, hyphens, or prepositions
   remainder = remainder.replace(/^[:\-–—\s]+/, '');
-  remainder = remainder.replace(/^(in|to|for|about|into|on|vào|ở|cho|mới)\s+/i, '');
+  remainder = remainder.replace(/^(in|to|for|about|into|on)\s+/i, '');
 
   // Strip trailing "in backlog", "to todo", "priority high", etc.
   let cleanedTitle = remainder
@@ -135,9 +133,7 @@ export function isTaskDraftIntent(rawText: string): boolean {
     'draft description',
     'suggest checklist',
     'acceptance criteria',
-    'enrich task',
-    'điền text',
-    'gợi ý'
+    'enrich task'
   ];
   return draftKeywords.some(kw => lower.includes(kw));
 }

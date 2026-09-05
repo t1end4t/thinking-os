@@ -184,7 +184,7 @@ export const Rail: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-col items-center pb-2 text-[9px] font-mono text-[var(--color-ink-muted)] opacity-60 pointer-events-none">
+      <div className="flex flex-col items-center pb-2 text-[0.7188rem] font-mono text-[var(--color-ink-muted)] opacity-60 pointer-events-none">
         v0.1
       </div>
     </aside>
