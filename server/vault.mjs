@@ -133,6 +133,16 @@ export async function writeVault(root, snapshot) {
   if (Array.isArray(snapshot.links)) await syncLinks(root, snapshot.links);
 }
 
+export async function listDirs(root) {
+  const entries = existsSync(root)
+    ? (await readdir(root, { withFileTypes: true }))
+        .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map(entry => entry.name)
+        .sort()
+    : [];
+  return { dir: root, parent: path.dirname(root), home: homedir(), exists: existsSync(root), entries };
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -161,6 +171,21 @@ function isLocal(req) {
 }
 
 function attach(server) {
+  server.middlewares.use('/api/dirs', async (req, res) => {
+    const send = (code, payload) => {
+      res.statusCode = code;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify(payload));
+    };
+    if (!isLocal(req)) return send(403, { error: 'Vault access is local-only.' });
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    try {
+      return send(200, await listDirs(resolveVaultDir(url.searchParams.get('dir'))));
+    } catch (error) {
+      return send(500, { error: String(error?.message ?? error) });
+    }
+  });
+
   server.middlewares.use('/api/vault', async (req, res) => {
     const send = (code, payload) => {
       res.statusCode = code;

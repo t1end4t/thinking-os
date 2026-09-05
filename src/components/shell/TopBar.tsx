@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Search,
   PanelRight,
@@ -6,9 +6,14 @@ import {
   Settings,
   Type,
   X,
-  Sparkles
+  Sparkles,
+  Folder,
+  FolderOpen,
+  Home,
+  ChevronLeft
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { listWorkspaceDirs, WorkspaceDirListing } from '../../vaultClient';
 
 const FONT_SIZE_PRESETS = [12, 14, 16, 18, 20];
 
@@ -30,13 +35,22 @@ export const TopBar: React.FC = () => {
     loadSampleData
   } = useWorkspace();
 
-  const [dirDraft, setDirDraft] = useState(workspaceDir);
-  const [editingDir, setEditingDir] = useState(false);
+  const [folderPicker, setFolderPicker] = useState<WorkspaceDirListing | null>(null);
+  const [folderPickerLoading, setFolderPickerLoading] = useState(false);
+  const [folderPickerError, setFolderPickerError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => {
-    setDirDraft(workspaceDir);
-  }, [workspaceDir]);
+  const browseFolder = async (dir: string) => {
+    setFolderPickerLoading(true);
+    setFolderPickerError(null);
+    try {
+      setFolderPicker(await listWorkspaceDirs(dir));
+    } catch (error) {
+      setFolderPickerError(String(error instanceof Error ? error.message : error));
+    } finally {
+      setFolderPickerLoading(false);
+    }
+  };
 
   return (
     <header
@@ -60,42 +74,71 @@ export const TopBar: React.FC = () => {
         <div className="topbar-workspace-divider h-4 w-[1px] bg-[var(--color-rule)]" />
 
         <div className="topbar-workspace flex items-center gap-1.5 font-mono text-[0.8125rem] min-w-0">
-          {editingDir ? (
-            <form
-              onSubmit={event => {
-                event.preventDefault();
-                setEditingDir(false);
-                void setWorkspaceDir(dirDraft);
-              }}
-            >
-              <input
-                id="workspace-dir-input"
-                autoFocus
-                value={dirDraft}
-                onChange={event => setDirDraft(event.target.value)}
-                onBlur={() => setEditingDir(false)}
-                placeholder="~/second-brain"
-                spellCheck={false}
-                className="w-72 px-2.5 py-0.5 rounded-full bg-[var(--color-paper)] border border-indigo-400 text-[var(--color-ink)] focus:outline-none"
-              />
-            </form>
-          ) : (
-            <button
-              id="workspace-dir-btn"
-              onClick={() => setEditingDir(true)}
-              title={workspaceError ?? `Workspace folder: ${workspaceDir} (click to change)`}
-              className="max-w-80 truncate px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-[var(--color-rule)] text-[var(--color-ink)] flex items-center gap-1.5 hover:border-slate-400/60"
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  workspaceError ? 'bg-rose-500' : workspaceLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
-                }`}
-              />
-              {workspaceDir}
-            </button>
-          )}
+          <button
+            id="workspace-dir-btn"
+            onClick={() => void browseFolder(workspaceDir)}
+            title={workspaceError ?? `Workspace folder: ${workspaceDir} (click to choose)`}
+            className="max-w-80 truncate px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-[var(--color-rule)] text-[var(--color-ink)] flex items-center gap-1.5 hover:border-slate-400/60"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                workspaceError ? 'bg-rose-500' : workspaceLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+              }`}
+            />
+            {workspaceDir}
+          </button>
         </div>
       </div>
+
+      {folderPicker && (
+        <div
+          className="kanban-modal-backdrop"
+          onMouseDown={event => {
+            if (event.target === event.currentTarget) setFolderPicker(null);
+          }}
+        >
+          <div className="kanban-modal-panel" role="dialog" aria-modal="true" aria-labelledby="folder-picker-title">
+            <div className="kanban-modal-header">
+              <h2 id="folder-picker-title" className="kanban-modal-heading flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-indigo-500" />
+                Choose workspace folder
+              </h2>
+              <button type="button" onClick={() => setFolderPicker(null)} aria-label="Close folder picker" className="p-1 rounded text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <button type="button" onClick={() => void browseFolder(folderPicker.parent)} title="Parent folder" className="p-1.5 rounded border border-[var(--color-rule)] hover:bg-[var(--color-paper)]">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => void browseFolder(folderPicker.home)} title="Home folder" className="p-1.5 rounded border border-[var(--color-rule)] hover:bg-[var(--color-paper)]">
+                  <Home className="w-4 h-4" />
+                </button>
+                <div className="min-w-0 flex-1 truncate rounded border border-[var(--color-rule)] bg-[var(--color-surface)] px-3 py-1.5 font-mono text-xs" title={folderPicker.dir}>
+                  {folderPicker.dir}
+                </div>
+              </div>
+              <div className="h-72 overflow-y-auto rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-1">
+                {folderPicker.entries.map(name => (
+                  <button key={name} type="button" onClick={() => void browseFolder(`${folderPicker.dir}/${name}`)} className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/50">
+                    <Folder className="w-4 h-4 shrink-0 text-indigo-500" />
+                    <span className="truncate">{name}</span>
+                  </button>
+                ))}
+                {!folderPickerLoading && folderPicker.entries.length === 0 && (
+                  <div className="p-4 text-center text-sm text-[var(--color-ink-muted)]">No subfolders</div>
+                )}
+              </div>
+              {folderPickerError && <p className="mt-2 text-xs text-rose-600">{folderPickerError}</p>}
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" onClick={() => setFolderPicker(null)} className="rounded border border-[var(--color-rule)] px-3 py-1.5 text-sm hover:bg-[var(--color-paper)]">Cancel</button>
+                <button type="button" disabled={folderPickerLoading || !folderPicker.exists} onClick={() => { void setWorkspaceDir(folderPicker.dir); setFolderPicker(null); }} className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">Choose this folder</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Center: Filters and Search */}
       <div className="topbar-center flex items-center gap-3">

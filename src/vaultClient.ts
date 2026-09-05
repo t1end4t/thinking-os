@@ -30,6 +30,21 @@ async function call(dir: string, init?: RequestInit) {
   return payload;
 }
 
+export interface WorkspaceDirListing {
+  dir: string;
+  parent: string;
+  home: string;
+  exists: boolean;
+  entries: string[];
+}
+
+export async function listWorkspaceDirs(dir: string): Promise<WorkspaceDirListing> {
+  const response = await fetch(`/api/dirs?dir=${encodeURIComponent(dir)}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error ?? `Folder request failed (${response.status})`);
+  return payload;
+}
+
 export async function loadVault(dir: string): Promise<{ dir: string; data: VaultSnapshot }> {
   try {
     const payload = await call(dir);

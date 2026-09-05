@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { readVault, writeVault, resolveVaultDir, DEFAULT_VAULT } from './vault.mjs';
+import { readVault, writeVault, resolveVaultDir, DEFAULT_VAULT, listDirs } from './vault.mjs';
 
 const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-vault-'));
 
@@ -36,5 +36,14 @@ assert.equal(legacy.userReason, 'r');
 
 assert.equal(resolveVaultDir('~/second-brain'), DEFAULT_VAULT);
 assert.equal(resolveVaultDir(''), DEFAULT_VAULT);
+
+await mkdir(path.join(root, 'visible-folder'));
+await mkdir(path.join(root, '.hidden-folder'));
+const listing = await listDirs(root);
+assert.ok(listing.entries.includes('visible-folder'));
+assert.ok(!listing.entries.includes('.hidden-folder'));
+assert.deepEqual(listing.entries, [...listing.entries].sort());
+assert.equal(listing.parent, path.dirname(root));
+assert.deepEqual((await listDirs(path.join(root, 'nope'))).entries, []);
 
 console.log('vault ok');

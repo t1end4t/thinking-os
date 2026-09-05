@@ -25,13 +25,9 @@ import {
 import { loadVault, saveVault } from '../vaultClient';
 import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import {
-  ManuscriptDocument,
-  ManuscriptMeta,
-  ManuscriptSection,
-  SynthesisArtifact,
-  CitationItem
-} from '../manuscriptTypes';
-import { INITIAL_MANUSCRIPT } from '../data/initialManuscript';
+  ManuscriptWorkspaceValue,
+  useManuscriptWorkspace
+} from './useManuscriptWorkspace';
 import {
   parseTaskCreateIntent,
   isTaskDraftIntent,
@@ -101,7 +97,7 @@ const INITIAL_THREADS: Record<string, AssistantMessage[]> = {
   ]
 };
 
-interface WorkspaceContextValue {
+interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   workspaceDir: string;
   workspaceLoading: boolean;
   workspaceError: string | null;
@@ -199,25 +195,6 @@ interface WorkspaceContextValue {
   clearThread: (contextId: string) => void;
   loadSampleData: () => Promise<void>;
 
-  // Manuscript & Synthesis Engine
-  manuscript: ManuscriptDocument;
-  setManuscript: React.Dispatch<React.SetStateAction<ManuscriptDocument>>;
-  updateManuscriptMeta: (metaUpdates: Partial<ManuscriptMeta>) => void;
-  updateManuscriptSection: (sectionId: string, updates: Partial<ManuscriptSection>) => void;
-  addManuscriptSection: (afterSectionId?: string) => string;
-  removeManuscriptSection: (sectionId: string) => void;
-  reorderManuscriptSections: (sections: ManuscriptSection[]) => void;
-  attachArtifactToSection: (sectionId: string, artifactId: string) => void;
-  detachArtifactFromSection: (sectionId: string, artifactId: string) => void;
-  attachClaimToSection: (sectionId: string, claimId: string) => void;
-  detachClaimFromSection: (sectionId: string, claimId: string) => void;
-  attachCitationToSection: (sectionId: string, citationKey: string) => void;
-  detachCitationFromSection: (sectionId: string, citationKey: string) => void;
-  addSynthesisArtifact: (artifact: Omit<SynthesisArtifact, 'id' | 'createdAt'>) => SynthesisArtifact;
-  removeSynthesisArtifact: (artifactId: string) => void;
-  addCitation: (citation: CitationItem) => void;
-  removeCitation: (key: string) => void;
-  resetManuscriptToSample: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
@@ -278,46 +255,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
   const [attachedContexts, setAttachedContexts] = useState<AssistantContextObject[]>([]);
 
-  // Manuscript Document State with LocalStorage Persistence
-  const [manuscript, setManuscript] = useState<ManuscriptDocument>(() => {
-    try {
-      const saved = localStorage.getItem('thinking_os_manuscript');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.meta && Array.isArray(parsed.sections)) {
-          // Sanitize any legacy Vietnamese strings from previous sessions
-          parsed.sections = parsed.sections.map((sec: any) => {
-            if (sec.narrativeGoal && typeof sec.narrativeGoal === 'string') {
-              if (sec.narrativeGoal.includes('Biện luận:')) {
-                const defaultSec = INITIAL_MANUSCRIPT.sections.find(s => s.id === sec.id);
-                if (defaultSec) {
-                  return { ...sec, narrativeGoal: defaultSec.narrativeGoal };
-                }
-                return {
-                  ...sec,
-                  narrativeGoal: sec.narrativeGoal.replace('Biện luận:', 'Argumentation:')
-                };
-              }
-            }
-            return sec;
-          });
-          return parsed;
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to parse saved manuscript, using initial data:', err);
-    }
-    return INITIAL_MANUSCRIPT;
-  });
-
-  // Auto-save manuscript changes to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('thinking_os_manuscript', JSON.stringify(manuscript));
-    } catch (err) {
-      console.warn('Failed to save manuscript to localStorage:', err);
-    }
-  }, [manuscript]);
+  const manuscriptWorkspace = useManuscriptWorkspace();
 
   const setWorkspaceDir = useCallback(async (dir: string) => {
     const requestedDir = dir.trim() || '~/second-brain';
@@ -333,7 +271,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         data.papers.length === 0 &&
         data.tasks.length === 0;
 
-      if (isCompletelyEmpty) {
+      // ponytail: auto-seed only on the first launch. Later empty folders stay
+      // empty; use the "Sample Data" button to seed one intentionally.
+      if (isCompletelyEmpty && !localStorage.getItem('thinking_os_workspace_dir')) {
         data = SAMPLE_SNAPSHOT;
         void saveVault(loaded.dir, SAMPLE_SNAPSHOT);
       }
@@ -898,198 +838,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   }, [links]);
 
-  // Manuscript Actions
-  const updateManuscriptMeta = useCallback((metaUpdates: Partial<ManuscriptMeta>) => {
-    setManuscript(prev => ({
-      ...prev,
-      meta: {
-        ...prev.meta,
-        ...metaUpdates,
-        lastEditedAt: Date.now()
-      }
-    }));
-  }, []);
-
-  const updateManuscriptSection = useCallback((sectionId: string, updates: Partial<ManuscriptSection>) => {
-    setManuscript(prev => ({
-      ...prev,
-      meta: { ...prev.meta, lastEditedAt: Date.now() },
-      sections: prev.sections.map(sec => sec.id === sectionId ? { ...sec, ...updates } : sec)
-    }));
-  }, []);
-
-  const addManuscriptSection = useCallback((afterSectionId?: string) => {
-    const newId = `sec-${Date.now()}`;
-    setManuscript(prev => {
-      const nextNumber = `${prev.sections.length + 1}`;
-      const newSection: ManuscriptSection = {
-        id: newId,
-        sectionNumber: nextNumber,
-        title: 'New Section',
-        narrativeGoal: 'Argumentation: Establish the dialectic objective and core hypothesis of this section.',
-        argumentRole: 'methodology_system',
-        content: '',
-        attachedClaimIds: [],
-        attachedCitationKeys: [],
-        attachedArtifactIds: [],
-        targetWordCount: 500,
-        isExpanded: true
-      };
-      if (!afterSectionId) {
-        return {
-          ...prev,
-          meta: { ...prev.meta, lastEditedAt: Date.now() },
-          sections: [...prev.sections, newSection]
-        };
-      }
-      const idx = prev.sections.findIndex(s => s.id === afterSectionId);
-      if (idx === -1) {
-        return {
-          ...prev,
-          meta: { ...prev.meta, lastEditedAt: Date.now() },
-          sections: [...prev.sections, newSection]
-        };
-      }
-      const nextSections = [...prev.sections];
-      nextSections.splice(idx + 1, 0, newSection);
-      return {
-        ...prev,
-        meta: { ...prev.meta, lastEditedAt: Date.now() },
-        sections: nextSections
-      };
-    });
-    return newId;
-  }, []);
-
-  const removeManuscriptSection = useCallback((sectionId: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      meta: { ...prev.meta, lastEditedAt: Date.now() },
-      sections: prev.sections.filter(s => s.id !== sectionId)
-    }));
-  }, []);
-
-  const reorderManuscriptSections = useCallback((sections: ManuscriptSection[]) => {
-    setManuscript(prev => ({
-      ...prev,
-      meta: { ...prev.meta, lastEditedAt: Date.now() },
-      sections
-    }));
-  }, []);
-
-  const attachArtifactToSection = useCallback((sectionId: string, artifactId: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => {
-        if (s.id !== sectionId) return s;
-        if (s.attachedArtifactIds.includes(artifactId)) return s;
-        return { ...s, attachedArtifactIds: [...s.attachedArtifactIds, artifactId] };
-      })
-    }));
-  }, []);
-
-  const detachArtifactFromSection = useCallback((sectionId: string, artifactId: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => {
-        if (s.id !== sectionId) return s;
-        return { ...s, attachedArtifactIds: s.attachedArtifactIds.filter(id => id !== artifactId) };
-      })
-    }));
-  }, []);
-
-  const attachClaimToSection = useCallback((sectionId: string, claimId: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => {
-        if (s.id !== sectionId) return s;
-        if (s.attachedClaimIds.includes(claimId)) return s;
-        return { ...s, attachedClaimIds: [...s.attachedClaimIds, claimId] };
-      })
-    }));
-  }, []);
-
-  const detachClaimFromSection = useCallback((sectionId: string, claimId: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => {
-        if (s.id !== sectionId) return s;
-        return { ...s, attachedClaimIds: s.attachedClaimIds.filter(id => id !== claimId) };
-      })
-    }));
-  }, []);
-
-  const attachCitationToSection = useCallback((sectionId: string, citationKey: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => {
-        if (s.id !== sectionId) return s;
-        if (s.attachedCitationKeys.includes(citationKey)) return s;
-        return { ...s, attachedCitationKeys: [...s.attachedCitationKeys, citationKey] };
-      })
-    }));
-  }, []);
-
-  const detachCitationFromSection = useCallback((sectionId: string, citationKey: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      sections: prev.sections.map(s => {
-        if (s.id !== sectionId) return s;
-        return { ...s, attachedCitationKeys: s.attachedCitationKeys.filter(k => k !== citationKey) };
-      })
-    }));
-  }, []);
-
-  const addSynthesisArtifact = useCallback((artifact: Omit<SynthesisArtifact, 'id' | 'createdAt'>) => {
-    const newArtifact: SynthesisArtifact = {
-      ...artifact,
-      id: `art-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      createdAt: Date.now()
-    };
-    setManuscript(prev => ({
-      ...prev,
-      artifacts: [newArtifact, ...prev.artifacts]
-    }));
-    return newArtifact;
-  }, []);
-
-  const removeSynthesisArtifact = useCallback((artifactId: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      artifacts: prev.artifacts.filter(a => a.id !== artifactId),
-      sections: prev.sections.map(s => ({
-        ...s,
-        attachedArtifactIds: s.attachedArtifactIds.filter(id => id !== artifactId)
-      }))
-    }));
-  }, []);
-
-  const addCitation = useCallback((citation: CitationItem) => {
-    setManuscript(prev => {
-      const exists = prev.citations.some(c => c.key === citation.key);
-      const citations = exists
-        ? prev.citations.map(c => c.key === citation.key ? citation : c)
-        : [...prev.citations, citation];
-      return { ...prev, citations };
-    });
-  }, []);
-
-  const removeCitation = useCallback((key: string) => {
-    setManuscript(prev => ({
-      ...prev,
-      citations: prev.citations.filter(c => c.key !== key),
-      sections: prev.sections.map(s => ({
-        ...s,
-        attachedCitationKeys: s.attachedCitationKeys.filter(k => k !== key)
-      }))
-    }));
-  }, []);
-
-  const resetManuscriptToSample = useCallback(() => {
-    setManuscript(INITIAL_MANUSCRIPT);
-    localStorage.setItem('thinking_os_manuscript', JSON.stringify(INITIAL_MANUSCRIPT));
-  }, []);
-
   return (
     <WorkspaceContext.Provider
       value={{
@@ -1164,24 +912,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         checkLinkWithAssistant,
         clearThread,
         loadSampleData,
-        manuscript,
-        setManuscript,
-        updateManuscriptMeta,
-        updateManuscriptSection,
-        addManuscriptSection,
-        removeManuscriptSection,
-        reorderManuscriptSections,
-        attachArtifactToSection,
-        detachArtifactFromSection,
-        attachClaimToSection,
-        detachClaimFromSection,
-        attachCitationToSection,
-        detachCitationFromSection,
-        addSynthesisArtifact,
-        removeSynthesisArtifact,
-        addCitation,
-        removeCitation,
-        resetManuscriptToSample
+        ...manuscriptWorkspace
       }}
     >
       {children}
