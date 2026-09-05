@@ -101,7 +101,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       title={`[${node.type.toUpperCase()}] ${node.title}\nDrag to Assistant Dock to attach context`}
       className={`absolute pointer-events-auto cursor-grab active:cursor-grabbing border rounded-lg transition-all duration-150 select-none overflow-hidden bg-[var(--color-surface)] group ${stateClasses} ${opacityClass}`}
     >
-      <div className="p-3.5 flex flex-col justify-between h-full relative">
+      <div className="p-3 flex flex-col justify-between h-full relative">
         {/* Quick Add to Chat Button on Hover (Top Right) */}
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-30">
           {onAddToContext && (
@@ -126,12 +126,12 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         </div>
 
         {/* Header Row: Type tag & identifiers */}
-        <div className="flex items-center justify-between gap-1 mb-1 shrink-0 pr-12">
+        <div className="flex items-center justify-between gap-1 mb-1.5 shrink-0 pr-12">
           <span className="font-mono text-[0.7188rem] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)] border border-[var(--color-rule)]">
             {node.type}
           </span>
 
-          {node.tags && node.tags.length > 0 && (
+          {node.type !== 'question' && node.tags && node.tags.length > 0 && (
             <div className="flex items-center gap-1 truncate">
               {node.tags.map(t => (
                 <span
@@ -154,19 +154,33 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
         {/* Body Content based on Node Type: Hierarchical Typography */}
         {node.type === 'question' && (
-          <div className="flex-1 flex items-center min-h-0 pt-0.5">
-            <h3 className="font-serif text-[1.1875rem] sm:text-[1.25rem] font-semibold leading-snug line-clamp-3 text-[var(--color-ink)]">
+          <div className="flex-1 flex flex-col justify-between min-h-0 pt-0.5">
+            <h3 className="font-serif text-[1.0625rem] sm:text-[1.125rem] font-semibold leading-snug line-clamp-2 text-[var(--color-ink)]" title={node.title}>
               {node.title}
             </h3>
+
+            {node.tags && node.tags.length > 0 && (
+              <div className="flex items-center gap-1.5 pt-1.5 mt-auto border-t border-[var(--color-rule)]/60 flex-wrap shrink-0">
+                {node.tags.map(t => (
+                  <span
+                    key={t}
+                    className="font-mono text-[0.7188rem] text-[var(--color-ink-muted)] bg-slate-50 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-[var(--color-rule)]"
+                  >
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {node.type === 'claim' && (
           <div className="flex-1 flex flex-col justify-center min-h-0 pt-0.5">
             <p
-              className={`font-serif text-[1.0312rem] leading-relaxed line-clamp-3 text-[var(--color-ink)] font-normal ${
+              className={`font-serif text-[0.9375rem] sm:text-[0.9688rem] leading-snug line-clamp-3 text-[var(--color-ink)] font-normal ${
                 node.rejected ? 'line-through opacity-50 text-[var(--color-ink-muted)]' : ''
               }`}
+              title={node.title}
             >
               {node.title}
             </p>
@@ -175,12 +189,15 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
         {node.type === 'evidence' && (
           <div className="flex-1 flex flex-col justify-between min-h-0 pt-0.5">
-            <p className="font-sans text-[0.875rem] font-normal leading-snug line-clamp-2 text-[var(--color-ink)]">
+            <p
+              className="font-sans text-[0.8125rem] sm:text-[0.8438rem] font-normal leading-snug line-clamp-2 text-[var(--color-ink)]"
+              title={node.title}
+            >
               {node.title}
             </p>
 
-            <div className="flex items-center justify-between text-[0.75rem] font-mono text-[var(--color-ink-muted)] pt-2 border-t border-[var(--color-rule)] shrink-0">
-              <span className="truncate max-w-[150px] font-mono text-[var(--color-ink-muted)]" title={node.citation}>
+            <div className="flex items-center justify-between text-[0.7188rem] font-mono text-[var(--color-ink-muted)] pt-1.5 border-t border-[var(--color-rule)] shrink-0 mt-auto">
+              <span className="truncate max-w-[170px] font-mono text-[var(--color-ink-muted)]" title={node.citation}>
                 {node.citation}
               </span>
               <span className="capitalize px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)] rounded border border-[var(--color-rule)] font-mono font-medium shrink-0">

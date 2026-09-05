@@ -88,86 +88,93 @@ export const ExperimentsSurface: React.FC = () => {
   };
 
   return (
-    <div
+    <section
       id="experiments-surface"
-      className="flex-1 h-full overflow-y-auto bg-[var(--color-surface)] p-8 flex flex-col gap-8"
+      className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]"
     >
-      {/* Header & Status Filter */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-rule)] pb-5">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-mono text-sm uppercase tracking-widest font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <FlaskConical className="w-4 h-4 text-sky-600" />
-              Experiments Gallery
-            </h1>
-            <span className="font-mono text-[0.75rem] text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-0.5 border border-sky-200/60 dark:border-sky-800/60 rounded-full font-semibold">
-              Claim-Centric Layout
-            </span>
+      {/* Surface Header & Status Filter with unified surface-intro */}
+      <header className="surface-intro">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="surface-kicker flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
+              <FlaskConical className="w-3.5 h-3.5" />
+              Claim-Centric Verification
+            </p>
+            <h1>Experiments Gallery</h1>
+            <p>
+              Artifacts are grouped under the claim they test, making ungrounded experiments immediately visible.
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-1 font-sans">
-            Artifacts are grouped under the claim they test, making ungrounded experiments immediately visible.
-          </p>
-        </div>
 
-        {/* Filter buttons */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 rounded-full p-1 self-start shadow-2xs">
-          {(['all', 'planned', 'running', 'done'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1 rounded-full text-xs font-mono uppercase transition-all duration-200 ${
-                statusFilter === s
-                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-bold shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          {/* Filter buttons */}
+          <div className="flex items-center bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-full p-1 self-start md:self-auto shadow-2xs">
+            {(['all', 'planned', 'running', 'done'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1 rounded-full text-xs font-mono uppercase transition-all duration-200 ${
+                  statusFilter === s
+                    ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 font-bold border border-sky-200/80 dark:border-sky-800/80 shadow-2xs'
+                    : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Claim-Centric Experiment Groups */}
-      <div className="flex flex-col gap-8">
-        {groupedByClaim.map(({ claim, claimExperiments }) => (
+      {/* Main Scrollable Canvas Body */}
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-6">
+        {groupedByClaim.length === 0 ? (
+          <div className="p-12 border border-dashed border-[var(--color-rule)] rounded-xl text-center flex flex-col items-center justify-center gap-2 bg-[var(--color-surface)]">
+            <FlaskConical className="w-10 h-10 text-[var(--color-ink-muted)] opacity-50" />
+            <h3 className="font-sans font-semibold text-sm text-[var(--color-ink)]">No experiments or claims registered</h3>
+            <p className="text-xs text-[var(--color-ink-muted)] max-w-md">
+              Create claims in the Map or Survey surface to design experiments and attach empirical artifacts.
+            </p>
+          </div>
+        ) : (
+          groupedByClaim.map(({ claim, claimExperiments }) => (
           <div
             key={claim.id}
             id={`experiment-group-${claim.id}`}
-            className="border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 p-6 flex flex-col gap-6 shadow-sm"
+            className="border border-[var(--color-rule)] rounded-xl bg-[var(--color-surface)] p-5 md:p-6 flex flex-col gap-5 shadow-2xs"
           >
             {/* Tested Claim Header */}
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="flex items-start justify-between border-b border-[var(--color-rule)] pb-3.5">
               <div className="flex-1">
-                <span className="font-mono text-[0.75rem] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/50">
+                <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/50">
                   Target Claim Under Test
                 </span>
-                <h3 className="font-serif text-[1.25rem] font-semibold text-slate-900 dark:text-slate-100 leading-snug mt-2">
+                <h3 className="font-serif text-[1.1875rem] font-semibold text-[var(--color-ink)] leading-snug mt-2">
                   "{claim.text}"
                 </h3>
               </div>
-              <span className="font-mono text-xs text-slate-500 px-3 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-full font-medium ml-4 shrink-0">
+              <span className="font-mono text-xs text-[var(--color-ink-muted)] px-3 py-1 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-full font-medium ml-4 shrink-0">
                 {claimExperiments.length} Experiment{claimExperiments.length === 1 ? '' : 's'}
               </span>
             </div>
 
             {/* Experiments list under this claim */}
             {claimExperiments.length === 0 ? (
-              <div className="p-8 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-center text-xs font-mono text-slate-400">
+              <div className="p-6 border border-dashed border-[var(--color-rule)] rounded-lg text-center text-xs font-mono text-[var(--color-ink-muted)] bg-[var(--color-paper)]">
                 No experiments registered for this claim under current filter.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 gap-5">
                 {claimExperiments.map(exp => (
                   <div
                     key={exp.id}
                     id={`experiment-card-${exp.id}`}
-                    className="p-5 bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 rounded-xl flex flex-col gap-4"
+                    className="p-4 md:p-5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl flex flex-col gap-3.5"
                   >
                     {/* Experiment Title & Status */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <FlaskConical className="w-4 h-4 text-sky-600" />
-                        <h4 className="font-sans font-bold text-[1.0312rem] text-slate-900 dark:text-slate-100">
+                        <h4 className="font-sans font-bold text-[0.9688rem] text-[var(--color-ink)]">
                           {exp.title}
                         </h4>
                       </div>
@@ -175,33 +182,33 @@ export const ExperimentsSurface: React.FC = () => {
                     </div>
 
                     {/* Pre-Run Contract Specifications Grid (Gate 7) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-white dark:bg-slate-900 p-3.5 border border-slate-200/80 dark:border-slate-800 rounded-xl text-xs shadow-2xs">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-[var(--color-surface)] p-3.5 border border-[var(--color-rule)] rounded-lg text-xs shadow-2xs">
                       <div>
-                        <span className="font-mono text-[0.75rem] text-slate-400 uppercase block font-medium">
+                        <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)] uppercase block font-medium">
                           Target Metric:
                         </span>
-                        <span className="font-sans font-semibold text-slate-800 dark:text-slate-200 mt-0.5 block">
+                        <span className="font-sans font-semibold text-[var(--color-ink)] mt-0.5 block">
                           {exp.targetMetric}
                         </span>
                       </div>
                       <div>
-                        <span className="font-mono text-[0.75rem] text-slate-400 uppercase block font-medium">
+                        <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)] uppercase block font-medium">
                           Baseline:
                         </span>
-                        <span className="font-sans text-slate-700 dark:text-slate-300 mt-0.5 block">
+                        <span className="font-sans text-[var(--color-ink)] mt-0.5 block">
                           {exp.baseline}
                         </span>
                       </div>
                       <div>
-                        <span className="font-mono text-[0.75rem] text-slate-400 uppercase block font-medium">
+                        <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)] uppercase block font-medium">
                           Prediction:
                         </span>
-                        <span className="font-sans text-slate-700 dark:text-slate-300 mt-0.5 block">
+                        <span className="font-sans text-[var(--color-ink)] mt-0.5 block">
                           {exp.prediction}
                         </span>
                       </div>
                       <div>
-                        <span className="font-mono text-[0.75rem] text-rose-500 uppercase block font-medium">
+                        <span className="font-mono text-[0.6875rem] text-rose-500 uppercase block font-medium">
                           Failure Condition:
                         </span>
                         <span className="font-sans text-rose-600 dark:text-rose-400 font-medium mt-0.5 block">
@@ -211,13 +218,13 @@ export const ExperimentsSurface: React.FC = () => {
                     </div>
 
                     {/* Artifacts Gallery */}
-                    <div className="flex flex-col gap-2.5">
-                      <span className="font-mono text-[0.75rem] uppercase tracking-wider text-slate-500 font-semibold">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
                         Artifacts ({exp.artifacts.length}):
                       </span>
 
                       {exp.artifacts.length === 0 ? (
-                        <div className="p-3.5 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-slate-400">
+                        <div className="p-3 border border-dashed border-[var(--color-rule)] rounded-lg text-xs font-mono text-[var(--color-ink-muted)] bg-[var(--color-surface)]">
                           No artifacts generated yet. Experiment is in {exp.status} status.
                         </div>
                       ) : (
@@ -226,18 +233,18 @@ export const ExperimentsSurface: React.FC = () => {
                             <div
                               key={art.id}
                               onClick={() => handleOpenArtifact(exp, art)}
-                              className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex flex-col justify-between gap-2.5 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-xs cursor-pointer transition-all"
+                              className="p-3 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg flex flex-col justify-between gap-2.5 hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-2xs cursor-pointer transition-all"
                             >
                               <div className="flex items-center gap-2">
                                 {art.type === 'plot' && <FileBarChart className="w-4 h-4 text-indigo-500" />}
                                 {art.type === 'table' && <FileSpreadsheet className="w-4 h-4 text-teal-500" />}
                                 {art.type === 'notes' && <FileText className="w-4 h-4 text-amber-500" />}
-                                <span className="font-mono text-xs font-semibold truncate text-slate-800 dark:text-slate-200">
+                                <span className="font-mono text-xs font-semibold truncate text-[var(--color-ink)]">
                                   {art.name}
                                 </span>
                               </div>
 
-                              <div className="flex flex-col text-[0.75rem] font-mono text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-2 gap-0.5">
+                              <div className="flex flex-col text-[0.6875rem] font-mono text-[var(--color-ink-muted)] border-t border-[var(--color-rule)] pt-2 gap-0.5">
                                 <span className="truncate">Hash: {art.contentHash.slice(0, 10)}...</span>
                                 <span className={art.observation ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-amber-600 dark:text-amber-400 font-semibold'}>
                                   {art.observation ? 'Observed ✓' : 'Observation required'}
@@ -253,27 +260,27 @@ export const ExperimentsSurface: React.FC = () => {
               </div>
             )}
           </div>
-        ))}
+        )))}
       </div>
 
       {/* Artifact Overlay with Required "What did this show?" Field */}
       {selectedArtifact && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <span className="font-mono text-[0.75rem] uppercase tracking-wider text-slate-400 font-semibold">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-rule)] max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
+            <div className="border-b border-[var(--color-rule)] pb-3">
+              <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
                 Artifact Observation
               </span>
-              <h3 className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">
+              <h3 className="font-mono text-sm font-bold text-[var(--color-ink)] mt-1">
                 {selectedArtifact.artifact.name} ({selectedArtifact.artifact.type})
               </h3>
             </div>
 
-            <div className="flex flex-col gap-1 text-xs bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800">
-              <span className="font-mono text-[0.75rem] text-slate-500">
+            <div className="flex flex-col gap-1 text-xs bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
+              <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
                 Locator Path: {selectedArtifact.artifact.path}
               </span>
-              <span className="font-mono text-[0.75rem] text-slate-500">
+              <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
                 SHA-256 Hash: {selectedArtifact.artifact.contentHash}
               </span>
             </div>
@@ -281,10 +288,10 @@ export const ExperimentsSurface: React.FC = () => {
             {/* Required "What did this show?" field */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <label className="font-mono text-[0.8125rem] uppercase text-slate-900 dark:text-slate-100 font-bold">
+                <label className="font-mono text-[0.75rem] uppercase text-[var(--color-ink)] font-bold">
                   What did this show? (Required for Done status):
                 </label>
-                <span className="font-mono text-[0.75rem] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/50">
+                <span className="font-mono text-[0.6875rem] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/50">
                   Authored by: user
                 </span>
               </div>
@@ -293,7 +300,7 @@ export const ExperimentsSurface: React.FC = () => {
                 value={observationText}
                 onChange={e => setObservationText(e.target.value)}
                 placeholder="State clearly what physical or computational result was obtained from this artifact..."
-                className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-serif text-[1.0312rem] text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="p-3 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-lg font-serif text-[0.9375rem] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               />
             </div>
 
@@ -304,17 +311,17 @@ export const ExperimentsSurface: React.FC = () => {
               </span>
             )}
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-rule)]">
               <button
                 onClick={() => setSelectedArtifact(null)}
-                className="px-3.5 py-1.5 font-mono text-xs border border-slate-200 dark:border-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-1.5 font-mono text-xs border border-[var(--color-rule)] text-[var(--color-ink)] rounded-full hover:bg-[var(--color-paper)] transition-colors"
               >
                 Close
               </button>
               <button
                 onClick={handleSaveObservation}
                 disabled={!observationText.trim()}
-                className="px-4 py-1.5 font-mono text-xs bg-sky-600 hover:bg-sky-700 text-white rounded-full font-medium transition-colors disabled:opacity-40 shadow-xs"
+                className="px-4 py-1.5 font-mono text-xs bg-sky-600 hover:bg-sky-700 text-white rounded-full font-medium transition-colors disabled:opacity-40 shadow-2xs"
               >
                 Save Observation
               </button>
@@ -322,6 +329,6 @@ export const ExperimentsSurface: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

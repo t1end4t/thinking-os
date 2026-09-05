@@ -389,8 +389,8 @@ export function ExecutionEngineView({
                       <div className="object-title-group">
                         <GripVertical size={14} className="drag-grip" />
                         <ServerCog size={16} className="object-type-icon" />
-                        <div>
-                          <strong className="object-name">{srv.name}</strong>
+                        <div className="object-title-text">
+                          <strong className="object-name" title={srv.name}>{srv.name}</strong>
                           {srv.port && <span className="object-sub-tag">:{srv.port}</span>}
                         </div>
                       </div>
@@ -471,8 +471,8 @@ export function ExecutionEngineView({
                       <div className="object-title-group">
                         <GripVertical size={14} className="drag-grip" />
                         <Play size={15} className="object-type-icon run" />
-                        <div>
-                          <strong className="object-name">{run.name}</strong>
+                        <div className="object-title-text">
+                          <strong className="object-name" title={run.name}>{run.name}</strong>
                           <span className="object-sub-tag font-mono">{run.id}</span>
                         </div>
                       </div>
@@ -551,10 +551,8 @@ export function ExecutionEngineView({
                       <div className="object-title-group">
                         <GripVertical size={14} className="drag-grip" />
                         <Cpu size={16} className="object-type-icon model" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <strong className="object-name">{mdl.name}</strong>
-                          </div>
+                        <div className="object-title-text flex-col items-start gap-0.5">
+                          <strong className="object-name" title={mdl.name}>{mdl.name}</strong>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             {mdl.family && <span className="llm-family-badge">{mdl.family}</span>}
                             <span className="object-sub-tag font-mono">{mdl.quantization}</span>
@@ -644,8 +642,8 @@ export function ExecutionEngineView({
                       <div className="object-title-group">
                         <GripVertical size={14} className="drag-grip" />
                         <Repeat2 size={16} className="object-type-icon automation" />
-                        <div>
-                          <strong className="object-name">{auto.name}</strong>
+                        <div className="object-title-text">
+                          <strong className="object-name" title={auto.name}>{auto.name}</strong>
                           <span className="object-sub-tag font-mono">{auto.id}</span>
                         </div>
                       </div>
@@ -723,8 +721,8 @@ export function ExecutionEngineView({
                       <div className="object-title-group">
                         <GripVertical size={14} className="drag-grip" />
                         <Target size={16} className="object-type-icon target" />
-                        <div>
-                          <strong className="object-name">{tgt.name}</strong>
+                        <div className="object-title-text">
+                          <strong className="object-name" title={tgt.name}>{tgt.name}</strong>
                           <span className="object-sub-tag font-mono">{tgt.kind}</span>
                         </div>
                       </div>

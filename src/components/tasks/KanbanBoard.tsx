@@ -5,8 +5,6 @@ import {
   Trash2,
   Edit2,
   X,
-  ChevronLeft,
-  ChevronRight,
   AlertCircle,
   Tag,
   SlidersHorizontal,
@@ -27,6 +25,73 @@ const COLUMNS: KanbanColumn[] = [
   { id: 'done', title: 'Done', description: 'Completed and verified', accentColor: '#10b981' }
 ];
 
+export function formatTaskTimestamp(timeStr: string | number | undefined): string {
+  if (!timeStr) return '';
+  const str = String(timeStr).trim();
+  if (!str) return '';
+
+  const lower = str.toLowerCase();
+  if (lower === 'just now' || lower.endsWith(' ago')) {
+    return str;
+  }
+
+  let timestamp: number | null = null;
+  if (/^\d{10,14}$/.test(str)) {
+    const num = Number(str);
+    timestamp = str.length === 10 ? num * 1000 : num;
+  } else {
+    const isoCandidate = str.includes(' ') && !str.includes('T') ? str.replace(' ', 'T') : str;
+    let parsed = Date.parse(isoCandidate);
+    if (isNaN(parsed)) {
+      parsed = Date.parse(str.replace(/-/g, '/'));
+    }
+    if (!isNaN(parsed)) {
+      timestamp = parsed;
+    }
+  }
+
+  if (timestamp === null || isNaN(timestamp)) {
+    return str;
+  }
+
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSec = Math.floor(diffMs / 1000);
+
+  // If created within 45s or slight future drift
+  if (diffSec < 45) {
+    return 'just now';
+  }
+
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) {
+    return diffMin === 1 ? '1 minute ago' : `${diffMin} minutes ago`;
+  }
+
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) {
+    return diffHour === 1 ? '1 hour ago' : `${diffHour} hours ago`;
+  }
+
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 7) {
+    return diffDay === 1 ? '1 day ago' : `${diffDay} days ago`;
+  }
+
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffWeek < 4) {
+    return diffWeek === 1 ? '1 week ago' : `${diffWeek} weeks ago`;
+  }
+
+  const diffMonth = Math.floor(diffDay / 30);
+  if (diffMonth < 12) {
+    return diffMonth <= 1 ? '1 month ago' : `${diffMonth} months ago`;
+  }
+
+  const diffYear = Math.floor(diffDay / 365);
+  return diffYear <= 1 ? '1 year ago' : `${diffYear} years ago`;
+}
+
 
 export function KanbanBoard() {
   const { tasks, setTasks, openTaskEditor, taskEditor } = useWorkspace();
@@ -38,21 +103,6 @@ export function KanbanBoard() {
 
   const deleteTask = (id: string) => {
     setTasks(current => current.filter(t => t.id !== id));
-  };
-
-  const moveTask = (id: string, direction: 'left' | 'right') => {
-    const colOrder: TaskStatus[] = ['backlog', 'todo', 'in-progress', 'review', 'done'];
-    setTasks(current =>
-      current.map(task => {
-        if (task.id !== id) return task;
-        const currentIndex = colOrder.indexOf(task.status);
-        const nextIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
-        if (nextIndex >= 0 && nextIndex < colOrder.length) {
-          return { ...task, status: colOrder[nextIndex], lastEditedBy: 'user' };
-        }
-        return task;
-      })
-    );
   };
 
   // Drag and drop handlers
@@ -294,50 +344,30 @@ export function KanbanBoard() {
                                 {isAiOrigin ? <Bot size={9} /> : <User size={9} />}
                                 {isAiOrigin ? 'AI' : 'Human'}
                               </span>
-                              <span className="kanban-card-time">
+                              <span className="kanban-card-time" title={`Created: ${task.createdAt}`}>
                                 <Clock size={10} />
-                                {task.createdAt}
+                                <span>{formatTaskTimestamp(task.createdAt)}</span>
                               </span>
                             </div>
 
                             <div className="kanban-card-actions">
-                            {colIdx > 0 && (
                               <button
                                 className="card-action-btn"
-                                onClick={() => moveTask(task.id, 'left')}
-                                title="Move left"
-                                aria-label="Move left"
+                                onClick={() => openTaskEditor(task.id, task.status)}
+                                title="Edit task"
+                                aria-label="Edit task"
                               >
-                                <ChevronLeft size={13} />
+                                <Edit2 size={12} />
                               </button>
-                            )}
-                            {colIdx < COLUMNS.length - 1 && (
                               <button
-                                className="card-action-btn"
-                                onClick={() => moveTask(task.id, 'right')}
-                                title="Move right"
-                                aria-label="Move right"
+                                className="card-action-btn delete"
+                                onClick={() => deleteTask(task.id)}
+                                title="Delete task"
+                                aria-label="Delete task"
                               >
-                                <ChevronRight size={13} />
+                                <Trash2 size={12} />
                               </button>
-                            )}
-                            <button
-                              className="card-action-btn"
-                              onClick={() => openTaskEditor(task.id, task.status)}
-                              title="Edit task"
-                              aria-label="Edit task"
-                            >
-                              <Edit2 size={12} />
-                            </button>
-                            <button
-                              className="card-action-btn delete"
-                              onClick={() => deleteTask(task.id)}
-                              title="Delete task"
-                              aria-label="Delete task"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                            </div>
                         </div>
                       </div>
                     );

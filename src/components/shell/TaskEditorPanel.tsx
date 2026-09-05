@@ -153,7 +153,7 @@ export const TaskEditorPanel: React.FC = () => {
     } else {
       const newTask: TaskItem = {
         id: `task-${Date.now().toString().slice(-4)}`,
-        createdAt: 'Just now',
+        createdAt: new Date().toISOString(),
         author: authorOrigin,
         ...fields
       };
@@ -176,16 +176,16 @@ export const TaskEditorPanel: React.FC = () => {
               className="task-origin-badge is-ai"
               title="Content drafted by Assistant. Will save with author: model flag."
             >
-              <Sparkles size={12} />
-              Assistant draft
+              <Sparkles size={13} className="shrink-0" />
+              <span>Assistant draft</span>
             </span>
           ) : (
             <span
               className="task-origin-badge is-human"
               title="Manual human input. Will save with author: user flag."
             >
-              <User size={12} />
-              Your draft
+              <User size={13} className="shrink-0" />
+              <span>Your draft</span>
             </span>
           )}
         </div>

@@ -87,236 +87,237 @@ export const SurveySurface: React.FC = () => {
   };
 
   return (
-    <div
+    <section
       id="survey-surface"
-      className="flex-1 h-full overflow-y-auto bg-[var(--color-surface)] p-8 flex flex-col gap-8"
+      className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]"
     >
       {/* Surface Header with Deliberate Friction Gate Indicator */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--color-rule)] pb-5">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-mono text-sm uppercase tracking-widest font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Compass className="w-4 h-4 text-amber-600" />
-              Survey Field
-            </h1>
-            <span className="font-mono text-[0.75rem] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 border border-amber-200/60 dark:border-amber-800/60 rounded-full font-semibold">
+      <header className="surface-intro">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="surface-kicker flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <Compass className="w-3.5 h-3.5" />
               Pre-Question Exploration
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1 font-sans">
-            Loose open-problem notes form candidate question clusters. Synthesize clusters before promoting into the argument tree.
-          </p>
-        </div>
-
-        {/* Gate 2: 15-Note Counter Meter */}
-        <div className="flex items-center gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-4 py-2 rounded-full shadow-xs">
-          <div className="flex flex-col">
-            <span className="font-mono text-[0.75rem] uppercase text-slate-400 font-medium">
-              Unclustered Notes
-            </span>
-            <span className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
-              {unclusteredOpenProblemsCount} / 15 Max
-            </span>
-          </div>
-
-          <div className="w-24 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700">
-            <div
-              style={{ width: `${Math.min((unclusteredOpenProblemsCount / 15) * 100, 100)}%` }}
-              className={`h-full transition-all duration-300 ${
-                unclusteredOpenProblemsCount >= 13
-                  ? 'bg-rose-500'
-                  : unclusteredOpenProblemsCount >= 8
-                  ? 'bg-amber-500'
-                  : 'bg-emerald-500'
-              }`}
-            />
-          </div>
-
-          <div className="flex flex-col border-l border-slate-200 dark:border-slate-700 pl-3">
-            <span className="font-mono text-[0.75rem] uppercase text-slate-400 font-medium">
-              Candidates
-            </span>
-            <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
-              {candidateQuestions.length} Formed
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Deliberate Friction Hard Stop Blocker (Gate 2) */}
-      {isStopGateTriggered && (
-        <div
-          id="survey-gate-hard-stop"
-          className="p-5 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl flex items-start gap-3.5 shadow-xs"
-        >
-          <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-          <div className="flex flex-col gap-1">
-            <h4 className="font-mono text-xs uppercase font-bold text-rose-700 dark:text-rose-400">
-              Gate 2 Hard Stop Active: 15 Unclustered Notes Limit Reached
-            </h4>
-            <p className="text-xs text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
-              Research friction policy enforced: You have accumulated 15 loose notes with fewer than 3 candidates. You cannot record new loose notes until you synthesize at least three candidate questions from this material.
+            </p>
+            <h1>Survey Field</h1>
+            <p>
+              Loose open-problem notes form candidate question clusters. Synthesize clusters before promoting into the argument tree.
             </p>
           </div>
-        </div>
-      )}
 
-      {/* Add New Open Problem Note Form */}
-      <form
-        onSubmit={handleAddNote}
-        className="p-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl flex flex-col gap-3 shadow-xs"
-      >
-        <span className="font-mono text-[0.8125rem] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
-          <Plus className="w-3.5 h-3.5 text-amber-600" />
-          Record Open-Problem Note (Single assertion: "What is still open here?")
-        </span>
+          {/* Gate 2: 15-Note Counter Meter */}
+          <div className="flex items-center gap-4 bg-[var(--color-surface)] border border-[var(--color-rule)] px-4 py-2 rounded-full shadow-2xs self-start md:self-auto">
+            <div className="flex flex-col">
+              <span className="font-mono text-[0.6875rem] uppercase text-[var(--color-ink-muted)] font-medium">
+                Unclustered Notes
+              </span>
+              <span className="font-mono text-xs font-bold text-[var(--color-ink)]">
+                {unclusteredOpenProblemsCount} / 15 Max
+              </span>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-          <input
-            type="text"
-            disabled={isStopGateTriggered}
-            value={newNoteText}
-            onChange={e => setNewNoteText(e.target.value)}
-            placeholder="e.g. Microcontroller SRAM limits force activation swapping that dominates compute latency by up to 8x."
-            className="md:col-span-8 p-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
-          />
-
-          <input
-            type="text"
-            disabled={isStopGateTriggered}
-            value={newNoteCitation}
-            onChange={e => setNewNoteCitation(e.target.value)}
-            placeholder="Citation / Source (e.g. Lin et al. 2023)"
-            className="md:col-span-3 p-3 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
-          />
-
-          <button
-            type="submit"
-            disabled={isStopGateTriggered || !newNoteText.trim()}
-            className="md:col-span-1 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-mono rounded-xl flex items-center justify-center gap-1.5 font-medium transition-all shadow-xs disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add</span>
-          </button>
-        </div>
-
-        {errorMessage && (
-          <span className="text-xs font-mono text-rose-500 font-medium">
-            {errorMessage}
-          </span>
-        )}
-      </form>
-
-      {/* Main Field Grid: Candidate Clusters on Left, Loose Pile on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left 8 Cols: Accepted Candidate Clusters */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-widest text-slate-900 dark:text-slate-100 font-bold flex items-center gap-2">
-              <Layers className="w-4 h-4 text-amber-600" />
-              Candidate Question Clusters ({clusters.length})
-            </span>
-            <span className="text-[0.8125rem] font-mono text-slate-400">
-              Visible group boundaries around accepted note material
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            {clusters.map(({ candidate, memberNotes }) => (
+            <div className="w-24 h-2 bg-[var(--color-paper)] rounded-full overflow-hidden border border-[var(--color-rule)]">
               <div
-                key={candidate.id}
-                id={`candidate-cluster-${candidate.id}`}
-                className="border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 p-6 flex flex-col gap-5 relative shadow-sm hover:border-amber-300 dark:hover:border-amber-700 transition-colors"
-              >
-                {/* Cluster Boundary Header */}
-                <div className="flex items-start justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
-                  <div className="flex-1">
-                    <span className="font-mono text-[0.75rem] uppercase text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50 tracking-wider">
-                      Candidate Question [CQ]
-                    </span>
-                    <h3 className="font-serif text-[1.3125rem] font-bold text-slate-900 dark:text-slate-100 mt-2 leading-snug">
-                      {candidate.title}
-                    </h3>
-                  </div>
+                style={{ width: `${Math.min((unclusteredOpenProblemsCount / 15) * 100, 100)}%` }}
+                className={`h-full transition-all duration-300 ${
+                  unclusteredOpenProblemsCount >= 13
+                    ? 'bg-rose-500'
+                    : unclusteredOpenProblemsCount >= 8
+                    ? 'bg-amber-500'
+                    : 'bg-emerald-500'
+                }`}
+              />
+            </div>
 
-                  {/* Promote Action Button */}
-                  {candidate.promotedQuestionId ? (
-                    <span className="font-mono text-[0.8125rem] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 uppercase font-bold">
-                      Promoted to {candidate.promotedQuestionId}
-                    </span>
-                  ) : (
-                    <button
-                      id={`promote-candidate-btn-${candidate.id}`}
-                      onClick={() => handleOpenPromoteModal(candidate)}
-                      className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-mono text-xs rounded-full flex items-center gap-1.5 transition-all shadow-xs cursor-pointer font-medium"
-                    >
-                      <span>Promote to Question</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Material Notes Inside Cluster */}
-                <div className="flex flex-col gap-2.5">
-                  <span className="font-mono text-[0.75rem] uppercase tracking-wider text-slate-500 font-semibold">
-                    Constituent Open-Problem Notes ({memberNotes.length}):
-                  </span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {memberNotes.map(note => (
-                      <div
-                        key={note.id}
-                        className="p-3.5 bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 rounded-xl flex flex-col justify-between gap-2.5"
-                      >
-                        <p className="font-sans text-[0.9688rem] text-slate-800 dark:text-slate-200 leading-snug">
-                          {note.text}
-                        </p>
-                        <div className="flex items-center justify-between text-[0.75rem] font-mono text-slate-400 border-t border-slate-200/50 dark:border-slate-700/50 pt-1.5">
-                          <span className="truncate">{note.citation}</span>
-                          <span>{note.id}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
+            <div className="flex flex-col border-l border-[var(--color-rule)] pl-3">
+              <span className="font-mono text-[0.6875rem] uppercase text-[var(--color-ink-muted)] font-medium">
+                Candidates
+              </span>
+              <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
+                {candidateQuestions.length} Formed
+              </span>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Right 4 Cols: Loose Open-Problem Pile */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs uppercase tracking-widest text-slate-900 dark:text-slate-100 font-bold flex items-center gap-2">
-              <FileText className="w-4 h-4 text-amber-600" />
-              Loose Open Problems ({looseNotes.length})
-            </span>
-            <span className="text-[0.75rem] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-              Unclustered
-            </span>
+      {/* Main Scrollable Canvas Body */}
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-6">
+        {/* Deliberate Friction Hard Stop Blocker (Gate 2) */}
+        {isStopGateTriggered && (
+          <div
+            id="survey-gate-hard-stop"
+            className="p-4 md:p-5 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-start gap-3.5 shadow-2xs"
+          >
+            <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <h4 className="font-mono text-xs uppercase font-bold text-rose-700 dark:text-rose-400">
+                Gate 2 Hard Stop Active: 15 Unclustered Notes Limit Reached
+              </h4>
+              <p className="text-xs text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
+                Research friction policy enforced: You have accumulated 15 loose notes with fewer than 3 candidates. You cannot record new loose notes until you synthesize at least three candidate questions from this material.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Add New Open Problem Note Form */}
+        <form
+          onSubmit={handleAddNote}
+          className="p-4 md:p-5 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl flex flex-col gap-3 shadow-2xs"
+        >
+          <span className="font-mono text-[0.7813rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5 text-amber-600" />
+            Record Open-Problem Note (Single assertion: "What is still open here?")
+          </span>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <input
+              type="text"
+              disabled={isStopGateTriggered}
+              value={newNoteText}
+              onChange={e => setNewNoteText(e.target.value)}
+              placeholder="e.g. Microcontroller SRAM limits force activation swapping that dominates compute latency by up to 8x."
+              className="md:col-span-8 p-2.5 text-xs bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-lg text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
+            />
+
+            <input
+              type="text"
+              disabled={isStopGateTriggered}
+              value={newNoteCitation}
+              onChange={e => setNewNoteCitation(e.target.value)}
+              placeholder="Citation / Source (e.g. Lin et al. 2023)"
+              className="md:col-span-3 p-2.5 text-xs bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-lg text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
+            />
+
+            <button
+              type="submit"
+              disabled={isStopGateTriggered || !newNoteText.trim()}
+              className="md:col-span-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-mono rounded-lg flex items-center justify-center gap-1.5 font-medium transition-all shadow-2xs disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add</span>
+            </button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            {looseNotes.length === 0 ? (
-              <div className="p-8 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center text-xs font-mono text-slate-400">
-                No loose notes remaining. All items clustered.
-              </div>
-            ) : (
-              looseNotes.map(note => (
+          {errorMessage && (
+            <span className="text-xs font-mono text-rose-500 font-medium">
+              {errorMessage}
+            </span>
+          )}
+        </form>
+
+        {/* Main Field Grid: Candidate Clusters on Left, Loose Pile on Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+          {/* Left 8 Cols: Accepted Candidate Clusters */}
+          <div className="lg:col-span-8 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-ink)] font-bold flex items-center gap-2">
+                <Layers className="w-4 h-4 text-amber-600" />
+                Candidate Question Clusters ({clusters.length})
+              </span>
+              <span className="text-[0.75rem] font-mono text-[var(--color-ink-muted)]">
+                Visible group boundaries around accepted note material
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              {clusters.map(({ candidate, memberNotes }) => (
                 <div
-                  key={note.id}
-                  id={`loose-note-${note.id}`}
-                  className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex flex-col gap-2.5 shadow-2xs hover:border-amber-300 dark:hover:border-amber-700 transition-all"
+                  key={candidate.id}
+                  id={`candidate-cluster-${candidate.id}`}
+                  className="border border-[var(--color-rule)] rounded-xl bg-[var(--color-surface)] p-5 md:p-6 flex flex-col gap-4 relative shadow-2xs hover:border-amber-400 dark:hover:border-amber-600 transition-colors"
                 >
-                  <p className="font-sans text-[0.9688rem] text-slate-800 dark:text-slate-200 leading-relaxed">
-                    {note.text}
-                  </p>
-                  <div className="flex items-center justify-between text-[0.75rem] font-mono text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-2">
-                    <span className="truncate font-medium">{note.citation}</span>
-                    <span>{note.id}</span>
+                  {/* Cluster Boundary Header */}
+                  <div className="flex items-start justify-between gap-4 border-b border-[var(--color-rule)] pb-3.5">
+                    <div className="flex-1">
+                      <span className="font-mono text-[0.6875rem] uppercase text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/50 tracking-wider">
+                        Candidate Question [CQ]
+                      </span>
+                      <h3 className="font-serif text-[1.25rem] font-bold text-[var(--color-ink)] mt-2 leading-snug">
+                        {candidate.title}
+                      </h3>
+                    </div>
+
+                    {/* Promote Action Button */}
+                    {candidate.promotedQuestionId ? (
+                      <span className="font-mono text-[0.75rem] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 uppercase font-bold">
+                        Promoted to {candidate.promotedQuestionId}
+                      </span>
+                    ) : (
+                      <button
+                        id={`promote-candidate-btn-${candidate.id}`}
+                        onClick={() => handleOpenPromoteModal(candidate)}
+                        className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-mono text-xs rounded-full flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer font-medium"
+                      >
+                        <span>Promote to Question</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Material Notes Inside Cluster */}
+                  <div className="flex flex-col gap-2">
+                    <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
+                      Constituent Open-Problem Notes ({memberNotes.length}):
+                    </span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      {memberNotes.map(note => (
+                        <div
+                          key={note.id}
+                          className="p-3 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-lg flex flex-col justify-between gap-2"
+                        >
+                          <p className="font-sans text-[0.875rem] text-[var(--color-ink)] leading-snug">
+                            {note.text}
+                          </p>
+                          <div className="flex items-center justify-between text-[0.6875rem] font-mono text-[var(--color-ink-muted)] border-t border-[var(--color-rule)] pt-1.5">
+                            <span className="truncate">{note.citation}</span>
+                            <span>{note.id}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          </div>
+
+          {/* Right 4 Cols: Loose Open-Problem Pile */}
+          <div className="lg:col-span-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs uppercase tracking-widest text-[var(--color-ink)] font-bold flex items-center gap-2">
+                <FileText className="w-4 h-4 text-amber-600" />
+                Loose Open Problems ({looseNotes.length})
+              </span>
+              <span className="text-[0.6875rem] font-mono text-[var(--color-ink-muted)] bg-[var(--color-surface)] border border-[var(--color-rule)] px-2 py-0.5 rounded-full">
+                Unclustered
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              {looseNotes.length === 0 ? (
+                <div className="p-8 border border-dashed border-[var(--color-rule)] rounded-xl text-center text-xs font-mono text-[var(--color-ink-muted)] bg-[var(--color-surface)]">
+                  No loose notes remaining. All items clustered.
+                </div>
+              ) : (
+                looseNotes.map(note => (
+                  <div
+                    key={note.id}
+                    id={`loose-note-${note.id}`}
+                    className="p-3.5 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl flex flex-col gap-2 shadow-2xs hover:border-amber-400 dark:hover:border-amber-600 transition-all"
+                  >
+                    <p className="font-sans text-[0.875rem] text-[var(--color-ink)] leading-relaxed">
+                      {note.text}
+                    </p>
+                    <div className="flex items-center justify-between text-[0.6875rem] font-mono text-[var(--color-ink-muted)] border-t border-[var(--color-rule)] pt-1.5">
+                      <span className="truncate font-medium">{note.citation}</span>
+                      <span>{note.id}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -324,23 +325,23 @@ export const SurveySurface: React.FC = () => {
       {/* Gate 3 Promotion Modal: Mandatory User Claim + Both Confirmations */}
       {selectedCandidate && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
-            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <span className="font-mono text-[0.75rem] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50">
+          <div className="bg-[var(--color-surface)] border border-[var(--color-rule)] max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
+            <div className="border-b border-[var(--color-rule)] pb-3">
+              <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/50">
                 Gate 3 Question Promotion Contract
               </span>
-              <h3 className="font-serif text-[1.3125rem] font-bold text-slate-900 dark:text-slate-100 mt-2">
+              <h3 className="font-serif text-[1.25rem] font-bold text-[var(--color-ink)] mt-2">
                 {selectedCandidate.title}
               </h3>
             </div>
 
-            <p className="text-xs text-slate-500 font-sans leading-relaxed">
-              A candidate is promoted to a real <strong className="font-mono text-slate-900 dark:text-slate-100">QUESTION</strong> only after the user writes a claim that answers it, and confirms it is falsifiable and resolvable within one year. Promotion is one-way.
+            <p className="text-xs text-[var(--color-ink-muted)] font-sans leading-relaxed">
+              A candidate is promoted to a real <strong className="font-mono text-[var(--color-ink)]">QUESTION</strong> only after the user writes a claim that answers it, and confirms it is falsifiable and resolvable within one year. Promotion is one-way.
             </p>
 
             {/* Mandatory User Claim Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-[0.8125rem] uppercase text-slate-900 dark:text-slate-100 font-bold">
+              <label className="font-mono text-[0.75rem] uppercase text-[var(--color-ink)] font-bold">
                 1. Your Initial Claim (Answers this question):
               </label>
               <textarea
@@ -348,14 +349,14 @@ export const SurveySurface: React.FC = () => {
                 value={claimText}
                 onChange={e => setClaimText(e.target.value)}
                 placeholder="e.g. Runtime memory contention accounts for over 65% of latency variance on sub-milliwatt devices."
-                className="w-full p-3 font-serif text-[1.0312rem] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full p-2.5 font-serif text-[0.9375rem] bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
             </div>
 
             {/* Mandatory Confirmation 1: Falsifiable */}
             <div
               onClick={() => setConfirmedFalsifiable(!confirmedFalsifiable)}
-              className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer select-none transition-colors hover:border-slate-300"
+              className="flex items-start gap-3 p-3 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl cursor-pointer select-none transition-colors hover:border-amber-400"
             >
               {confirmedFalsifiable ? (
                 <CheckSquare className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
@@ -363,10 +364,10 @@ export const SurveySurface: React.FC = () => {
                 <Square className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
               )}
               <div className="flex flex-col text-xs">
-                <span className="font-sans font-medium text-slate-900 dark:text-slate-100">
+                <span className="font-sans font-medium text-[var(--color-ink)]">
                   I confirm this claim could be false.
                 </span>
-                <span className="text-[0.8125rem] text-slate-500 mt-0.5">
+                <span className="text-[0.75rem] text-[var(--color-ink-muted)] mt-0.5">
                   An empirical or formal observation exists that would refute this assertion.
                 </span>
               </div>
@@ -375,7 +376,7 @@ export const SurveySurface: React.FC = () => {
             {/* Mandatory Confirmation 2: Resolvable within 1 year */}
             <div
               onClick={() => setConfirmedSettledWithinYear(!confirmedSettledWithinYear)}
-              className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer select-none transition-colors hover:border-slate-300"
+              className="flex items-start gap-3 p-3 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl cursor-pointer select-none transition-colors hover:border-amber-400"
             >
               {confirmedSettledWithinYear ? (
                 <CheckSquare className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
@@ -383,10 +384,10 @@ export const SurveySurface: React.FC = () => {
                 <Square className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
               )}
               <div className="flex flex-col text-xs">
-                <span className="font-sans font-medium text-slate-900 dark:text-slate-100">
+                <span className="font-sans font-medium text-[var(--color-ink)]">
                   I confirm this claim could be settled within a year.
                 </span>
-                <span className="text-[0.8125rem] text-slate-500 mt-0.5">
+                <span className="text-[0.75rem] text-[var(--color-ink-muted)] mt-0.5">
                   The methodology and resources exist to empirically test this relationship.
                 </span>
               </div>
@@ -398,17 +399,17 @@ export const SurveySurface: React.FC = () => {
               </span>
             )}
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-rule)]">
               <button
                 onClick={() => setSelectedCandidate(null)}
-                className="px-3.5 py-1.5 font-mono text-xs border border-slate-200 dark:border-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="px-3.5 py-1.5 font-mono text-xs border border-[var(--color-rule)] text-[var(--color-ink)] rounded-full hover:bg-[var(--color-paper)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmPromotion}
                 disabled={!claimText.trim() || !confirmedFalsifiable || !confirmedSettledWithinYear}
-                className="px-4 py-1.5 font-mono text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-full font-medium transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed shadow-xs"
+                className="px-4 py-1.5 font-mono text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-full font-medium transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed shadow-2xs"
               >
                 Promote to Real Question
               </button>
@@ -416,6 +417,6 @@ export const SurveySurface: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

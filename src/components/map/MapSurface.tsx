@@ -21,6 +21,7 @@ export const MapSurface: React.FC = () => {
     links,
     activeTag,
     linkStatusFilter,
+    setLinkStatusFilter,
     selectedNodeId,
     setSelectedNodeId,
     selectedLinkId,
@@ -53,6 +54,17 @@ export const MapSurface: React.FC = () => {
       linkStatusFilter
     );
   }, [questions, claims, evidence, links, activeTag, linkStatusFilter]);
+
+  // Aggregate link counts by status
+  const linkCounts = useMemo(() => {
+    const counts = { all: links.length, holds: 0, weak: 0, missing: 0 };
+    for (const l of links) {
+      if (l.status === 'holds') counts.holds++;
+      else if (l.status === 'weak') counts.weak++;
+      else if (l.status === 'missing') counts.missing++;
+    }
+    return counts;
+  }, [links]);
 
   // Zoom limits: Keep zoom between 70% and 150% so text and labels are always sharp, readable and never shrink to blank shapes
   const MIN_SCALE = 0.70;
@@ -560,6 +572,63 @@ export const MapSurface: React.FC = () => {
         >
           {zoomLevel}
         </span>
+      </div>
+
+      {/* Floating Link Status Filter Bar (Top-Left of Graph Canvas) */}
+      <div
+        id="map-link-filter"
+        className="absolute top-4 left-4 z-20 flex items-center bg-[var(--color-surface)]/95 backdrop-blur-xs border border-[var(--color-rule)] rounded-full p-1 shadow-sm select-none gap-1"
+      >
+        <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] px-2.5">
+          Links
+        </span>
+        <button
+          id="status-filter-all"
+          onClick={() => setLinkStatusFilter('all')}
+          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono transition-all ${
+            linkStatusFilter === 'all'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold shadow-xs'
+              : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+          }`}
+        >
+          All <span className="opacity-65 text-[0.6875rem]">({linkCounts.all})</span>
+        </button>
+        <button
+          id="status-filter-holds"
+          onClick={() => setLinkStatusFilter('holds')}
+          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono flex items-center gap-1.5 transition-all ${
+            linkStatusFilter === 'holds'
+              ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-semibold shadow-xs'
+              : 'text-[var(--color-ink-muted)] hover:text-emerald-600 dark:hover:text-emerald-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          Holds <span className="opacity-70 text-[0.6875rem]">({linkCounts.holds})</span>
+        </button>
+        <button
+          id="status-filter-weak"
+          onClick={() => setLinkStatusFilter('weak')}
+          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono flex items-center gap-1.5 transition-all ${
+            linkStatusFilter === 'weak'
+              ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-semibold shadow-xs'
+              : 'text-[var(--color-ink-muted)] hover:text-amber-600 dark:hover:text-amber-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-500" />
+          Weak <span className="opacity-70 text-[0.6875rem]">({linkCounts.weak})</span>
+        </button>
+        <button
+          id="status-filter-missing"
+          onClick={() => setLinkStatusFilter('missing')}
+          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono flex items-center gap-1.5 transition-all ${
+            linkStatusFilter === 'missing'
+              ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-semibold shadow-xs'
+              : 'text-[var(--color-ink-muted)] hover:text-rose-600 dark:hover:text-rose-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-rose-500" />
+          Missing <span className="opacity-70 text-[0.6875rem]">({linkCounts.missing})</span>
+        </button>
       </div>
 
       {/* Interactive Helper Toast Hint */}

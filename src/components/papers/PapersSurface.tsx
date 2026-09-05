@@ -82,6 +82,8 @@ export const PapersSurface: React.FC = () => {
   };
 
   const handleCreateEvidence = () => {
+    if (!activePaper) return;
+
     if (!userReason.trim()) {
       setFormError('Gate 5 violation: Every evidence link requires a committed user reason.');
       return;
@@ -115,50 +117,63 @@ export const PapersSurface: React.FC = () => {
     >
       {/* Paper Tabs Header */}
       <div className="h-12 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/70 px-4 flex items-center gap-2 shrink-0 overflow-x-auto">
-        {papers.map(p => {
-          const isActive = p.id === activePaperId;
-          return (
-            <button
-              key={p.id}
-              id={`paper-tab-${p.id}`}
-              onClick={() => {
-                setActivePaperId(p.id);
-                setFloatingToolbarPos(null);
-              }}
-              className={`px-3.5 py-1.5 text-xs font-mono rounded-full flex items-center gap-2 transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-bold shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[180px]">{p.title}</span>
-              <span className="text-[0.75rem] text-teal-600/70 dark:text-teal-400/70">
-                ({p.year})
-              </span>
-            </button>
-          );
-        })}
+        {papers.length === 0 ? (
+          <span className="text-xs font-mono text-slate-400">No papers loaded</span>
+        ) : (
+          papers.map(p => {
+            const isActive = p.id === activePaperId;
+            return (
+              <button
+                key={p.id}
+                id={`paper-tab-${p.id}`}
+                onClick={() => {
+                  setActivePaperId(p.id);
+                  setFloatingToolbarPos(null);
+                }}
+                className={`px-3.5 py-1.5 text-xs font-mono rounded-full flex items-center gap-2 transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-bold shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="truncate max-w-[180px]">{p.title}</span>
+                <span className="text-[0.75rem] text-teal-600/70 dark:text-teal-400/70">
+                  ({p.year})
+                </span>
+              </button>
+            );
+          })
+        )}
       </div>
 
       {/* Main Reader View */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Rail: Section TOC & Linked Passages */}
-        <aside className="w-72 border-r border-[var(--color-rule)] bg-[var(--color-surface)] p-5 flex flex-col gap-5 shrink-0 overflow-y-auto hidden md:flex">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col gap-1.5">
-            <span className="font-mono text-[0.75rem] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50 w-fit">
-              Document Metadata
-            </span>
-            <h3 className="font-serif text-[1.0938rem] font-bold text-slate-900 dark:text-slate-100 leading-snug mt-1">
-              {activePaper.title}
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {activePaper.authors}
-            </p>
-            <p className="font-mono text-[0.8125rem] text-slate-400 mt-1 pt-1 border-t border-slate-100 dark:border-slate-800">
-              {activePaper.citation} • {activePaper.pageCount} pp
-            </p>
-          </div>
+      {!activePaper ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[var(--color-surface)]">
+          <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
+          <h3 className="font-serif text-lg font-semibold text-slate-800 dark:text-slate-200">No papers in vault</h3>
+          <p className="text-xs text-slate-500 max-w-sm mt-1">
+            Place markdown research papers in your vault's <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">papers/</code> directory to read and capture evidence.
+          </p>
+        </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Rail: Section TOC & Linked Passages */}
+          <aside className="w-72 border-r border-[var(--color-rule)] bg-[var(--color-surface)] p-5 flex flex-col gap-5 shrink-0 overflow-y-auto hidden md:flex">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col gap-1.5">
+              <span className="font-mono text-[0.75rem] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50 w-fit">
+                Document Metadata
+              </span>
+              <h3 className="font-serif text-[1.0938rem] font-bold text-slate-900 dark:text-slate-100 leading-snug mt-1">
+                {activePaper.title}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {activePaper.authors}
+              </p>
+              <p className="font-mono text-[0.8125rem] text-slate-400 mt-1 pt-1 border-t border-slate-100 dark:border-slate-800">
+                {activePaper.citation} • {activePaper.pageCount} pp
+              </p>
+            </div>
 
           <div className="flex flex-col gap-2.5">
             <span className="font-mono text-[0.75rem] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
@@ -242,6 +257,7 @@ export const PapersSurface: React.FC = () => {
           </div>
         </main>
       </div>
+      )}
 
       {/* Floating Toolbar on Text Selection */}
       {floatingToolbarPos && (

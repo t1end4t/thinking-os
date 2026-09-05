@@ -23,6 +23,15 @@ import {
   TaskStatus
 } from '../productivityTypes';
 import { loadVault, saveVault } from '../vaultClient';
+import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
+import {
+  ManuscriptDocument,
+  ManuscriptMeta,
+  ManuscriptSection,
+  SynthesisArtifact,
+  CitationItem
+} from '../manuscriptTypes';
+import { INITIAL_MANUSCRIPT } from '../data/initialManuscript';
 import {
   parseTaskCreateIntent,
   isTaskDraftIntent,
@@ -36,6 +45,61 @@ export interface TaskEditorState {
   taskId: string | null;
   defaultStatus: TaskStatus;
 }
+
+const INITIAL_THREADS: Record<string, AssistantMessage[]> = {
+  'global-graph': [
+    {
+      id: 'msg-init-1',
+      role: 'assistant',
+      modelId: 'cx/gpt-5.6-sol',
+      content: 'Welcome to Thinking OS. I am your research reasoning partner running `[cx/gpt-5.6-sol]`.\n\nI can verify parent-child relations against formal requirements (Type, Scope, Target), inspect uncommitted links, draft tasks, and help synthesize open problems into testable hypotheses.\n\n💡 *Note on Scientific Discipline (§4):* I will refuse requests to write your user reasons or generate shallow paper summaries, keeping the empirical reasoning ownership strictly with you.',
+      timestamp: Date.now() - 120000
+    },
+    {
+      id: 'msg-init-2',
+      role: 'user',
+      content: 'Check relation between question q1 and claim c1',
+      timestamp: Date.now() - 60000
+    },
+    {
+      id: 'msg-init-3',
+      role: 'assistant',
+      modelId: 'cx/gpt-5.6-sol',
+      content: 'Link Check Evaluation [q1--c1]:\n\nUser Reason: "Attention sinks address the structural root cause of softmax attention entropy aggregation at initial token positions."\n\nChecks:\n- Type: Pass (Operational architectural answer directly addresses sequence stabilization)\n- Scope: Pass (Valid for autoregressive decoder-only Transformer topologies)\n- Target: Pass (Directly validates long-sequence perplexity boundary up to 4M tokens)\n\n[cx/gpt-5.6-sol] Finding: The relation is structurally sound under stated scope constraints.',
+      timestamp: Date.now() - 50000,
+      structuredAction: {
+        type: 'check_link',
+        status: 'holds'
+      }
+    }
+  ],
+  'task-pipeline': [
+    {
+      id: 'msg-pipe-1',
+      role: 'assistant',
+      modelId: 'cx/gpt-5.6-sol',
+      content: 'Task Pipeline assistant is online. You can command me to create tasks directly in any Kanban column (e.g., "Create a task in backlog: ...") or ask me to draft detailed acceptance criteria in the Task Editor.',
+      timestamp: Date.now() - 90000
+    },
+    {
+      id: 'msg-pipe-2',
+      role: 'user',
+      content: 'Create a task in backlog: Benchmark DeepSeek-R1 reasoning traces on MATH-500',
+      timestamp: Date.now() - 40000
+    },
+    {
+      id: 'msg-pipe-3',
+      role: 'assistant',
+      modelId: 'cx/gpt-5.6-sol',
+      content: '🤖 **Created a new task directly in Backlog:**\n\n• **Title:** Benchmark DeepSeek-R1 reasoning traces on MATH-500\n• **Column:** Backlog\n• **Priority:** URGENT\n• **Tag:** #eval\n• **ID:** `task-1`\n\n🏷️ *Author flags: `author: model` · `lastEditedBy: model` (AI-generated)*\n\nThe card is active on your Kanban board. Click below to inspect or edit in the Task Editor.',
+      timestamp: Date.now() - 30000,
+      structuredAction: {
+        type: 'create_task:task-1',
+        status: 'holds'
+      }
+    }
+  ]
+};
 
 interface WorkspaceContextValue {
   workspaceDir: string;
@@ -132,6 +196,28 @@ interface WorkspaceContextValue {
   threads: Record<string, AssistantMessage[]>;
   sendAssistantMessage: (contextId: string, userText: string, attachedList?: AssistantContextObject[]) => void;
   checkLinkWithAssistant: (linkId: string) => void;
+  clearThread: (contextId: string) => void;
+  loadSampleData: () => Promise<void>;
+
+  // Manuscript & Synthesis Engine
+  manuscript: ManuscriptDocument;
+  setManuscript: React.Dispatch<React.SetStateAction<ManuscriptDocument>>;
+  updateManuscriptMeta: (metaUpdates: Partial<ManuscriptMeta>) => void;
+  updateManuscriptSection: (sectionId: string, updates: Partial<ManuscriptSection>) => void;
+  addManuscriptSection: (afterSectionId?: string) => string;
+  removeManuscriptSection: (sectionId: string) => void;
+  reorderManuscriptSections: (sections: ManuscriptSection[]) => void;
+  attachArtifactToSection: (sectionId: string, artifactId: string) => void;
+  detachArtifactFromSection: (sectionId: string, artifactId: string) => void;
+  attachClaimToSection: (sectionId: string, claimId: string) => void;
+  detachClaimFromSection: (sectionId: string, claimId: string) => void;
+  attachCitationToSection: (sectionId: string, citationKey: string) => void;
+  detachCitationFromSection: (sectionId: string, citationKey: string) => void;
+  addSynthesisArtifact: (artifact: Omit<SynthesisArtifact, 'id' | 'createdAt'>) => SynthesisArtifact;
+  removeSynthesisArtifact: (artifactId: string) => void;
+  addCitation: (citation: CitationItem) => void;
+  removeCitation: (key: string) => void;
+  resetManuscriptToSample: () => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
@@ -192,6 +278,31 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
   const [attachedContexts, setAttachedContexts] = useState<AssistantContextObject[]>([]);
 
+  // Manuscript Document State with LocalStorage Persistence
+  const [manuscript, setManuscript] = useState<ManuscriptDocument>(() => {
+    try {
+      const saved = localStorage.getItem('thinking_os_manuscript');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.meta && Array.isArray(parsed.sections)) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse saved manuscript, using initial data:', err);
+    }
+    return INITIAL_MANUSCRIPT;
+  });
+
+  // Auto-save manuscript changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('thinking_os_manuscript', JSON.stringify(manuscript));
+    } catch (err) {
+      console.warn('Failed to save manuscript to localStorage:', err);
+    }
+  }, [manuscript]);
+
   const setWorkspaceDir = useCallback(async (dir: string) => {
     const requestedDir = dir.trim() || '~/second-brain';
     setWorkspaceLoading(true);
@@ -199,7 +310,18 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setVaultReady(false);
     try {
       const loaded = await loadVault(requestedDir);
-      const data = loaded.data;
+      let data = loaded.data;
+      const isCompletelyEmpty =
+        data.questions.length === 0 &&
+        data.claims.length === 0 &&
+        data.papers.length === 0 &&
+        data.tasks.length === 0;
+
+      if (isCompletelyEmpty) {
+        data = SAMPLE_SNAPSHOT;
+        void saveVault(loaded.dir, SAMPLE_SNAPSHOT);
+      }
+
       setWorkspaceDirState(loaded.dir);
       localStorage.setItem('thinking_os_workspace_dir', loaded.dir);
       setQuestions(data.questions);
@@ -315,7 +437,44 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   // Isolated transcript threads per context ID
-  const [threads, setThreads] = useState<Record<string, AssistantMessage[]>>({});
+  const [threads, setThreads] = useState<Record<string, AssistantMessage[]>>(INITIAL_THREADS);
+
+  const clearThread = useCallback((contextId: string) => {
+    setThreads(prev => ({
+      ...prev,
+      [contextId]: []
+    }));
+  }, []);
+
+  const loadSampleData = useCallback(async () => {
+    setWorkspaceLoading(true);
+    try {
+      setQuestions(SAMPLE_SNAPSHOT.questions);
+      setClaims(SAMPLE_SNAPSHOT.claims);
+      setEvidence(SAMPLE_SNAPSHOT.evidence);
+      setLinks(SAMPLE_SNAPSHOT.links);
+      setOpenProblems(SAMPLE_SNAPSHOT.openProblems);
+      setCandidateQuestions(SAMPLE_SNAPSHOT.candidateQuestions);
+      setPapers(SAMPLE_SNAPSHOT.papers);
+      setExperiments(SAMPLE_SNAPSHOT.experiments);
+      setTasks(SAMPLE_SNAPSHOT.tasks.map(task => ({
+        ...task,
+        author: task.author ?? 'user',
+        lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
+      })));
+      setServices(SAMPLE_SNAPSHOT.services);
+      setRuns(SAMPLE_SNAPSHOT.runs);
+      setModels(SAMPLE_SNAPSHOT.models);
+      setAutomations(SAMPLE_SNAPSHOT.automations);
+      setTargets(SAMPLE_SNAPSHOT.targets);
+      setThreads(INITIAL_THREADS);
+      await saveVault(workspaceDir, SAMPLE_SNAPSHOT);
+    } catch (err) {
+      console.error('Failed to load sample data:', err);
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, [workspaceDir]);
 
   // Theme follows the OS colour scheme
   useEffect(() => {
@@ -723,6 +882,198 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   }, [links]);
 
+  // Manuscript Actions
+  const updateManuscriptMeta = useCallback((metaUpdates: Partial<ManuscriptMeta>) => {
+    setManuscript(prev => ({
+      ...prev,
+      meta: {
+        ...prev.meta,
+        ...metaUpdates,
+        lastEditedAt: Date.now()
+      }
+    }));
+  }, []);
+
+  const updateManuscriptSection = useCallback((sectionId: string, updates: Partial<ManuscriptSection>) => {
+    setManuscript(prev => ({
+      ...prev,
+      meta: { ...prev.meta, lastEditedAt: Date.now() },
+      sections: prev.sections.map(sec => sec.id === sectionId ? { ...sec, ...updates } : sec)
+    }));
+  }, []);
+
+  const addManuscriptSection = useCallback((afterSectionId?: string) => {
+    const newId = `sec-${Date.now()}`;
+    setManuscript(prev => {
+      const nextNumber = `${prev.sections.length + 1}`;
+      const newSection: ManuscriptSection = {
+        id: newId,
+        sectionNumber: nextNumber,
+        title: 'New Section',
+        narrativeGoal: 'Biện luận: Xác lập mục tiêu và luận điểm cốt lõi của phần này.',
+        argumentRole: 'methodology_system',
+        content: '',
+        attachedClaimIds: [],
+        attachedCitationKeys: [],
+        attachedArtifactIds: [],
+        targetWordCount: 500,
+        isExpanded: true
+      };
+      if (!afterSectionId) {
+        return {
+          ...prev,
+          meta: { ...prev.meta, lastEditedAt: Date.now() },
+          sections: [...prev.sections, newSection]
+        };
+      }
+      const idx = prev.sections.findIndex(s => s.id === afterSectionId);
+      if (idx === -1) {
+        return {
+          ...prev,
+          meta: { ...prev.meta, lastEditedAt: Date.now() },
+          sections: [...prev.sections, newSection]
+        };
+      }
+      const nextSections = [...prev.sections];
+      nextSections.splice(idx + 1, 0, newSection);
+      return {
+        ...prev,
+        meta: { ...prev.meta, lastEditedAt: Date.now() },
+        sections: nextSections
+      };
+    });
+    return newId;
+  }, []);
+
+  const removeManuscriptSection = useCallback((sectionId: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      meta: { ...prev.meta, lastEditedAt: Date.now() },
+      sections: prev.sections.filter(s => s.id !== sectionId)
+    }));
+  }, []);
+
+  const reorderManuscriptSections = useCallback((sections: ManuscriptSection[]) => {
+    setManuscript(prev => ({
+      ...prev,
+      meta: { ...prev.meta, lastEditedAt: Date.now() },
+      sections
+    }));
+  }, []);
+
+  const attachArtifactToSection = useCallback((sectionId: string, artifactId: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        if (s.attachedArtifactIds.includes(artifactId)) return s;
+        return { ...s, attachedArtifactIds: [...s.attachedArtifactIds, artifactId] };
+      })
+    }));
+  }, []);
+
+  const detachArtifactFromSection = useCallback((sectionId: string, artifactId: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        return { ...s, attachedArtifactIds: s.attachedArtifactIds.filter(id => id !== artifactId) };
+      })
+    }));
+  }, []);
+
+  const attachClaimToSection = useCallback((sectionId: string, claimId: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        if (s.attachedClaimIds.includes(claimId)) return s;
+        return { ...s, attachedClaimIds: [...s.attachedClaimIds, claimId] };
+      })
+    }));
+  }, []);
+
+  const detachClaimFromSection = useCallback((sectionId: string, claimId: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        return { ...s, attachedClaimIds: s.attachedClaimIds.filter(id => id !== claimId) };
+      })
+    }));
+  }, []);
+
+  const attachCitationToSection = useCallback((sectionId: string, citationKey: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        if (s.attachedCitationKeys.includes(citationKey)) return s;
+        return { ...s, attachedCitationKeys: [...s.attachedCitationKeys, citationKey] };
+      })
+    }));
+  }, []);
+
+  const detachCitationFromSection = useCallback((sectionId: string, citationKey: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      sections: prev.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        return { ...s, attachedCitationKeys: s.attachedCitationKeys.filter(k => k !== citationKey) };
+      })
+    }));
+  }, []);
+
+  const addSynthesisArtifact = useCallback((artifact: Omit<SynthesisArtifact, 'id' | 'createdAt'>) => {
+    const newArtifact: SynthesisArtifact = {
+      ...artifact,
+      id: `art-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: Date.now()
+    };
+    setManuscript(prev => ({
+      ...prev,
+      artifacts: [newArtifact, ...prev.artifacts]
+    }));
+    return newArtifact;
+  }, []);
+
+  const removeSynthesisArtifact = useCallback((artifactId: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      artifacts: prev.artifacts.filter(a => a.id !== artifactId),
+      sections: prev.sections.map(s => ({
+        ...s,
+        attachedArtifactIds: s.attachedArtifactIds.filter(id => id !== artifactId)
+      }))
+    }));
+  }, []);
+
+  const addCitation = useCallback((citation: CitationItem) => {
+    setManuscript(prev => {
+      const exists = prev.citations.some(c => c.key === citation.key);
+      const citations = exists
+        ? prev.citations.map(c => c.key === citation.key ? citation : c)
+        : [...prev.citations, citation];
+      return { ...prev, citations };
+    });
+  }, []);
+
+  const removeCitation = useCallback((key: string) => {
+    setManuscript(prev => ({
+      ...prev,
+      citations: prev.citations.filter(c => c.key !== key),
+      sections: prev.sections.map(s => ({
+        ...s,
+        attachedCitationKeys: s.attachedCitationKeys.filter(k => k !== key)
+      }))
+    }));
+  }, []);
+
+  const resetManuscriptToSample = useCallback(() => {
+    setManuscript(INITIAL_MANUSCRIPT);
+    localStorage.setItem('thinking_os_manuscript', JSON.stringify(INITIAL_MANUSCRIPT));
+  }, []);
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -794,7 +1145,27 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         clearAttachedContexts,
         threads,
         sendAssistantMessage,
-        checkLinkWithAssistant
+        checkLinkWithAssistant,
+        clearThread,
+        loadSampleData,
+        manuscript,
+        setManuscript,
+        updateManuscriptMeta,
+        updateManuscriptSection,
+        addManuscriptSection,
+        removeManuscriptSection,
+        reorderManuscriptSections,
+        attachArtifactToSection,
+        detachArtifactFromSection,
+        attachClaimToSection,
+        detachClaimFromSection,
+        attachCitationToSection,
+        detachCitationFromSection,
+        addSynthesisArtifact,
+        removeSynthesisArtifact,
+        addCitation,
+        removeCitation,
+        resetManuscriptToSample
       }}
     >
       {children}

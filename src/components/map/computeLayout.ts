@@ -45,16 +45,16 @@ const COL_X = {
 };
 
 const NODE_WIDTH = {
-  question: 340,
-  claim: 300,
-  evidence: 300,
-  ghost: 300
+  question: 360,
+  claim: 320,
+  evidence: 320,
+  ghost: 320
 };
 
 const NODE_HEIGHT = {
-  question: 130,
-  claim: 110,
-  evidence: 120,
+  question: 140,
+  claim: 125,
+  evidence: 140,
   ghost: 58
 };
 

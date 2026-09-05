@@ -5,10 +5,10 @@ import {
   Tag,
   Settings,
   Type,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { LinkStatus } from '../../types';
 
 const FONT_SIZE_PRESETS = [12, 14, 16, 18, 20];
 
@@ -19,8 +19,6 @@ export const TopBar: React.FC = () => {
     activeTag,
     setActiveTag,
     availableTags,
-    linkStatusFilter,
-    setLinkStatusFilter,
     searchQuery,
     setSearchQuery,
     isDockOpen,
@@ -28,7 +26,8 @@ export const TopBar: React.FC = () => {
     workspaceDir,
     workspaceLoading,
     workspaceError,
-    setWorkspaceDir
+    setWorkspaceDir,
+    loadSampleData
   } = useWorkspace();
 
   const [dirDraft, setDirDraft] = useState(workspaceDir);
@@ -118,57 +117,6 @@ export const TopBar: React.FC = () => {
           </select>
         </div>
 
-        {/* Link Status Filter - Soft, colorful pills */}
-        <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/80 border border-[var(--color-rule)] rounded-full p-0.5 shadow-2xs">
-          <button
-            id="status-filter-all"
-            onClick={() => setLinkStatusFilter('all')}
-            className={`px-3 py-0.5 rounded-full text-[0.8125rem] font-sans transition-all ${
-              linkStatusFilter === 'all'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-semibold shadow-xs'
-                : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
-            }`}
-          >
-            All
-          </button>
-          <button
-            id="status-filter-holds"
-            onClick={() => setLinkStatusFilter('holds')}
-            className={`px-2.5 py-0.5 rounded-full text-[0.8125rem] font-sans flex items-center gap-1.5 transition-all ${
-              linkStatusFilter === 'holds'
-                ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-semibold shadow-xs'
-                : 'text-[var(--color-ink-muted)] hover:text-emerald-600 dark:hover:text-emerald-400'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Holds
-          </button>
-          <button
-            id="status-filter-weak"
-            onClick={() => setLinkStatusFilter('weak')}
-            className={`px-2.5 py-0.5 rounded-full text-[0.8125rem] font-sans flex items-center gap-1.5 transition-all ${
-              linkStatusFilter === 'weak'
-                ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-semibold shadow-xs'
-                : 'text-[var(--color-ink-muted)] hover:text-amber-600 dark:hover:text-amber-400'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            Weak
-          </button>
-          <button
-            id="status-filter-missing"
-            onClick={() => setLinkStatusFilter('missing')}
-            className={`px-2.5 py-0.5 rounded-full text-[0.8125rem] font-sans flex items-center gap-1.5 transition-all ${
-              linkStatusFilter === 'missing'
-                ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-semibold shadow-xs'
-                : 'text-[var(--color-ink-muted)] hover:text-rose-600 dark:hover:text-rose-400'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
-            Missing
-          </button>
-        </div>
-
         {/* Search */}
         <div className="relative flex items-center">
           <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400 pointer-events-none" />
@@ -188,6 +136,19 @@ export const TopBar: React.FC = () => {
 
       {/* Right: Settings, Theme and Dock Toggle */}
       <div className="topbar-actions relative flex items-center gap-2.5 shrink-0">
+        <button
+          id="seed-sample-btn"
+          type="button"
+          onClick={() => {
+            void loadSampleData();
+          }}
+          title="Seed and reload rich research content"
+          className="px-2.5 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/70 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-mono text-[0.75rem] flex items-center gap-1.5 transition-all shadow-2xs"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <span className="topbar-control-label">Sample Data</span>
+        </button>
+
         <button
           id="app-settings-btn"
           onClick={() => setShowSettings(current => !current)}
