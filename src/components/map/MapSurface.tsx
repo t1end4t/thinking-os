@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { computeMapLayout, LayoutEdge, LayoutNode } from './computeLayout';
 import { NodeCard } from './NodeCard';
+import { TabHelpTip } from '../common/TabHelpTip';
 import {
   ZoomIn,
   ZoomOut,
@@ -629,6 +630,22 @@ export const MapSurface: React.FC = () => {
           <span className="w-2 h-2 rounded-full bg-rose-500" />
           Missing <span className="opacity-70 text-[0.6875rem]">({linkCounts.missing})</span>
         </button>
+
+        <div className="w-px h-4 bg-[var(--color-rule)] mx-1" />
+
+        <TabHelpTip
+          title="Argument Map"
+          category="Epistemic Graph"
+          summary="Interactive graph of questions, claims, and evidence nodes linked by logical relationships."
+          tips={[
+            "Click & drag canvas to pan; scroll wheel to zoom.",
+            "Click any node or link to inspect properties and audit confidence.",
+            "Filter links above to isolate Holds, Weak, or Missing connections.",
+            "Drag any node or edge into the Assistant Dock to prompt research discussions."
+          ]}
+          placement="bottom"
+          variant="inline"
+        />
       </div>
 
       {/* Interactive Helper Toast Hint */}

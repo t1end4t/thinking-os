@@ -15,6 +15,7 @@ import {
   Layers,
   FileText
 } from 'lucide-react';
+import { TabHelpTip } from '../common/TabHelpTip';
 
 export const SurveySurface: React.FC = () => {
   const {
@@ -99,7 +100,22 @@ export const SurveySurface: React.FC = () => {
               <Compass className="w-3.5 h-3.5" />
               Pre-Question Exploration
             </p>
-            <h1>Survey Field</h1>
+            <div className="flex items-center gap-2">
+              <h1>Survey Field</h1>
+              <TabHelpTip
+                title="Survey Field"
+                category="Literature Scouting"
+                summary="Pre-question exploration: capture open problems from background reading and cluster them into candidate research questions."
+                tips={[
+                  "Add unclustered open problem notes from background reading.",
+                  "Cluster convergent notes into formal Candidate Research Questions.",
+                  "Promote qualified candidates into formal Argument Map Claims (Gate 5 check).",
+                  "Keep unclustered notes below 15 to avoid endless reading without synthesis."
+                ]}
+                placement="bottom"
+                variant="inline"
+              />
+            </div>
             <p>
               Loose open-problem notes form candidate question clusters. Synthesize clusters before promoting into the argument tree.
             </p>

@@ -13,6 +13,7 @@ import {
   ExternalLink,
   ShieldCheck
 } from 'lucide-react';
+import { TabHelpTip } from '../common/TabHelpTip';
 
 export const ExperimentsSurface: React.FC = () => {
   const {
@@ -100,7 +101,22 @@ export const ExperimentsSurface: React.FC = () => {
               <FlaskConical className="w-3.5 h-3.5" />
               Claim-Centric Verification
             </p>
-            <h1>Experiments Gallery</h1>
+            <div className="flex items-center gap-2">
+              <h1>Experiments Gallery</h1>
+              <TabHelpTip
+                title="Experiments Gallery"
+                category="Empirical Validation"
+                summary="Claim-centric experimental verification: every artifact, script, and log is pinned to the specific scientific claim it tests."
+                tips={[
+                  "Filter experiments by status: Planned, Running, or Done.",
+                  "Inspect artifacts, benchmark plots, and recorded metrics per experiment.",
+                  "Edit qualitative observations to capture what the empirical result proves.",
+                  "Ensure all core claims have at least one verified experiment artifact."
+                ]}
+                placement="bottom"
+                variant="inline"
+              />
+            </div>
             <p>
               Artifacts are grouped under the claim they test, making ungrounded experiments immediately visible.
             </p>

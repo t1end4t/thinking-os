@@ -10,8 +10,10 @@ import {
   Highlighter,
   Link as LinkIcon,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  BookOpen
 } from 'lucide-react';
+import { TabHelpTip } from '../common/TabHelpTip';
 
 export const PapersSurface: React.FC = () => {
   const {
@@ -117,6 +119,25 @@ export const PapersSurface: React.FC = () => {
     >
       {/* Paper Tabs Header */}
       <div className="h-12 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/70 px-4 flex items-center gap-2 shrink-0 overflow-x-auto">
+        <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] shrink-0 mr-0.5 flex items-center gap-1.5">
+          <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+          Papers Vault
+        </span>
+        <TabHelpTip
+          title="Papers Vault & Reader"
+          category="Literature Review"
+          summary="In-depth academic paper reader with annotation, excerpt highlighting, and evidence linking."
+          tips={[
+            "Switch between loaded literature vault papers using the tabs above.",
+            "Select/highlight any text passage in the reader to spawn the 'Link Evidence' toolbar.",
+            "Link findings directly to Argument Map claims to establish formal citations.",
+            "Drag paper documents or citations into the Assistant Dock for deep Q&A."
+          ]}
+          placement="bottom"
+          variant="inline"
+        />
+        <div className="w-px h-4 bg-[var(--color-rule)] mx-1 shrink-0" />
+
         {papers.length === 0 ? (
           <span className="text-xs font-mono text-slate-400">No papers loaded</span>
         ) : (

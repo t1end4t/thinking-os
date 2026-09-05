@@ -218,7 +218,7 @@ export const INITIAL_MANUSCRIPT: ManuscriptDocument = {
       id: 'sec-1-intro',
       sectionNumber: '1',
       title: 'Introduction: The Dilemma of Infinite Autoregressive Streaming',
-      narrativeGoal: 'Biện luận: Thiết lập bài toán cốt lõi — tại sao việc xóa cache tuần tự (FIFO) làm sụp đổ mô hình, và giới thiệu phát hiện bản chất của Attention Sink như một bước ngoặt.',
+      narrativeGoal: 'Argumentation: Establish the core problem — why sequential FIFO cache eviction collapses model output, and introduce the discovery of Attention Sinks as a paradigm breakthrough.',
       argumentRole: 'hook_motivation',
       content: `Autoregressive Transformers have achieved remarkable success across complex reasoning tasks, yet deploying them for continuous conversational streams or real-time document reasoning remains fundamentally constrained by memory bandwidth.
 
@@ -237,7 +237,7 @@ In this work, we present a dialectical investigation into this breakdown, demons
       id: 'sec-2-theory',
       sectionNumber: '2',
       title: 'Theoretical Foundations: Softmax Entropy Aggregation & Attention Sinks',
-      narrativeGoal: 'Biện luận: Cung cấp bằng chứng lý thuyết và giải phẫu toán học — chứng minh rằng hàm softmax buộc phải tích tụ xác suất vào các token ban đầu, biến chúng thành neo ổn định giá trị.',
+      narrativeGoal: 'Argumentation: Provide theoretical grounding and mathematical anatomy — proving softmax forces probability pooling on initial tokens as numerical stability anchors.',
       argumentRole: 'theoretical_derivation',
       content: `To understand why window eviction causes catastrophic divergence, consider the scaled dot-product attention equation:
 $$A_{i,j} = \\frac{\\exp\\left( \\frac{q_i k_j^T}{\\sqrt{d_k}} \\right)}{\\sum_{m=1}^i \\exp\\left( \\frac{q_i k_m^T}{\\sqrt{d_k}} \\right)}$$
@@ -255,7 +255,7 @@ Consequently, training dynamics repurpose the initial tokens $0, 1, \\dots, K-1$
       id: 'sec-3-system',
       sectionNumber: '3',
       title: 'System Architecture: Dual-Zone Sink-Preserved Rolling Cache',
-      narrativeGoal: 'Biện luận: Trình bày giải pháp kiến trúc có thể triển khai thực tế — phân tách cache thành 2 vùng (Permanent Sinks và Rolling Window) kèm giải thuật re-indexing vị trí RoPE.',
+      narrativeGoal: 'Argumentation: Present the deployable system architecture — partitioning KV cache into permanent sinks and rolling window with dynamic RoPE coordinate remapping.',
       argumentRole: 'methodology_system',
       content: `Our proposed architecture divides the active KV-cache into two non-overlapping memory buffers:
 1. **Permanent Attention Sinks ($K=4$ slots):** The very first four tokens of the sequence are permanently pinned in accelerator HBM memory.
@@ -278,7 +278,7 @@ A crucial engineering hurdle is rotary positional embedding (RoPE). Standard RoP
       id: 'sec-4-results',
       sectionNumber: '4',
       title: 'Empirical Validation: 4M Token Perplexity & Needle-in-Haystack Retrieval',
-      narrativeGoal: 'Biện luận: Đưa ra bằng chứng thực nghiệm không thể chối cãi — chứng minh sự ổn định Perplexity qua 4 triệu token và khả năng truy hồi needle đạt 98.6%.',
+      narrativeGoal: 'Argumentation: Deliver empirical proof — demonstrating perplexity stability across 4M tokens and 98.6% Needle-in-a-Haystack retrieval accuracy.',
       argumentRole: 'empirical_evidence',
       content: `We evaluate the sink-preserved architecture on continuous streaming benchmarks using Llama-2-7B, Falcon-7B, and MPT-7B models.
 
@@ -299,7 +299,7 @@ Furthermore, Table 1 demonstrates that throughput reaches 38.6 tokens/second at 
       id: 'sec-5-dialectics',
       sectionNumber: '5',
       title: 'Dialectic Inquiry & Failure Boundary: Quantization Breakdown at Scale',
-      narrativeGoal: 'Biện luận: Biện chứng phản đề — không tô hồng giải pháp. Phân tích rõ ràng biên giới thất bại khi kết hợp với FP4 quantization và đưa ra khuyến nghị thực tế.',
+      narrativeGoal: 'Argumentation: Dialectic counter-inquiry — rigorous failure boundary analysis demonstrating breakdown under aggressive FP4 quantization with practical mitigation.',
       argumentRole: 'counterargument_refute',
       content: `A rigorous scientific paper must probe the boundaries and counterarguments of its claims. While attention sink preservation achieves near-lossless performance under FP16 and INT8 representations, we discover a catastrophic failure mode under aggressive 4-bit integer quantization (Claim c3).
 
@@ -316,7 +316,7 @@ Our diagnostic runs reveal that specific activation channels (dimensions 124 and
       id: 'sec-6-conclusion',
       sectionNumber: '6',
       title: 'Conclusion & Methodological Synthesis',
-      narrativeGoal: 'Biện luận: Tổng kết hành trình câu chuyện khoa học — khẳng định sự chuyển dịch tư duy từ tính toán vô hạn sang kiểm soát bộ nhớ có cấu trúc.',
+      narrativeGoal: 'Argumentation: Synthesize the scientific journey — establishing the paradigm shift from unbounded computation to bounded, structured memory caches.',
       argumentRole: 'implications_future',
       content: `In this paper, we structured a complete argumentative narrative examining why autoregressive Transformer inference fails on streaming horizons and how the discovery of Attention Sinks provides an elegant structural remedy.
 

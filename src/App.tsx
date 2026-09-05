@@ -11,6 +11,7 @@ import { ExperimentsSurface } from './components/experiments/ExperimentsSurface'
 import { AssistantDock } from './components/assistant/AssistantDock';
 import { TasksSurface } from './components/tasks/TasksSurface';
 import { RuntimeSurface } from './components/runtime/RuntimeSurface';
+import { ManuscriptSurface } from './components/manuscript/ManuscriptSurface';
 import { TaskEditorPanel } from './components/shell/TaskEditorPanel';
 
 const WorkspaceShell: React.FC = () => {
@@ -70,6 +71,7 @@ const WorkspaceShell: React.FC = () => {
             {activeSurface === 'survey' && <SurveySurface />}
             {activeSurface === 'papers' && <PapersSurface />}
             {activeSurface === 'experiments' && <ExperimentsSurface />}
+            {activeSurface === 'manuscript' && <ManuscriptSurface />}
             {activeSurface === 'tasks' && <TasksSurface />}
             {activeSurface === 'runtime' && <RuntimeSurface />}
           </div>

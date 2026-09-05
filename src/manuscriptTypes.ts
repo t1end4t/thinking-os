@@ -67,7 +67,7 @@ export interface ManuscriptSection {
   id: string;
   sectionNumber: string; // e.g. '1', '2', '2.1', '3'
   title: string;
-  narrativeGoal: string; // "Biện luận": The argumentative purpose of this section
+  narrativeGoal: string; // The argumentative / dialectic purpose of this section
   argumentRole: ArgumentRole;
   content: string; // Markdown text with \cite{key}, Figure 1, Table 1
   attachedClaimIds: string[]; // Claims linked

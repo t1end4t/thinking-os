@@ -285,6 +285,22 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && parsed.meta && Array.isArray(parsed.sections)) {
+          // Sanitize any legacy Vietnamese strings from previous sessions
+          parsed.sections = parsed.sections.map((sec: any) => {
+            if (sec.narrativeGoal && typeof sec.narrativeGoal === 'string') {
+              if (sec.narrativeGoal.includes('Biện luận:')) {
+                const defaultSec = INITIAL_MANUSCRIPT.sections.find(s => s.id === sec.id);
+                if (defaultSec) {
+                  return { ...sec, narrativeGoal: defaultSec.narrativeGoal };
+                }
+                return {
+                  ...sec,
+                  narrativeGoal: sec.narrativeGoal.replace('Biện luận:', 'Argumentation:')
+                };
+              }
+            }
+            return sec;
+          });
           return parsed;
         }
       }
@@ -910,7 +926,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         id: newId,
         sectionNumber: nextNumber,
         title: 'New Section',
-        narrativeGoal: 'Biện luận: Xác lập mục tiêu và luận điểm cốt lõi của phần này.',
+        narrativeGoal: 'Argumentation: Establish the dialectic objective and core hypothesis of this section.',
         argumentRole: 'methodology_system',
         content: '',
         attachedClaimIds: [],
