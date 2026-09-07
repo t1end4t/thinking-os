@@ -209,11 +209,11 @@
 .kanban-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-rule); display: flex; align-items: center; justify-content: space-between; }
 .kanban-modal-heading { margin: 0; font-size: 1.0938rem; font-weight: 700; color: var(--color-ink); }
 .kanban-modal-form { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
-.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; width: 100%; }
 .form-field label { font: 0.75rem "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .06em; color: var(--color-ink-muted); }
-.form-field input, .form-field textarea, .form-field select { border: 1px solid var(--color-rule); border-radius: 7px; padding: 8px 10px; background: var(--color-paper); color: var(--color-ink); font: 0.875rem/1.4 "IBM Plex Mono", monospace; }
+.form-field input, .form-field textarea, .form-field select { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; border: 1px solid var(--color-rule); border-radius: 7px; padding: 8px 10px; background: var(--color-paper); color: var(--color-ink); font: 0.875rem/1.4 "IBM Plex Mono", monospace; }
 .form-field input:focus, .form-field textarea:focus, .form-field select:focus { outline: none; border-color: var(--accent-indigo); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-indigo) 15%, transparent); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
 /* Task Editor Form & Buttons */
 .task-editor-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
@@ -221,7 +221,7 @@
 .task-origin-badge.is-human { color: var(--accent-emerald); background: var(--accent-emerald-soft); border-color: color-mix(in srgb, var(--accent-emerald) 35%, transparent); }
 .task-origin-badge.is-ai { color: var(--accent-indigo); background: var(--accent-indigo-soft); border-color: color-mix(in srgb, var(--accent-indigo) 35%, transparent); }
 .task-editor-tip { font: 0.7188rem "IBM Plex Mono", monospace; color: var(--color-ink-muted); }
-.task-editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.task-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; width: 100%; }
 
 .task-editor-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 14px; border-top: 1px solid var(--color-rule); margin-top: 4px; }
 .task-editor-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 7px; font: 600 0.8125rem "IBM Plex Mono", monospace; cursor: pointer; transition: all 120ms ease; white-space: nowrap; }

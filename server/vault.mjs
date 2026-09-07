@@ -217,8 +217,13 @@ function attach(server) {
     try {
       if (req.method === 'GET') return send(200, { dir: root, exists: existsSync(root), data: await readVault(root) });
       if (req.method === 'PUT') {
+        const payload = JSON.parse(await readBody(req));
+        const hasEntities = Object.values(payload).some(v => Array.isArray(v) && v.length > 0);
+        if (!hasEntities && !existsSync(root)) {
+          return send(200, { dir: root, saved: false, empty: true });
+        }
         await mkdir(root, { recursive: true });
-        await writeVault(root, JSON.parse(await readBody(req)));
+        await writeVault(root, payload);
         return send(200, { dir: root, saved: true });
       }
       return send(405, { error: `${req.method} not allowed` });

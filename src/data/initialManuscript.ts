@@ -1,5 +1,21 @@
 import { ManuscriptDocument } from '../manuscriptTypes';
 
+export const EMPTY_MANUSCRIPT: ManuscriptDocument = {
+  meta: {
+    title: 'Untitled Manuscript',
+    subtitle: '',
+    authors: [],
+    abstract: '',
+    keywords: [],
+    targetVenue: '',
+    status: 'drafting',
+    lastEditedAt: Date.now()
+  },
+  citations: [],
+  artifacts: [],
+  sections: []
+};
+
 export const INITIAL_MANUSCRIPT: ManuscriptDocument = {
   meta: {
     title: 'Preserving Initial Sinks: Structural and Empirical KV-Cache Stabilization for Infinite Autoregressive Streaming',

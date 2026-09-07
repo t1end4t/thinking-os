@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { INITIAL_MANUSCRIPT } from '../data/initialManuscript';
+import { EMPTY_MANUSCRIPT, INITIAL_MANUSCRIPT } from '../data/initialManuscript';
 import {
   CitationItem,
   ManuscriptDocument,
@@ -29,6 +29,7 @@ export interface ManuscriptWorkspaceValue {
   addCitation: (citation: CitationItem) => void;
   removeCitation: (key: string) => void;
   resetManuscriptToSample: () => void;
+  clearManuscript: () => void;
 }
 
 type SectionAttachmentField =
@@ -39,29 +40,23 @@ type SectionAttachmentField =
 const loadInitialManuscript = (): ManuscriptDocument => {
   try {
     const saved = localStorage.getItem(MANUSCRIPT_STORAGE_KEY);
-    if (!saved) return INITIAL_MANUSCRIPT;
+    if (!saved) return EMPTY_MANUSCRIPT;
 
     const parsed = JSON.parse(saved) as Partial<ManuscriptDocument>;
-    if (!parsed.meta || !Array.isArray(parsed.sections)) return INITIAL_MANUSCRIPT;
+    // If the saved manuscript is missing, corrupted, or lingering sample data, default to clean EMPTY_MANUSCRIPT
+    if (
+      !parsed.meta ||
+      !Array.isArray(parsed.sections) ||
+      parsed.meta.title?.includes('Preserving Initial Sinks')
+    ) {
+      localStorage.removeItem(MANUSCRIPT_STORAGE_KEY);
+      return EMPTY_MANUSCRIPT;
+    }
 
-    const sections = parsed.sections.map(rawSection => {
-      const section = rawSection as ManuscriptSection & { narrativeGoal?: unknown };
-      if (typeof section.narrativeGoal !== 'string' || !section.narrativeGoal.includes('Biện luận:')) {
-        return rawSection;
-      }
-
-      const defaultSection = INITIAL_MANUSCRIPT.sections.find(item => item.id === section.id);
-      return {
-        ...section,
-        narrativeGoal: defaultSection?.narrativeGoal
-          ?? section.narrativeGoal.replace('Biện luận:', 'Argumentation:')
-      };
-    });
-
-    return { ...parsed, sections } as ManuscriptDocument;
+    return parsed as ManuscriptDocument;
   } catch (error) {
-    console.warn('Failed to parse saved manuscript, using initial data:', error);
-    return INITIAL_MANUSCRIPT;
+    console.warn('Failed to parse saved manuscript, using empty data:', error);
+    return EMPTY_MANUSCRIPT;
   }
 };
 
@@ -230,6 +225,15 @@ export const useManuscriptWorkspace = (): ManuscriptWorkspaceValue => {
     localStorage.setItem(MANUSCRIPT_STORAGE_KEY, JSON.stringify(INITIAL_MANUSCRIPT));
   }, []);
 
+  const clearManuscript = useCallback(() => {
+    setManuscript(EMPTY_MANUSCRIPT);
+    try {
+      localStorage.removeItem(MANUSCRIPT_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear manuscript storage:', error);
+    }
+  }, []);
+
   return {
     manuscript,
     setManuscript,
@@ -248,6 +252,7 @@ export const useManuscriptWorkspace = (): ManuscriptWorkspaceValue => {
     removeSynthesisArtifact,
     addCitation,
     removeCitation,
-    resetManuscriptToSample
+    resetManuscriptToSample,
+    clearManuscript
   };
 };

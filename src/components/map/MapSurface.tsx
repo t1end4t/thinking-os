@@ -620,6 +620,19 @@ export const MapSurface: React.FC = () => {
             />
           );
         })}
+
+        {/* Empty Graph Prompt */}
+        {layout.nodes.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center select-none pointer-events-none">
+            <div className="max-w-sm p-6 rounded-2xl border border-dashed border-[var(--color-rule)] bg-[var(--color-surface)]/90 backdrop-blur-xs shadow-xs pointer-events-auto">
+              <GitFork className="w-8 h-8 mx-auto text-[var(--color-ink-muted)] mb-2.5 opacity-60" />
+              <h3 className="font-serif text-base font-semibold text-[var(--color-ink)]">Empty Research Graph</h3>
+              <p className="text-xs text-[var(--color-ink-muted)] mt-1 leading-relaxed">
+                No questions, claims, or evidence are registered in this vault yet. Capture literature in Survey or Learn to start building the argument chain.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Floating Zoom & Semantic Level HUD (Bottom-Left) */}

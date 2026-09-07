@@ -496,6 +496,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'todo',
     priority: 'medium',
     tag: 'literature',
+    goalId: 'goal-1y-1',
     createdAt: '2026-09-03 11:00',
     author: 'user',
     lastEditedBy: 'user'
@@ -507,6 +508,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'todo',
     priority: 'high',
     tag: 'cuda',
+    goalId: 'goal-1y-1',
     createdAt: '2026-09-04 11:30',
     author: 'user',
     lastEditedBy: 'user'
@@ -518,6 +520,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'in-progress',
     priority: 'urgent',
     tag: 'profiling',
+    goalId: 'goal-1y-2',
     createdAt: '2026-09-04 15:30',
     author: 'user',
     lastEditedBy: 'user'
@@ -552,6 +555,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'review',
     priority: 'medium',
     tag: 'theory',
+    goalId: 'goal-1y-1',
     createdAt: '2026-09-04 18:35',
     author: 'user',
     lastEditedBy: 'user'
@@ -574,6 +578,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'done',
     priority: 'high',
     tag: 'engine',
+    goalId: 'goal-1y-2',
     createdAt: '2026-08-28 16:30',
     author: 'user',
     lastEditedBy: 'user'
@@ -598,7 +603,21 @@ export const SAMPLE_GOALS: GoalItem[] = [
     description: 'Turn the strongest validated claim into a manuscript backed by reproducible benchmarks and artifacts.',
     horizon: 'one-year',
     status: 'active',
+    isCurrentFocus: true,
     targetDate: '2027-03-07',
+    parentGoalId: 'goal-5y-1',
+    createdAt: '2026-09-07T00:00:00.000Z',
+    author: 'user',
+    lastEditedBy: 'user'
+  },
+  {
+    id: 'goal-1y-2',
+    title: 'Benchmark and optimize speculative decoding kernels on H100',
+    description: 'Measure arithmetic intensity and token latency scaling across batch sizes 1 through 32 with custom Triton kernels.',
+    horizon: 'one-year',
+    status: 'active',
+    isCurrentFocus: false,
+    targetDate: '2026-12-15',
     parentGoalId: 'goal-5y-1',
     createdAt: '2026-09-07T00:00:00.000Z',
     author: 'user',
@@ -606,7 +625,34 @@ export const SAMPLE_GOALS: GoalItem[] = [
   }
 ];
 
-export const SAMPLE_WEEKLY_REVIEWS: WeeklyReviewItem[] = [];
+export const SAMPLE_WEEKLY_REVIEWS: WeeklyReviewItem[] = [
+  {
+    id: 'review-2026-08-31',
+    title: 'Week of Aug 31, 2026',
+    weekOf: '2026-08-31',
+    status: 'complete',
+    createdAt: '2026-08-31T09:00:00.000Z',
+    completedAt: '2026-08-31T17:45:00.000Z',
+    focusGoalIds: ['goal-1y-1', 'goal-1y-2'],
+    completedTaskIds: ['task-9', 'task-10'],
+    notes: `## 🏆 Completed Deliverables & Wins
+- **vLLM Evaluation Harness**: Configured local testbench with telemetry, streaming HTTP endpoint, and benchmark latency logging (task-10).
+- **Vault Schema Validation**: Completed initial Thinking OS directory structure and JSON sidecar round-trip tests (task-9).
+
+## 🔬 Evidence & Research Learnings
+- Speculative drafting with small 1B models reduces memory bandwidth pressure on 70B targets, confirming distribution invariance properties from Claim c2.
+- Preliminary attention sink profiling shows peak KV memory remains constant at ~2.4GB up to 128k sequence length.
+
+## ⚠️ Friction Points & Blockers
+- Drift detected: 2 tasks were queued without an explicit 6-12 month goal linkage. Need disciplined triage.
+- Triton kernel memory verification on A100 SXM4 requires dedicated allocation slot.
+
+## 🎯 Strategic Commitments for Next Cycle
+- Anchor current weekly focus on **"Submit one reproducible long-context inference paper"** (goal-1y-1).
+- Complete attention sink circular buffer verification (task-4).
+- Formalize theoretical bounds for Claim c3 in the inspector.`
+  }
+];
 
 export const SAMPLE_SERVICES: ServiceItem[] = [
   {

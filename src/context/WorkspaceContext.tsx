@@ -336,19 +336,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const loaded = await loadVault(requestedDir);
       let data = loaded.data;
-      const isCompletelyEmpty =
-        data.questions.length === 0 &&
-        data.claims.length === 0 &&
-        data.papers.length === 0 &&
-        data.tasks.length === 0 &&
-        data.learningUnits.length === 0;
-
-      // ponytail: auto-seed only on the first launch. Later empty folders stay
-      // empty; use the "Sample Data" button to seed one intentionally.
-      if (isCompletelyEmpty && !localStorage.getItem('thinking_os_workspace_dir')) {
-        data = SAMPLE_SNAPSHOT;
-        void saveVault(loaded.dir, SAMPLE_SNAPSHOT);
-      }
+      // Empty vaults remain clean and empty as intended.
+      // Users can load sample data at any time via TopBar settings -> Load Sample.
 
       setWorkspaceDirState(loaded.dir);
       localStorage.setItem('thinking_os_workspace_dir', loaded.dir);
@@ -605,6 +594,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setAutomations(SAMPLE_SNAPSHOT.automations);
       setTargets(SAMPLE_SNAPSHOT.targets);
       setThreads(INITIAL_THREADS);
+      manuscriptWorkspace.resetManuscriptToSample();
       await saveVault(workspaceDir, { ...SAMPLE_SNAPSHOT, learningUnits });
     } catch (err) {
       console.error('Failed to load sample data:', err);

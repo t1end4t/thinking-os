@@ -20,6 +20,7 @@ export interface GoalItem {
   status: GoalStatus;
   targetDate?: string;
   parentGoalId?: string;
+  isCurrentFocus?: boolean;
   createdAt: string;
   author?: EntityAuthor;
   lastEditedBy?: EntityAuthor;
@@ -33,6 +34,8 @@ export interface WeeklyReviewItem {
   status: 'draft' | 'complete';
   createdAt: string;
   completedAt?: string;
+  focusGoalIds?: string[];
+  completedTaskIds?: string[];
   author?: EntityAuthor;
   lastEditedBy?: EntityAuthor;
 }

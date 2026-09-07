@@ -65,6 +65,7 @@ export const ManuscriptSurface: React.FC = () => {
     addSynthesisArtifact,
     addCitation,
     resetManuscriptToSample,
+    clearManuscript,
     claims,
     links
   } = useWorkspace();
@@ -279,11 +280,26 @@ export const ManuscriptSurface: React.FC = () => {
         {/* Reset & Right panel toggle */}
         <div className="flex items-center gap-2 shrink-0">
           <button
+            onClick={() => {
+              if (window.confirm('Clear manuscript to a clean blank state?')) {
+                clearManuscript();
+                setActiveSectionId('');
+              }
+            }}
+            title="Clear manuscript to a blank state"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-red-500 hover:bg-[var(--color-paper)] transition-colors"
+          >
+            <Trash2 size={13} />
+            <span className="hidden sm:inline">Clear Draft</span>
+          </button>
+
+          <button
             onClick={resetManuscriptToSample}
             title="Reset manuscript to initial benchmark data"
-            className="p-1.5 rounded-lg border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)] transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)] transition-colors"
           >
-            <RotateCcw size={14} />
+            <RotateCcw size={13} />
+            <span className="hidden sm:inline">Load Sample</span>
           </button>
 
           {viewMode === 'composer' && (
@@ -722,8 +738,27 @@ export const ManuscriptSurface: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-xs text-[var(--color-ink-muted)]">
-                No section selected. Choose a section from the outline.
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-xs text-[var(--color-ink-muted)]">
+                <FileText className="w-10 h-10 text-[var(--color-ink-muted)] mb-3 opacity-40" />
+                <h3 className="font-serif text-sm font-semibold text-[var(--color-ink)] mb-1">
+                  {manuscript.sections.length === 0 ? 'Blank Manuscript' : 'No Section Selected'}
+                </h3>
+                <p className="max-w-xs text-xs mb-4">
+                  {manuscript.sections.length === 0
+                    ? 'No sections yet. Create your first section to begin drafting your research paper.'
+                    : 'Choose a section from the outline on the left to begin editing.'}
+                </p>
+                {manuscript.sections.length === 0 && (
+                  <button
+                    onClick={() => {
+                      const newId = addManuscriptSection();
+                      setActiveSectionId(newId);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors text-xs shadow-2xs"
+                  >
+                    <Plus size={13} /> Add First Section
+                  </button>
+                )}
               </div>
             )}
           </main>
