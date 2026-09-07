@@ -14,6 +14,8 @@ const MD_COLLECTIONS = {
   papers: ['papers', 'paper'],
   experiments: ['experiments', 'title'],
   tasks: ['tasks', 'task'],
+  goals: ['planning/goals', 'goal'],
+  weeklyReviews: ['planning/reviews', 'weekly-review'],
   services: ['runtime/services', 'name'],
   runs: ['runtime/runs', 'name'],
   models: ['runtime/models', 'name'],
@@ -30,9 +32,12 @@ export function resolveVaultDir(raw) {
 
 function splitMarkdown(text, kind) {
   const clean = text.trim();
-  if (kind === 'task') {
+  if (kind === 'task' || kind === 'goal' || kind === 'weekly-review') {
     const [heading = '', ...rest] = clean.split(/\r?\n/);
-    return { title: heading.replace(/^#\s*/, '').trim(), description: rest.join('\n').trim() };
+    return {
+      title: heading.replace(/^#\s*/, '').trim(),
+      [kind === 'weekly-review' ? 'notes' : 'description']: rest.join('\n').trim()
+    };
   }
   if (kind === 'paper') {
     const [heading = '', ...rest] = clean.split(/\r?\n/);
@@ -47,6 +52,8 @@ function splitMarkdown(text, kind) {
 
 function toMarkdown(item, kind) {
   if (kind === 'task') return `# ${item.title}\n\n${item.description}\n`;
+  if (kind === 'goal') return `# ${item.title}\n\n${item.description}\n`;
+  if (kind === 'weekly-review') return `# ${item.title}\n\n${item.notes}\n`;
   if (kind === 'paper') return `# ${item.title}\n\n${item.markdown}\n`;
   if (kind === 'unit') return `# ${item.title}\n\n${item.description || ''}\n`;
   return `${item[kind] ?? ''}\n`;
@@ -113,7 +120,13 @@ async function syncCollection(root, relativeDir, kind, items) {
   }
   for (const item of items) {
     if (!item?.id) throw new Error('every entity needs an id');
-    const markdownKeys = (kind === 'task' || kind === 'unit') ? ['title', 'description'] : kind === 'paper' ? ['title', 'markdown'] : [kind];
+    const markdownKeys = (kind === 'task' || kind === 'goal' || kind === 'unit')
+      ? ['title', 'description']
+      : kind === 'weekly-review'
+        ? ['title', 'notes']
+        : kind === 'paper'
+          ? ['title', 'markdown']
+          : [kind];
     const meta = Object.fromEntries(Object.entries(item).filter(([key]) => !markdownKeys.includes(key)));
     await writeFile(path.join(dir, `${item.id}.md`), toMarkdown(item, kind));
     await writeFile(path.join(dir, `${item.id}.json`), `${JSON.stringify(meta, null, 2)}\n`);

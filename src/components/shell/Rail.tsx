@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   GitFork,
+  CalendarCheck,
   Compass,
   BookOpen,
   FileText,
@@ -14,7 +15,7 @@ import {
   Lightbulb,
   Sliders,
   BookmarkCheck,
-  Share2
+  LayoutGrid
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { SurfaceId } from '../../types';
@@ -125,24 +126,17 @@ interface LearnSubTabItem {
 
 const LEARN_SUB_TABS: LearnSubTabItem[] = [
   {
-    id: 'desk',
-    label: 'Desk',
-    icon: BookOpen,
-    description: 'Reading desk with 6-level Bloom rigor & integrated scratchpad',
-    activeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 ring-1 ring-emerald-200/80 dark:ring-emerald-800/60 shadow-xs'
-  },
-  {
-    id: 'roadmap',
-    label: 'Shelf',
-    icon: Compass,
-    description: 'Textbook tracks, chapter progress & curriculum matrix',
+    id: 'today',
+    label: 'Today',
+    icon: CalendarCheck,
+    description: 'Review queue and your boards',
     activeColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 ring-1 ring-sky-200/80 dark:ring-sky-800/60 shadow-xs'
   },
   {
-    id: 'graph',
-    label: 'Graph',
-    icon: Share2,
-    description: 'Obsidian-style mathematical concept dependency graph',
+    id: 'board',
+    label: 'Board',
+    icon: LayoutGrid,
+    description: 'Visual blocks captured from the active source',
     activeColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 ring-1 ring-indigo-200/80 dark:ring-indigo-800/60 shadow-xs'
   }
 ];
@@ -287,8 +281,8 @@ export const Rail: React.FC = () => {
       setActiveContext({
         type: 'learn',
         id: 'cognitive-learning',
-        label: 'Learning & Mathematics',
-        secondaryLabel: 'Curriculum tracks, theory, labs, and research synthesis'
+        label: 'Learn',
+        secondaryLabel: 'Visual source study and recall'
       });
     }
   };
@@ -314,7 +308,7 @@ export const Rail: React.FC = () => {
       type: 'learn',
       id: `learn-${tabId}`,
       label: `Learn / ${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`,
-      secondaryLabel: 'Mathematical research curriculum'
+      secondaryLabel: 'Visual source study'
     });
   };
 
@@ -429,7 +423,7 @@ export const Rail: React.FC = () => {
               id="rail-btn-learn"
               type="button"
               onClick={handleToggleLearn}
-              title={`Learn & Curriculum — ${isLearnExpanded ? 'Click to collapse sub-tabs' : 'Click to expand sub-tabs'}`}
+              title={`Learn — ${isLearnExpanded ? 'Click to collapse sub-tabs' : 'Click to expand sub-tabs'}`}
               className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group ${
                 isLearnActive
                   ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 ring-1 ring-emerald-200/80 dark:ring-emerald-800/60 shadow-xs shadow-emerald-500/10'

@@ -8,6 +8,35 @@ export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type GoalHorizon = 'one-year' | 'five-year';
+
+export type GoalStatus = 'active' | 'achieved' | 'paused';
+
+export interface GoalItem {
+  id: string;
+  title: string;
+  description: string;
+  horizon: GoalHorizon;
+  status: GoalStatus;
+  targetDate?: string;
+  parentGoalId?: string;
+  createdAt: string;
+  author?: EntityAuthor;
+  lastEditedBy?: EntityAuthor;
+}
+
+export interface WeeklyReviewItem {
+  id: string;
+  title: string;
+  weekOf: string;
+  notes: string;
+  status: 'draft' | 'complete';
+  createdAt: string;
+  completedAt?: string;
+  author?: EntityAuthor;
+  lastEditedBy?: EntityAuthor;
+}
+
 export interface TaskItem {
   id: string;
   title: string;
@@ -15,6 +44,7 @@ export interface TaskItem {
   status: TaskStatus;
   priority: TaskPriority;
   tag: string;
+  goalId?: string;
   createdAt: string;
   author?: EntityAuthor;
   lastEditedBy?: EntityAuthor;

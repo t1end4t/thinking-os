@@ -9,6 +9,8 @@ const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-vault-'));
 const snapshot = {
   questions: [{ id: 'q1', title: 'Does it round-trip?', tags: ['x'], createdAt: 1, author: 'user' }],
   tasks: [{ id: 't1', title: 'Ship it', description: 'Body text.\n\nSecond line.', status: 'todo', priority: 'low', tag: 'x', createdAt: 'now' }],
+  goals: [{ id: 'g1', title: 'Publish the result', description: 'A durable outcome.\n\nWith context.', horizon: 'one-year', status: 'active', createdAt: 'now' }],
+  weeklyReviews: [{ id: 'wr1', title: 'Week of 2026-09-07', weekOf: '2026-09-07', notes: '## Wins\n\nOne.\n\n## Next focus\n\nTwo.', status: 'draft', createdAt: 'now' }],
   links: [{ id: 'q1--c1', kind: 'question-claim', parentId: 'q1', childId: 'c1', status: 'weak', userReason: 'because', createdAt: 2, author: 'user' }],
   papers: [{ id: 'p1', title: 'A paper', markdown: '### Abstract\nText.', authors: 'X', year: 2024, citation: 'X 2024', pageCount: 1, sections: [] }],
   learningUnits: [{ id: 'u1', title: 'Attention Math', description: 'Softmax geometry.', category: 'Attention & Architecture' }]
@@ -19,6 +21,8 @@ const roundTripped = await readVault(root);
 
 assert.deepEqual(roundTripped.questions, snapshot.questions);
 assert.deepEqual(roundTripped.tasks, snapshot.tasks);
+assert.deepEqual(roundTripped.goals, snapshot.goals);
+assert.deepEqual(roundTripped.weeklyReviews, snapshot.weeklyReviews);
 assert.deepEqual(roundTripped.links, snapshot.links);
 assert.deepEqual(roundTripped.papers, snapshot.papers);
 assert.deepEqual(roundTripped.learningUnits, snapshot.learningUnits);

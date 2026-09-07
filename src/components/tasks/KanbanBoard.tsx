@@ -11,7 +11,8 @@ import {
   Clock,
   GripVertical,
   Bot,
-  User
+  User,
+  Target
 } from 'lucide-react';
 import { TaskItem, TaskStatus, TaskPriority, KanbanColumn } from '../../productivityTypes';
 import { setDragObjectData, parseDroppedWorkspaceObject } from '../../utils/dragDrop';
@@ -94,10 +95,11 @@ export function formatTaskTimestamp(timeStr: string | number | undefined): strin
 
 
 export function KanbanBoard() {
-  const { tasks, setTasks, openTaskEditor, taskEditor } = useWorkspace();
+  const { tasks, setTasks, goals, openTaskEditor, taskEditor } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<string>('all');
+  const [goalFilter, setGoalFilter] = useState<string>('all');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
 
@@ -157,7 +159,8 @@ export function KanbanBoard() {
       task.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
     const matchesTag = tagFilter === 'all' || task.tag === tagFilter;
-    return matchesSearch && matchesPriority && matchesTag;
+    const matchesGoal = goalFilter === 'all' || (goalFilter === 'unassigned' ? !task.goalId : task.goalId === goalFilter);
+    return matchesSearch && matchesPriority && matchesTag && matchesGoal;
   });
 
   const allTags = Array.from(new Set(tasks.map(t => t.tag))).filter(Boolean);
@@ -238,6 +241,17 @@ export function KanbanBoard() {
             </div>
           )}
 
+          {goals.length > 0 && (
+            <div className="kanban-filter-select-wrap">
+              <Target size={13} className="filter-icon" />
+              <select value={goalFilter} onChange={event => setGoalFilter(event.target.value)} aria-label="Filter by goal">
+                <option value="all">All Goals</option>
+                <option value="unassigned">Unassigned</option>
+                {goals.filter(goal => goal.horizon === 'one-year').map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}
+              </select>
+            </div>
+          )}
+
           <button
             id="kanban-add-task-btn"
             className="kanban-primary-add-btn"
@@ -300,6 +314,7 @@ export function KanbanBoard() {
                         task.lastEditedBy === 'model' ||
                         task.author === 'model' ||
                         Boolean(task.lastEditedBy?.startsWith('model:'));
+                      const goal = goals.find(candidate => candidate.id === task.goalId);
 
                       return (
                         <div
@@ -329,6 +344,8 @@ export function KanbanBoard() {
                           {task.description && (
                             <p className="kanban-card-desc">{task.description}</p>
                           )}
+
+                          {goal && <div className="truncate rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 font-mono text-[0.6875rem] text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300" title={goal.title}>Goal: {goal.title}</div>}
 
                           <div className="kanban-card-footer">
                             <div className="kanban-card-meta">

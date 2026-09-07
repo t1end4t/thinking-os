@@ -1,5 +1,5 @@
 import { Question, Claim, Evidence, Link, SurveyOpenProblem, SurveyCandidateQuestion, Paper, Experiment } from './types';
-import { AutomationItem, LLMModelItem, RunItem, ServiceItem, TargetItem, TaskItem } from './productivityTypes';
+import { AutomationItem, GoalItem, LLMModelItem, RunItem, ServiceItem, TargetItem, TaskItem, WeeklyReviewItem } from './productivityTypes';
 import { LearningUnit } from './learnTypes';
 
 export interface VaultSnapshot {
@@ -12,6 +12,8 @@ export interface VaultSnapshot {
   papers: Paper[];
   experiments: Experiment[];
   tasks: TaskItem[];
+  goals: GoalItem[];
+  weeklyReviews: WeeklyReviewItem[];
   services: ServiceItem[];
   runs: RunItem[];
   models: LLMModelItem[];
@@ -22,7 +24,7 @@ export interface VaultSnapshot {
 
 export const EMPTY_SNAPSHOT: VaultSnapshot = {
   questions: [], claims: [], evidence: [], links: [], openProblems: [], candidateQuestions: [],
-  papers: [], experiments: [], tasks: [], services: [], runs: [], models: [], automations: [], targets: [],
+  papers: [], experiments: [], tasks: [], goals: [], weeklyReviews: [], services: [], runs: [], models: [], automations: [], targets: [],
   learningUnits: []
 };
 

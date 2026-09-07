@@ -1,8 +1,15 @@
+import { useState } from 'react';
 import { KanbanBoard } from './KanbanBoard';
+import { PlanningView } from './PlanningView';
+import { WeeklyReviewView } from './WeeklyReviewView';
 import { TabHelpTip } from '../common/TabHelpTip';
-import { ListChecks } from 'lucide-react';
+import { CalendarCheck2, Columns3, ListChecks, Target } from 'lucide-react';
+
+type TasksView = 'direction' | 'pipeline' | 'reviews';
 
 export function TasksSurface() {
+  const [view, setView] = useState<TasksView>('pipeline');
+
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]">
       <header className="px-5 py-3 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
@@ -35,7 +42,18 @@ export function TasksSurface() {
           </div>
         </div>
       </header>
-      <KanbanBoard />
+      <nav className="flex shrink-0 items-center gap-1 border-b border-[var(--color-rule)] bg-[var(--color-surface)] px-4 py-2" aria-label="Tasks workspace views">
+        <ViewTab active={view === 'direction'} onClick={() => setView('direction')} icon={<Target size={14} />} label="Direction" />
+        <ViewTab active={view === 'pipeline'} onClick={() => setView('pipeline')} icon={<Columns3 size={14} />} label="Pipeline" />
+        <ViewTab active={view === 'reviews'} onClick={() => setView('reviews')} icon={<CalendarCheck2 size={14} />} label="Weekly reviews" />
+      </nav>
+      {view === 'direction' && <PlanningView />}
+      {view === 'pipeline' && <KanbanBoard />}
+      {view === 'reviews' && <WeeklyReviewView />}
     </section>
   );
+}
+
+function ViewTab({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return <button onClick={onClick} className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 font-mono text-xs ${active ? 'border-indigo-300 bg-indigo-50 font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300' : 'border-transparent text-[var(--color-ink-muted)] hover:border-[var(--color-rule)] hover:bg-[var(--color-paper)] hover:text-[var(--color-ink)]'}`}>{icon}{label}</button>;
 }

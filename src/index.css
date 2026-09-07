@@ -120,6 +120,12 @@
   background: transparent;
 }
 
+.learn-board-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-ink-muted) 17%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-rule);
   border-radius: 9999px;

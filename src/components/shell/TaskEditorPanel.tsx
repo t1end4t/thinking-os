@@ -23,6 +23,7 @@ export const TaskEditorPanel: React.FC = () => {
     taskEditor,
     tasks,
     setTasks,
+    goals,
     closeTaskEditor,
     taskDraft,
     setTaskDraft,
@@ -39,6 +40,7 @@ export const TaskEditorPanel: React.FC = () => {
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [tag, setTag] = useState('task');
+  const [goalId, setGoalId] = useState('');
   const [isAiDrafted, setIsAiDrafted] = useState(false);
   const [editorSelection, setEditorSelection] = useState<EditorSelection | null>(null);
 
@@ -50,6 +52,7 @@ export const TaskEditorPanel: React.FC = () => {
       setStatus(taskDraft.status);
       setPriority(taskDraft.priority);
       setTag(taskDraft.tag);
+      setGoalId(taskEditor?.defaultGoalId ?? '');
       setIsAiDrafted(true);
     } else if (editingTask) {
       setTitle(editingTask.title ?? '');
@@ -57,6 +60,7 @@ export const TaskEditorPanel: React.FC = () => {
       setStatus(editingTask.status ?? taskEditor?.defaultStatus ?? 'todo');
       setPriority(editingTask.priority ?? 'medium');
       setTag(editingTask.tag ?? 'task');
+      setGoalId(editingTask.goalId ?? '');
       setIsAiDrafted(editingTask.lastEditedBy === 'model' || editingTask.author === 'model');
     } else {
       setTitle('');
@@ -64,9 +68,10 @@ export const TaskEditorPanel: React.FC = () => {
       setStatus(taskEditor?.defaultStatus ?? 'todo');
       setPriority('medium');
       setTag('task');
+      setGoalId(taskEditor?.defaultGoalId ?? '');
       setIsAiDrafted(false);
     }
-  }, [editingTask?.id, taskEditor?.taskId, taskEditor?.defaultStatus, taskDraft]);
+  }, [editingTask?.id, taskEditor?.taskId, taskEditor?.defaultStatus, taskEditor?.defaultGoalId, taskDraft]);
 
   if (!taskEditor) return null;
 
@@ -135,6 +140,7 @@ export const TaskEditorPanel: React.FC = () => {
       status,
       priority,
       tag: tag.trim() || 'task',
+      goalId: goalId || undefined,
       lastEditedBy: authorOrigin
     };
 
@@ -262,6 +268,14 @@ export const TaskEditorPanel: React.FC = () => {
             <option value="urgent">Urgent</option>
           </select>
         </div>
+      </div>
+
+      <div className="form-field">
+        <label htmlFor="task-goal-select">Goal</label>
+        <select id="task-goal-select" value={goalId} onChange={event => setGoalId(event.target.value)}>
+          <option value="">Unassigned</option>
+          {goals.filter(goal => goal.horizon === 'one-year' && goal.status !== 'achieved').map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}
+        </select>
       </div>
 
       <div className="form-field">

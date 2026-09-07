@@ -14,9 +14,10 @@ import {
   RunItem,
   LLMModelItem,
   AutomationItem,
-  TargetItem
+  GoalItem,
+  TargetItem,
+  WeeklyReviewItem
 } from '../productivityTypes';
-import { SAMPLE_LEARNING_UNITS } from './sampleLearningUnits';
 import { VaultSnapshot } from '../vaultClient';
 
 export const SAMPLE_QUESTIONS: Question[] = [
@@ -471,6 +472,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'backlog',
     priority: 'urgent',
     tag: 'eval',
+    goalId: 'goal-1y-1',
     createdAt: '2026-08-28 14:00',
     author: 'user',
     lastEditedBy: 'user'
@@ -482,6 +484,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'backlog',
     priority: 'high',
     tag: 'kernel',
+    goalId: 'goal-1y-1',
     createdAt: '2026-09-01 10:30',
     author: 'user',
     lastEditedBy: 'user'
@@ -526,6 +529,7 @@ export const SAMPLE_TASKS: TaskItem[] = [
     status: 'in-progress',
     priority: 'medium',
     tag: 'protocol',
+    goalId: 'goal-1y-1',
     createdAt: '2026-09-04 16:30',
     author: 'user',
     lastEditedBy: 'user'
@@ -575,6 +579,34 @@ export const SAMPLE_TASKS: TaskItem[] = [
     lastEditedBy: 'user'
   }
 ];
+
+export const SAMPLE_GOALS: GoalItem[] = [
+  {
+    id: 'goal-5y-1',
+    title: 'Build a durable research program for efficient long-context reasoning',
+    description: 'Produce a coherent body of reproducible work, tools, and publications around efficient inference.',
+    horizon: 'five-year',
+    status: 'active',
+    targetDate: '2031-09-07',
+    createdAt: '2026-09-07T00:00:00.000Z',
+    author: 'user',
+    lastEditedBy: 'user'
+  },
+  {
+    id: 'goal-1y-1',
+    title: 'Submit one reproducible long-context inference paper',
+    description: 'Turn the strongest validated claim into a manuscript backed by reproducible benchmarks and artifacts.',
+    horizon: 'one-year',
+    status: 'active',
+    targetDate: '2027-03-07',
+    parentGoalId: 'goal-5y-1',
+    createdAt: '2026-09-07T00:00:00.000Z',
+    author: 'user',
+    lastEditedBy: 'user'
+  }
+];
+
+export const SAMPLE_WEEKLY_REVIEWS: WeeklyReviewItem[] = [];
 
 export const SAMPLE_SERVICES: ServiceItem[] = [
   {
@@ -739,10 +771,12 @@ export const SAMPLE_SNAPSHOT: VaultSnapshot = {
   papers: SAMPLE_PAPERS,
   experiments: SAMPLE_EXPERIMENTS,
   tasks: SAMPLE_TASKS,
+  goals: SAMPLE_GOALS,
+  weeklyReviews: SAMPLE_WEEKLY_REVIEWS,
   services: SAMPLE_SERVICES,
   runs: SAMPLE_RUNS,
   models: SAMPLE_MODELS,
   automations: SAMPLE_AUTOMATIONS,
   targets: SAMPLE_TARGETS,
-  learningUnits: SAMPLE_LEARNING_UNITS
+  learningUnits: []
 };

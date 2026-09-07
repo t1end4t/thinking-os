@@ -15,15 +15,17 @@ import {
 } from '../types';
 import {
   AutomationItem,
+  GoalItem,
   LLMModelItem,
   RunItem,
   ServiceItem,
   TargetItem,
   TaskItem,
-  TaskStatus
+  TaskStatus,
+  WeeklyReviewItem
 } from '../productivityTypes';
-import { LearningUnit, CognitiveLevelId, LearnViewMode } from '../learnTypes';
-import { SAMPLE_LEARNING_UNITS } from '../data/sampleLearningUnits';
+import { LearningUnit, LearnBlock, LearnSource, LearnViewMode } from '../learnTypes';
+import { normalizeLearningUnit, scheduleCard } from '../utils/learnBlocks';
 import { loadVault, saveVault } from '../vaultClient';
 import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import {
@@ -42,6 +44,7 @@ type RightPanelView = 'assistant' | 'task-editor' | 'settings';
 export interface TaskEditorState {
   taskId: string | null;
   defaultStatus: TaskStatus;
+  defaultGoalId?: string;
 }
 
 const INITIAL_THREADS: Record<string, AssistantMessage[]> = {
@@ -133,6 +136,10 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   experiments: Experiment[];
   tasks: TaskItem[];
   setTasks: React.Dispatch<React.SetStateAction<TaskItem[]>>;
+  goals: GoalItem[];
+  setGoals: React.Dispatch<React.SetStateAction<GoalItem[]>>;
+  weeklyReviews: WeeklyReviewItem[];
+  setWeeklyReviews: React.Dispatch<React.SetStateAction<WeeklyReviewItem[]>>;
   services: ServiceItem[];
   addService: (service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => void;
   updateService: (id: string, changes: Partial<Omit<ServiceItem, 'id' | 'createdAt' | 'author'>>) => void;
@@ -186,7 +193,7 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   rightPanelView: RightPanelView;
   setRightPanelView: (view: RightPanelView) => void;
   taskEditor: TaskEditorState | null;
-  openTaskEditor: (taskId?: string, defaultStatus?: TaskStatus) => void;
+  openTaskEditor: (taskId?: string, defaultStatus?: TaskStatus, defaultGoalId?: string) => void;
   closeTaskEditor: () => void;
   taskDraft: TaskDraftData | null;
   setTaskDraft: React.Dispatch<React.SetStateAction<TaskDraftData | null>>;
@@ -204,22 +211,24 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   clearThread: (contextId: string) => void;
   loadSampleData: () => Promise<void>;
 
-  // Learning System & 6 Cognitive Levels
+  // Learn: source boards and visual blocks
   activeLearnTab: LearnViewMode;
   setActiveLearnTab: (tab: LearnViewMode) => void;
   learningUnits: LearningUnit[];
   setLearningUnits: React.Dispatch<React.SetStateAction<LearningUnit[]>>;
   activeLearningUnitId: string | null;
   setActiveLearningUnitId: (id: string | null) => void;
-  activeCognitiveLevel: CognitiveLevelId;
-  setActiveCognitiveLevel: (level: CognitiveLevelId) => void;
-  addLearningUnit: (unitData: Partial<LearningUnit> & { title: string; category: LearningUnit['category'] }) => LearningUnit;
+  addLearningUnit: (unitData: { title: string; source: LearnSource; description?: string; tags?: string[] }) => LearningUnit;
   updateLearningUnit: (id: string, updates: Partial<LearningUnit>) => void;
   deleteLearningUnit: (id: string) => void;
-  updateLearningLevelProgress: (unitId: string, level: CognitiveLevelId, score: number) => void;
-  promoteConjectureToClaim: (unitId: string, conjectureText: string) => { claimId: string };
-  promoteConjectureToQuestion: (unitId: string, title: string, tags: string[]) => { questionId: string };
-  promoteConjectureToTask: (unitId: string, title: string, description: string) => { taskId: string };
+  addLearnBlock: (unitId: string, block: LearnBlock) => void;
+  updateLearnBlock: (unitId: string, blockId: string, updates: Partial<LearnBlock>) => void;
+  deleteLearnBlock: (unitId: string, blockId: string) => void;
+  moveLearnBlock: (unitId: string, blockId: string, direction: -1 | 1) => void;
+  reviewLearnCard: (unitId: string, blockId: string, recalled: boolean) => void;
+  promoteBlockToClaim: (unitId: string, blockId: string, text: string) => { claimId: string };
+  promoteBlockToQuestion: (unitId: string, blockId: string, title: string, tags: string[]) => { questionId: string };
+  promoteBlockToTask: (unitId: string, blockId: string, title: string, description: string) => { taskId: string };
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
@@ -257,15 +266,16 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [papers, setPapers] = useState<Paper[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [goals, setGoals] = useState<GoalItem[]>([]);
+  const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReviewItem[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [runs, setRuns] = useState<RunItem[]>([]);
   const [models, setModels] = useState<LLMModelItem[]>([]);
   const [automations, setAutomations] = useState<AutomationItem[]>([]);
   const [targets, setTargets] = useState<TargetItem[]>([]);
-  const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(SAMPLE_LEARNING_UNITS);
-  const [activeLearningUnitId, setActiveLearningUnitId] = useState<string | null>(() => SAMPLE_LEARNING_UNITS[0]?.id ?? null);
-  const [activeCognitiveLevel, setActiveCognitiveLevel] = useState<CognitiveLevelId>('remembering');
-  const [activeLearnTab, setActiveLearnTab] = useState<LearnViewMode>('desk');
+  const [learningUnits, setLearningUnits] = useState<LearningUnit[]>([]);
+  const [activeLearningUnitId, setActiveLearningUnitId] = useState<string | null>(null);
+  const [activeLearnTab, setActiveLearnTab] = useState<LearnViewMode>('today');
 
   const addService = useCallback((service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => {
     setServices(current => {
@@ -330,7 +340,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         data.questions.length === 0 &&
         data.claims.length === 0 &&
         data.papers.length === 0 &&
-        data.tasks.length === 0;
+        data.tasks.length === 0 &&
+        data.learningUnits.length === 0;
 
       // ponytail: auto-seed only on the first launch. Later empty folders stay
       // empty; use the "Sample Data" button to seed one intentionally.
@@ -354,12 +365,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         author: task.author ?? 'user',
         lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
       })));
+      setGoals(data.goals);
+      setWeeklyReviews(data.weeklyReviews);
       setServices(data.services);
       setRuns(data.runs);
       setModels(data.models);
       setAutomations(data.automations);
       setTargets(data.targets);
-      setLearningUnits(data.learningUnits?.length ? data.learningUnits : SAMPLE_LEARNING_UNITS);
+      setLearningUnits((data.learningUnits ?? []).map(normalizeLearningUnit));
       setVaultReady(true);
     } catch (error) {
       setWorkspaceError(String(error instanceof Error ? error.message : error));
@@ -377,13 +390,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const timer = window.setTimeout(() => {
       void saveVault(workspaceDir, {
         questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
-        tasks, services, runs, models, automations, targets, learningUnits
+        tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits
       }).catch(error => setWorkspaceError(String(error instanceof Error ? error.message : error)));
     }, 250);
     return () => window.clearTimeout(timer);
   }, [
     vaultReady, workspaceDir, questions, claims, evidence, links, openProblems, candidateQuestions,
-    papers, experiments, tasks, services, runs, models, automations, targets, learningUnits
+    papers, experiments, tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits
   ]);
 
   const setFontSize = useCallback((size: number) => {
@@ -408,6 +421,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       status: taskData.status || 'backlog',
       priority: taskData.priority || 'medium',
       tag: taskData.tag?.trim() || 'task',
+      goalId: taskData.goalId,
       createdAt: 'Just now',
       author: isAi ? 'model' : 'user',
       lastEditedBy: isAi ? 'model' : 'user'
@@ -416,8 +430,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return newTask;
   }, []);
 
-  const openTaskEditor = useCallback((taskId?: string, defaultStatus: TaskStatus = 'todo') => {
-    setTaskEditor({ taskId: taskId ?? null, defaultStatus });
+  const openTaskEditor = useCallback((taskId?: string, defaultStatus: TaskStatus = 'todo', defaultGoalId?: string) => {
+    setTaskEditor({ taskId: taskId ?? null, defaultStatus, defaultGoalId });
     setTaskDraft(null);
   }, []);
 
@@ -437,50 +451,22 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setRightPanelView('assistant');
   }, [taskEditor, tasks]);
 
-  // Learning Unit Actions
-  const addLearningUnit = useCallback((unitData: Partial<LearningUnit> & { title: string; category: LearningUnit['category'] }): LearningUnit => {
-    const id = unitData.id || `unit-${Date.now()}`;
+  // Learn Board Actions
+  const addLearningUnit = useCallback((unitData: { title: string; source: LearnSource; description?: string; tags?: string[] }): LearningUnit => {
+    const now = Date.now();
     const newUnit: LearningUnit = {
-      id,
+      id: `unit-${now}`,
       title: unitData.title,
       description: unitData.description || '',
-      category: unitData.category,
-      difficulty: unitData.difficulty || 'Intermediate',
+      source: unitData.source,
       tags: unitData.tags || [],
-      prerequisites: unitData.prerequisites || [],
-      mathFields: unitData.mathFields || [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      author: 'user',
-      progress: unitData.progress || {
-        remembering: 0,
-        understanding: 0,
-        applying: 0,
-        analyzing: 0,
-        evaluating: 0,
-        creating: 0
-      },
-      remembering: unitData.remembering || { keyTerms: [], axiomsAndIdentities: [] },
-      understanding: unitData.understanding || {
-        formalDefinition: { statement: '', preconditions: [], notationKey: [] },
-        geometricIntuition: { visualMetaphor: '', physicalInterpretation: '', coreInsight: '' },
-        feynmanWorkspace: { guidingQuestion: '', learnerExplanation: '', rubricChecks: [] },
-        conceptDecomposition: []
-      },
-      applying: unitData.applying || { workedDerivations: [], practiceChallenges: [] },
-      analyzing: unitData.analyzing || { structuralComponents: [], assumptionStressTests: [], contrastiveAnalysis: { titleA: '', titleB: '', dimensions: [] } },
-      evaluating: unitData.evaluating || { critiqueChallenges: [], tradeoffMatrix: { approachAName: '', approachBName: '', criteria: [] } },
-      creating: unitData.creating || {
-        conjecturePrompt: 'Formulate a mathematical hypothesis or architectural variant based on this concept.',
-        conjectureDraft: '',
-        mathematicalPremises: [],
-        proposedMechanism: '',
-        falsificationCriteria: '',
-        novelIdeasInspiration: []
-      }
+      blocks: [],
+      createdAt: now,
+      updatedAt: now,
+      author: 'user'
     };
     setLearningUnits(current => [newUnit, ...current]);
-    setActiveLearningUnitId(id);
+    setActiveLearningUnitId(newUnit.id);
     return newUnit;
   }, []);
 
@@ -498,61 +484,65 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   }, [activeLearningUnitId]);
 
-  const updateLearningLevelProgress = useCallback((unitId: string, level: CognitiveLevelId, score: number) => {
-    setLearningUnits(current => current.map(unit => {
-      if (unit.id !== unitId) return unit;
-      const progress = { ...unit.progress, [level]: Math.max(0, Math.min(100, Math.round(score))) };
-      return { ...unit, progress, updatedAt: Date.now() };
-    }));
+  const mapUnitBlocks = useCallback((unitId: string, mapper: (blocks: LearnBlock[]) => LearnBlock[]) => {
+    setLearningUnits(current => current.map(unit => (
+      unit.id === unitId ? { ...unit, blocks: mapper(unit.blocks), updatedAt: Date.now() } : unit
+    )));
   }, []);
 
-  const promoteConjectureToClaim = useCallback((unitId: string, conjectureText: string) => {
+  const addLearnBlock = useCallback((unitId: string, block: LearnBlock) => {
+    mapUnitBlocks(unitId, blocks => [block, ...blocks]);
+  }, [mapUnitBlocks]);
+
+  const updateLearnBlock = useCallback((unitId: string, blockId: string, updates: Partial<LearnBlock>) => {
+    mapUnitBlocks(unitId, blocks => blocks.map(block => (
+      block.id === blockId ? ({ ...block, ...updates, updatedAt: Date.now() } as LearnBlock) : block
+    )));
+  }, [mapUnitBlocks]);
+
+  const deleteLearnBlock = useCallback((unitId: string, blockId: string) => {
+    mapUnitBlocks(unitId, blocks => blocks.filter(block => block.id !== blockId));
+  }, [mapUnitBlocks]);
+
+  const moveLearnBlock = useCallback((unitId: string, blockId: string, direction: -1 | 1) => {
+    mapUnitBlocks(unitId, blocks => {
+      const index = blocks.findIndex(block => block.id === blockId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= blocks.length) return blocks;
+      const next = [...blocks];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }, [mapUnitBlocks]);
+
+  const reviewLearnCard = useCallback((unitId: string, blockId: string, recalled: boolean) => {
+    mapUnitBlocks(unitId, blocks => blocks.map(block => (
+      block.id === blockId && block.kind === 'card' ? scheduleCard(block, recalled) : block
+    )));
+  }, [mapUnitBlocks]);
+
+  const promoteBlockToClaim = useCallback((unitId: string, blockId: string, text: string) => {
     const claimId = `c-learn-${Date.now()}`;
-    const newClaim: Claim = {
-      id: claimId,
-      text: conjectureText,
-      rejected: false,
-      createdAt: Date.now(),
-      author: 'user'
-    };
-    setClaims(prev => [newClaim, ...prev]);
-    setLearningUnits(current => current.map(unit => {
-      if (unit.id !== unitId) return unit;
-      return {
-        ...unit,
-        creating: {
-          ...unit.creating,
-          promotedClaimId: claimId
-        }
-      };
-    }));
+    setClaims(prev => [{ id: claimId, text, rejected: false, createdAt: Date.now(), author: 'user' }, ...prev]);
+    updateLearnBlock(unitId, blockId, { promotedClaimId: claimId });
     return { claimId };
-  }, []);
+  }, [updateLearnBlock]);
 
-  const promoteConjectureToQuestion = useCallback((unitId: string, title: string, tags: string[]) => {
+  const promoteBlockToQuestion = useCallback((unitId: string, blockId: string, title: string, tags: string[]) => {
     const questionId = `q-learn-${Date.now()}`;
-    const newQ: Question = {
+    const newQuestion: Question = {
       id: questionId,
       title,
-      tags: tags.length ? tags : ['math', 'learn', 'conjecture'],
+      tags: tags.length ? tags : ['learn'],
       createdAt: Date.now(),
       author: 'user'
     };
-    setQuestions(prev => [newQ, ...prev]);
-    setLearningUnits(current => current.map(unit => {
-      if (unit.id !== unitId) return unit;
-      return {
-        ...unit,
-        creating: {
-          ...unit.creating,
-          promotedQuestionId: questionId
-        }
-      };
-    }));
+    setQuestions(prev => [newQuestion, ...prev]);
+    updateLearnBlock(unitId, blockId, { promotedQuestionId: questionId });
     return { questionId };
-  }, []);
+  }, [updateLearnBlock]);
 
-  const promoteConjectureToTask = useCallback((unitId: string, title: string, description: string) => {
+  const promoteBlockToTask = useCallback((unitId: string, blockId: string, title: string, description: string) => {
     const newTask = createTaskDirectly({
       title,
       description,
@@ -560,18 +550,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       priority: 'high',
       tag: '#learn'
     }, false);
-    setLearningUnits(current => current.map(unit => {
-      if (unit.id !== unitId) return unit;
-      return {
-        ...unit,
-        creating: {
-          ...unit.creating,
-          linkedTaskId: newTask.id
-        }
-      };
-    }));
+    updateLearnBlock(unitId, blockId, { promotedTaskId: newTask.id });
     return { taskId: newTask.id };
-  }, [createTaskDirectly]);
+  }, [createTaskDirectly, updateLearnBlock]);
 
   const addAttachedContext = useCallback((ctx: AssistantContextObject) => {
     setAttachedContexts(prev => {
@@ -616,20 +597,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         author: task.author ?? 'user',
         lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
       })));
+      setGoals(SAMPLE_SNAPSHOT.goals);
+      setWeeklyReviews(SAMPLE_SNAPSHOT.weeklyReviews);
       setServices(SAMPLE_SNAPSHOT.services);
       setRuns(SAMPLE_SNAPSHOT.runs);
       setModels(SAMPLE_SNAPSHOT.models);
       setAutomations(SAMPLE_SNAPSHOT.automations);
       setTargets(SAMPLE_SNAPSHOT.targets);
-      setLearningUnits(SAMPLE_LEARNING_UNITS);
       setThreads(INITIAL_THREADS);
-      await saveVault(workspaceDir, SAMPLE_SNAPSHOT);
+      await saveVault(workspaceDir, { ...SAMPLE_SNAPSHOT, learningUnits });
     } catch (err) {
       console.error('Failed to load sample data:', err);
     } finally {
       setWorkspaceLoading(false);
     }
-  }, [workspaceDir]);
+  }, [workspaceDir, learningUnits]);
 
   // Theme follows the OS colour scheme
   useEffect(() => {
@@ -1075,6 +1057,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         experiments,
         tasks,
         setTasks,
+        goals,
+        setGoals,
+        weeklyReviews,
+        setWeeklyReviews,
         services,
         addService,
         updateService,
@@ -1130,17 +1116,19 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setLearningUnits,
         activeLearningUnitId,
         setActiveLearningUnitId,
-        activeCognitiveLevel,
-        setActiveCognitiveLevel,
         activeLearnTab,
         setActiveLearnTab,
         addLearningUnit,
         updateLearningUnit,
         deleteLearningUnit,
-        updateLearningLevelProgress,
-        promoteConjectureToClaim,
-        promoteConjectureToQuestion,
-        promoteConjectureToTask,
+        addLearnBlock,
+        updateLearnBlock,
+        deleteLearnBlock,
+        moveLearnBlock,
+        reviewLearnCard,
+        promoteBlockToClaim,
+        promoteBlockToQuestion,
+        promoteBlockToTask,
         ...manuscriptWorkspace
       }}
     >
