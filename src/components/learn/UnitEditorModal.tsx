@@ -4,6 +4,8 @@ import { LearningUnit, CognitiveLevelId } from '../../learnTypes';
 
 interface UnitEditorModalProps {
   unit?: LearningUnit | null;
+  defaultBook?: string;
+  defaultChapter?: string;
   isOpen: boolean;
   onClose: () => void;
   onSave: (unitData: Partial<LearningUnit> & { title: string; category: LearningUnit['category'] }) => void;
@@ -31,12 +33,19 @@ const MATH_FIELDS: string[] = [
 
 export const UnitEditorModal: React.FC<UnitEditorModalProps> = ({
   unit,
+  defaultBook,
+  defaultChapter,
   isOpen,
   onClose,
   onSave
 }) => {
   const [title, setTitle] = useState(unit?.title || '');
   const [description, setDescription] = useState(unit?.description || '');
+  const [book, setBook] = useState(unit?.book || defaultBook || 'Understanding Deep Learning (Simon J.D. Prince)');
+  const [chapter, setChapter] = useState(unit?.chapter || defaultChapter || '');
+  const [section, setSection] = useState(unit?.section || '');
+  const [keyFormulaLatex, setKeyFormulaLatex] = useState(unit?.keyFormulaLatex || '');
+  const [toyCodeSnippet, setToyCodeSnippet] = useState(unit?.toyCodeSnippet || '');
   const [category, setCategory] = useState<LearningUnit['category']>(
     unit?.category || 'Attention & Architecture'
   );
@@ -90,6 +99,11 @@ export const UnitEditorModal: React.FC<UnitEditorModalProps> = ({
       ...(unit ? { id: unit.id } : {}),
       title: title.trim(),
       description: description.trim(),
+      book: book.trim() || undefined,
+      chapter: chapter.trim() || undefined,
+      section: section.trim() || undefined,
+      keyFormulaLatex: keyFormulaLatex.trim() || undefined,
+      toyCodeSnippet: toyCodeSnippet.trim() || undefined,
       category,
       difficulty,
       tags,
@@ -131,6 +145,60 @@ export const UnitEditorModal: React.FC<UnitEditorModalProps> = ({
 
         {/* Body Form */}
         <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4 overflow-y-auto">
+          {/* Book / Literature Source & Chapter */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)]">
+            <div className="flex flex-col gap-1 sm:col-span-1">
+              <label className="text-[0.6875rem] font-mono font-medium text-[var(--color-ink)]">
+                Textbook / Source
+              </label>
+              <input
+                type="text"
+                value={book}
+                onChange={e => setBook(e.target.value)}
+                placeholder="e.g. Understanding Deep Learning"
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1 sm:col-span-1">
+              <label className="text-[0.6875rem] font-mono font-medium text-[var(--color-ink)]">
+                Chapter
+              </label>
+              <input
+                type="text"
+                value={chapter}
+                onChange={e => setChapter(e.target.value)}
+                placeholder="e.g. Chapter 12: Attention"
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1 sm:col-span-1">
+              <label className="text-[0.6875rem] font-mono font-medium text-[var(--color-ink)]">
+                Section
+              </label>
+              <input
+                type="text"
+                value={section}
+                onChange={e => setSection(e.target.value)}
+                placeholder="e.g. 12.2 Scaled Attention"
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* Key Formula (LaTeX) */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-mono font-medium text-[var(--color-ink)]">
+              Anchor Mathematical Formula (LaTeX)
+            </label>
+            <input
+              type="text"
+              value={keyFormulaLatex}
+              onChange={e => setKeyFormulaLatex(e.target.value)}
+              placeholder="e.g. \text{Attention}(Q, K, V) = \text{softmax}(QK^T / \sqrt{d_k})V"
+              className="px-3 py-2 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-mono font-medium text-[var(--color-ink)]">

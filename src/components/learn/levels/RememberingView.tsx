@@ -11,9 +11,14 @@ import {
   List,
   Check,
   ArrowRight,
-  Repeat
+  Repeat,
+  Bot,
+  Move
 } from 'lucide-react';
 import { LearningUnit } from '../../../learnTypes';
+import { MathView } from '../../common/MathView';
+import { useWorkspace } from '../../../context/WorkspaceContext';
+import { AssistantContextObject } from '../../../types';
 
 interface RememberingViewProps {
   unit: LearningUnit;
@@ -25,10 +30,42 @@ export const RememberingView: React.FC<RememberingViewProps> = ({
   unit,
   onUpdateProgress
 }) => {
+  const { addAttachedContext, setIsDockOpen } = useWorkspace();
   const [viewMode, setViewMode] = useState<'flashcards' | 'checklist'>('flashcards');
   const [revealedTerms, setRevealedTerms] = useState<Record<string, boolean>>({});
   const [checkedTerms, setCheckedTerms] = useState<Record<string, boolean>>({});
   const [filterQuery, setFilterQuery] = useState('');
+
+  const handleAskAi = (item: { term: string; definition: string; symbolLatex?: string }) => {
+    setIsDockOpen(true);
+    const ctx: AssistantContextObject = {
+      type: 'artifact',
+      id: `recall-${unit.id}-${item.term}`,
+      label: item.term,
+      secondaryLabel: `Mathematical Concept: ${unit.title}`,
+      metadata: {
+        formula: item.symbolLatex || '',
+        definition: item.definition
+      }
+    };
+    addAttachedContext(ctx);
+  };
+
+  const handleAskAiAxiom = (axiom: { name: string; statement: string; latex?: string; significance: string }) => {
+    setIsDockOpen(true);
+    const ctx: AssistantContextObject = {
+      type: 'artifact',
+      id: `axiom-${unit.id}-${axiom.name}`,
+      label: axiom.name,
+      secondaryLabel: `Axiom: ${unit.title}`,
+      metadata: {
+        formula: axiom.latex || '',
+        statement: axiom.statement,
+        significance: axiom.significance
+      }
+    };
+    addAttachedContext(ctx);
+  };
 
   const toggleReveal = (term: string) => {
     setRevealedTerms(prev => ({ ...prev, [term]: !prev[term] }));
@@ -175,6 +212,24 @@ export const RememberingView: React.FC<RememberingViewProps> = ({
               return (
                 <div
                   key={item.id || idx}
+                  draggable={true}
+                  onDragStart={e => {
+                    const ctx: AssistantContextObject = {
+                      type: 'artifact',
+                      id: `recall-${unit.id}-${item.term}`,
+                      label: item.term,
+                      secondaryLabel: `Mathematical Concept: ${unit.title}`,
+                      metadata: {
+                        formula: item.symbolLatex || '',
+                        definition: item.definition
+                      }
+                    };
+                    e.dataTransfer.setData('application/json', JSON.stringify(ctx));
+                    e.dataTransfer.setData(
+                      'text/plain',
+                      `Mathematical Concept: ${item.term}\nFormula: ${item.symbolLatex || ''}\nDefinition: ${item.definition}`
+                    );
+                  }}
                   className={`rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-xs relative ${
                     isChecked
                       ? 'border-emerald-500/50 bg-[var(--color-surface)] ring-1 ring-emerald-500/20'
@@ -184,33 +239,53 @@ export const RememberingView: React.FC<RememberingViewProps> = ({
                   {/* Card Header */}
                   <div className="p-4 pb-3 flex items-start justify-between gap-3 border-b border-[var(--color-rule)]/60 bg-[var(--color-paper)]/40">
                     <div>
-                      <span className="text-[0.625rem] font-mono text-sky-600 dark:text-sky-400 uppercase tracking-wider block mb-0.5">
-                        Concept 0{idx + 1}
-                      </span>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[0.625rem] font-mono text-sky-600 dark:text-sky-400 uppercase tracking-wider">
+                          Concept 0{idx + 1}
+                        </span>
+                        <span className="text-[0.625rem] font-mono text-slate-400 flex items-center gap-0.5">
+                          <Move size={9} className="text-sky-500" />
+                          <span>Drag to AI</span>
+                        </span>
+                      </div>
                       <h4 className="font-bold text-sm text-[var(--color-ink)] leading-snug">
                         {item.term}
                       </h4>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => toggleCheck(item.term)}
-                      className={`p-1.5 rounded-lg border transition-colors ${
-                        isChecked
-                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
-                          : 'border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
-                      }`}
-                      title={isChecked ? 'Mark unmastered' : 'Mark mastered'}
-                    >
-                      <CheckCircle2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleAskAi(item)}
+                        className="p-1.5 rounded-lg border border-[var(--color-rule)] text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors"
+                        title="Discuss concept with AI"
+                      >
+                        <Sparkles size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCheck(item.term)}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          isChecked
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400'
+                            : 'border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                        }`}
+                        title={isChecked ? 'Mark unmastered' : 'Mark mastered'}
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Card Formula / LaTeX Showcase */}
                   {item.symbolLatex && (
-                    <div className="px-4 py-2.5 bg-[var(--color-surface)] border-b border-[var(--color-rule)]/50 font-mono text-xs text-sky-600 dark:text-sky-300 overflow-x-auto flex items-center justify-between">
-                      <code className="text-[0.8125rem] font-semibold">{item.symbolLatex}</code>
-                      <span className="text-[0.625rem] font-mono text-[var(--color-ink-muted)] uppercase">Formula</span>
+                    <div className="px-4 py-2 bg-[var(--color-surface)] border-b border-[var(--color-rule)]/50">
+                      <MathView
+                        math={item.symbolLatex}
+                        block={false}
+                        label={item.term}
+                        contextId={`math-${unit.id}-${item.term}`}
+                      />
                     </div>
                   )}
 
@@ -353,32 +428,78 @@ export const RememberingView: React.FC<RememberingViewProps> = ({
             return (
               <div
                 key={axiom.id || idx}
+                draggable={true}
+                onDragStart={e => {
+                  const ctx: AssistantContextObject = {
+                    type: 'artifact',
+                    id: `axiom-${unit.id}-${axiom.name}`,
+                    label: axiom.name,
+                    secondaryLabel: `Axiom: ${unit.title}`,
+                    metadata: {
+                      formula: axiom.latex || '',
+                      statement: axiom.statement,
+                      significance: axiom.significance
+                    }
+                  };
+                  e.dataTransfer.setData('application/json', JSON.stringify(ctx));
+                  e.dataTransfer.setData(
+                    'text/plain',
+                    `Axiom: ${axiom.name}\nFormula: ${axiom.latex || axiom.statement}\nSignificance: ${axiom.significance}`
+                  );
+                }}
                 className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
                   isChecked
                     ? 'border-emerald-500/50 bg-[var(--color-surface)] ring-1 ring-emerald-500/20'
-                    : 'border-[var(--color-rule)] bg-[var(--color-surface)]'
+                    : 'border-[var(--color-rule)] bg-[var(--color-surface)] hover:border-emerald-500/40'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="font-bold text-xs text-[var(--color-ink)]">{axiom.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleCheck(axiom.name)}
-                      className={`p-1 rounded-lg border transition-colors ${
-                        isChecked
-                          ? 'border-emerald-500 bg-emerald-500 text-white'
-                          : 'border-[var(--color-rule)] text-[var(--color-ink-muted)]'
-                      }`}
-                      title={isChecked ? 'Mark unmastered' : 'Mark mastered'}
-                    >
-                      <Check size={13} />
-                    </button>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[0.625rem] font-mono text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                          Identity 0{idx + 1}
+                        </span>
+                        <span className="text-[0.625rem] font-mono text-slate-400 flex items-center gap-0.5">
+                          <Move size={9} className="text-emerald-500" />
+                          <span>Drag to AI</span>
+                        </span>
+                      </div>
+                      <span className="font-bold text-xs text-[var(--color-ink)]">{axiom.name}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleAskAiAxiom(axiom)}
+                        className="p-1.5 rounded-lg border border-[var(--color-rule)] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+                        title="Discuss axiom with AI"
+                      >
+                        <Sparkles size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCheck(axiom.name)}
+                        className={`p-1 rounded-lg border transition-colors ${
+                          isChecked
+                            ? 'border-emerald-500 bg-emerald-500 text-white'
+                            : 'border-[var(--color-rule)] text-[var(--color-ink-muted)]'
+                        }`}
+                        title={isChecked ? 'Mark unmastered' : 'Mark mastered'}
+                      >
+                        <Check size={13} />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Math Formula Card */}
-                  <div className="p-3 my-2 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] font-mono text-xs text-sky-600 dark:text-sky-300 font-semibold overflow-x-auto shadow-2xs">
-                    <code>{axiom.latex || axiom.statement}</code>
+                  {/* Math Formula Card with KaTeX */}
+                  <div className="p-3 my-2 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs">
+                    <MathView
+                      math={axiom.latex || axiom.statement}
+                      block={true}
+                      label={axiom.name}
+                      contextId={`axiom-math-${unit.id}-${axiom.name}`}
+                    />
                   </div>
 
                   <p className="text-[0.6875rem] text-[var(--color-ink-muted)] leading-relaxed mt-1">

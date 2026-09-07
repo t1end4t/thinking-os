@@ -3,10 +3,37 @@ import { LearningUnit } from '../learnTypes';
 export const SAMPLE_LEARNING_UNITS: LearningUnit[] = [
   {
     id: 'unit-softmax-attention',
-    title: 'Softmax Geometry, Temperature Scaling & Attention Sinks',
+    title: 'Scaled Dot-Product Self-Attention & Softmax Geometry',
     description: 'Deconstructing dot-product attention geometry, why variance scales with key dimension dk, how temperature preserves gradient flow, and the mathematical root cause of initial token attention sinks.',
     category: 'Attention & Architecture',
     difficulty: 'Advanced',
+    book: 'Understanding Deep Learning (Simon J.D. Prince)',
+    chapter: 'Chapter 12: Attention and Transformers',
+    section: '12.2 Scaled Dot-Product Attention',
+    readingStatus: 'synthesized',
+    keyFormulaLatex: '\\text{Attention}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V',
+    toyCodeSnippet: `import numpy as np
+
+def scaled_dot_product_attention(Q, K, V, mask=None):
+    """
+    Scaled Dot-Product Attention from Understanding Deep Learning (Ch 12).
+    Q, K, V: shape (batch_size, seq_len, d_k)
+    """
+    d_k = Q.shape[-1]
+    # 1. Compute dot-product affinity matrix (scaled by sqrt(d_k))
+    scores = np.matmul(Q, np.swapaxes(K, -2, -1)) / np.sqrt(d_k)
+    
+    # 2. Optional causal or padding masking
+    if mask is not None:
+        scores = np.where(mask == 0, -1e9, scores)
+        
+    # 3. Stable categorical softmax over key sequence dimension
+    exp_scores = np.exp(scores - np.max(scores, axis=-1, keepdims=True))
+    weights = exp_scores / np.sum(exp_scores, axis=-1, keepdims=True)
+    
+    # 4. Context aggregation over values
+    output = np.matmul(weights, V)
+    return output, weights`,
     tags: ['attention', 'softmax', 'geometry', 'transformers', 'entropy', 'variance'],
     prerequisites: ['Inner products in Euclidean space', 'Multivariate Softmax Jacobian', 'Variance of sum of independent random variables'],
     mathFields: ['Inner Product Spaces', 'Differential Geometry of Probability Simplices', 'Lipschitz Continuity'],
@@ -312,6 +339,26 @@ export const SAMPLE_LEARNING_UNITS: LearningUnit[] = [
     description: 'The linear algebra of parameter-efficient adaptation: Eckart-Young-Mirsky low-rank theorem, SVD spectral decay in weights, rank constraints, and the scaling parameter alpha / r.',
     category: 'Linear Algebra',
     difficulty: 'Intermediate',
+    book: 'Understanding Deep Learning (Simon J.D. Prince)',
+    chapter: 'Chapter 15: Parameter-Efficient Fine-Tuning',
+    section: '15.3 Low-Rank Adaptation (LoRA)',
+    readingStatus: 'tested',
+    keyFormulaLatex: 'W = W_0 + \\Delta W = W_0 + \\frac{\\alpha}{r} B A, \\quad B \\in \\mathbb{R}^{d \\times r}, A \\in \\mathbb{R}^{r \\times k}',
+    toyCodeSnippet: `import numpy as np
+
+def lora_forward(x, W_0, A, B, alpha=16, r=4):
+    """
+    LoRA Forward Pass from Understanding Deep Learning (Ch 15).
+    x: (batch, in_features)
+    W_0: frozen base weights (out_features, in_features)
+    A: low-rank down-projection (r, in_features)
+    B: low-rank up-projection (out_features, r)
+    """
+    scaling = alpha / r
+    base_out = np.matmul(x, W_0.T)
+    # Low-rank bottleneck: (x @ A.T) @ B.T
+    lora_out = np.matmul(np.matmul(x, A.T), B.T) * scaling
+    return base_out + lora_out`,
     tags: ['lora', 'svd', 'matrix-decomposition', 'rank', 'linear-algebra', 'finetuning'],
     prerequisites: ['Matrix rank and null space', 'Singular Value Decomposition (SVD)', 'Frobenius norm'],
     mathFields: ['Matrix Theory', 'Spectral Graph Theory', 'Manifold Optimization'],
@@ -577,6 +624,27 @@ export const SAMPLE_LEARNING_UNITS: LearningUnit[] = [
     description: 'The mathematics of language model alignment: Shannon entropy, Kullback-Leibler divergence asymmetry, Bradley-Terry preference modeling, and the direct closed-form derivation of Direct Preference Optimization (DPO).',
     category: 'Information Theory',
     difficulty: 'Advanced',
+    book: 'Foundations of Deep Reinforcement Learning',
+    chapter: 'Chapter 8: Policy Optimization & RLHF',
+    section: '8.4 KL Regularization & DPO Objective',
+    readingStatus: 'tested',
+    keyFormulaLatex: '\\mathcal{L}_{\\text{DPO}}(\\pi_\\theta) = -\\mathbb{E}_{(x, y_w, y_l)} \\left[ \\log \\sigma \\left( \\beta \\log \\frac{\\pi_\\theta(y_w|x)}{\\pi_{\\text{ref}}(y_w|x)} - \\beta \\log \\frac{\\pi_\\theta(y_l|x)}{\\pi_{\\text{ref}}(y_l|x)} \\right) \\right]',
+    toyCodeSnippet: `import numpy as np
+
+def dpo_loss(pi_logps_w, pi_logps_l, ref_logps_w, ref_logps_l, beta=0.1):
+    """
+    Direct Preference Optimization loss computation.
+    pi_logps_w: log prob of chosen completion under active policy
+    ref_logps_w: log prob of chosen completion under reference model
+    """
+    # 1. Compute implicit reward logits
+    pi_ratio = pi_logps_w - pi_logps_l
+    ref_ratio = ref_logps_w - ref_logps_l
+    logits = beta * (pi_ratio - ref_ratio)
+    
+    # 2. Negative log sigmoid loss
+    loss = -np.log(1.0 / (1.0 + np.exp(-logits)))
+    return np.mean(loss)`,
     tags: ['dpo', 'rlhf', 'kl-divergence', 'probability', 'bradley-terry', 'alignment'],
     prerequisites: ['Probability distributions on discrete token sequences', 'Lagrange multipliers and constrained optimization', 'Log-likelihood and cross-entropy'],
     mathFields: ['Information Theory', 'Convex Optimization', 'Decision Theory'],
@@ -842,6 +910,29 @@ export const SAMPLE_LEARNING_UNITS: LearningUnit[] = [
     description: 'The mathematics of deep learning optimization: exponential moving averages, bias correction derivations, preconditioning via the empirical Fisher information matrix, and decoupled weight decay.',
     category: 'Optimization & Calculus',
     difficulty: 'Intermediate',
+    book: 'Understanding Deep Learning (Simon J.D. Prince)',
+    chapter: 'Chapter 6: Optimization & Gradient Descent',
+    section: '6.4 Adaptive Moments with Decoupled Weight Decay',
+    readingStatus: 'reading',
+    keyFormulaLatex: '\\theta_{t+1} = \\theta_t - \\eta_t \\left( \\frac{m_t}{\\sqrt{v_t} + \\epsilon} + \\lambda \\theta_t \\right)',
+    toyCodeSnippet: `import numpy as np
+
+def adamw_step(param, grad, m, v, t, lr=1e-3, beta1=0.9, beta2=0.999, eps=1e-8, weight_decay=0.01):
+    """
+    Single AdamW optimization step with decoupled weight decay.
+    """
+    # 1. Decay the first and second moment running averages
+    m = beta1 * m + (1.0 - beta1) * grad
+    v = beta2 * v + (1.0 - beta2) * (grad ** 2)
+    
+    # 2. Bias corrections
+    m_hat = m / (1.0 - beta1 ** t)
+    v_hat = v / (1.0 - beta2 ** t)
+    
+    # 3. Decoupled weight decay update + adaptive gradient step
+    param = param - lr * weight_decay * param
+    param = param - lr * (m_hat / (np.sqrt(v_hat) + eps))
+    return param, m, v`,
     tags: ['optimization', 'adamw', 'gradient-descent', 'momentum', 'curvature', 'hessian'],
     prerequisites: ['Taylor series expansion of multivariate loss', 'Gradient descent dynamics', 'Variance of exponentially weighted moving averages'],
     mathFields: ['Convex and Non-Convex Optimization', 'Stochastic Approximation', 'Matrix Conditioning'],

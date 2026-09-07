@@ -193,23 +193,23 @@ export const ManuscriptSurface: React.FC = () => {
   return (
     <div className="flex flex-col w-full h-full bg-[var(--color-surface)] text-[var(--color-ink)] overflow-hidden">
       {/* Top Header Toolbar */}
-      <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between gap-4 select-none shrink-0">
+      <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 select-none shrink-0 shadow-2xs">
         {/* Title & Venue */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-            <ScrollText size={17} />
+          <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-800 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <ScrollText size={18} />
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2
                 onClick={() => setIsMetaModalOpen(true)}
-                className="text-sm font-bold text-[var(--color-ink)] truncate hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors"
+                className="text-sm font-bold text-[var(--color-ink)] truncate hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer transition-colors tracking-tight"
                 title="Click to edit paper metadata"
               >
                 {manuscript.meta.title}
               </h2>
-              <span className="text-[0.65rem] font-mono px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 shrink-0">
+              <span className="text-[0.65rem] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 shrink-0 border border-purple-200/40">
                 {manuscript.meta.targetVenue}
               </span>
               <TabHelpTip
@@ -237,12 +237,13 @@ export const ManuscriptSurface: React.FC = () => {
         </div>
 
         {/* View Mode Switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shrink-0">
+        <nav aria-label="Manuscript Views" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs shrink-0">
           <button
+            type="button"
             onClick={() => setViewMode('composer')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
               viewMode === 'composer'
-                ? 'bg-[var(--color-surface)] text-indigo-600 dark:text-indigo-400 shadow-xs border border-[var(--color-rule)] font-semibold'
+                ? 'bg-[var(--color-surface)] text-purple-700 dark:text-purple-300 shadow-xs border border-purple-300/60 dark:border-purple-700/60 font-semibold'
                 : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
             }`}
           >
@@ -250,10 +251,11 @@ export const ManuscriptSurface: React.FC = () => {
             <span>Composer</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('storyboard')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
               viewMode === 'storyboard'
-                ? 'bg-[var(--color-surface)] text-purple-600 dark:text-purple-400 shadow-xs border border-[var(--color-rule)] font-semibold'
+                ? 'bg-[var(--color-surface)] text-purple-700 dark:text-purple-300 shadow-xs border border-purple-300/60 dark:border-purple-700/60 font-semibold'
                 : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
             }`}
           >
@@ -261,17 +263,18 @@ export const ManuscriptSurface: React.FC = () => {
             <span>Argument Storyboard</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('preprint')}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
               viewMode === 'preprint'
-                ? 'bg-[var(--color-surface)] text-teal-600 dark:text-teal-400 shadow-xs border border-[var(--color-rule)] font-semibold'
+                ? 'bg-[var(--color-surface)] text-purple-700 dark:text-purple-300 shadow-xs border border-purple-300/60 dark:border-purple-700/60 font-semibold'
                 : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
             }`}
           >
             <BookOpen size={13} />
             <span>Preprint Reader</span>
           </button>
-        </div>
+        </nav>
 
         {/* Reset & Right panel toggle */}
         <div className="flex items-center gap-2 shrink-0">

@@ -93,16 +93,17 @@ export const ExperimentsSurface: React.FC = () => {
       id="experiments-surface"
       className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]"
     >
-      {/* Surface Header & Status Filter with unified surface-intro */}
-      <header className="surface-intro">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Surface Header & Status Filter */}
+      <header className="px-5 py-3 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 dark:border-sky-800 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+            <FlaskConical size={18} />
+          </div>
           <div>
-            <p className="surface-kicker flex items-center gap-1.5 text-sky-600 dark:text-sky-400">
-              <FlaskConical className="w-3.5 h-3.5" />
-              Claim-Centric Verification
-            </p>
             <div className="flex items-center gap-2">
-              <h1>Experiments Gallery</h1>
+              <h1 className="text-sm font-bold text-[var(--color-ink)] tracking-tight">
+                Experiments Gallery
+              </h1>
               <TabHelpTip
                 title="Experiments Gallery"
                 category="Empirical Validation"
@@ -117,28 +118,29 @@ export const ExperimentsSurface: React.FC = () => {
                 variant="inline"
               />
             </div>
-            <p>
-              Artifacts are grouped under the claim they test, making ungrounded experiments immediately visible.
+            <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">
+              Interactive telemetry, benchmark charts, and claim-centric evidence gallery
             </p>
           </div>
-
-          {/* Filter buttons */}
-          <div className="flex items-center bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-full p-1 self-start md:self-auto shadow-2xs">
-            {(['all', 'planned', 'running', 'done'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1 rounded-full text-xs font-mono uppercase transition-all duration-200 ${
-                  statusFilter === s
-                    ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 font-bold border border-sky-200/80 dark:border-sky-800/80 shadow-2xs'
-                    : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
         </div>
+
+        {/* Filter subtabs */}
+        <nav aria-label="Experiment Status Filter" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs">
+          {(['all', 'planned', 'running', 'done'] as const).map(s => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase transition-all whitespace-nowrap ${
+                statusFilter === s
+                  ? 'bg-[var(--color-surface)] text-sky-700 dark:text-sky-300 font-bold border border-sky-300/60 dark:border-sky-700/60 shadow-xs'
+                  : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface)]/60'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {/* Main Scrollable Canvas Body */}

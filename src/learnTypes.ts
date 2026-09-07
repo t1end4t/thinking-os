@@ -13,6 +13,7 @@ export interface CognitiveLevelMeta {
   levelNumber: number;
   name: string;
   shortDesc: string;
+  promptQuestion: string;
   actionVerbs: string[];
   color: string;
   lightBg: string;
@@ -27,6 +28,7 @@ export const COGNITIVE_LEVELS: Record<CognitiveLevelId, CognitiveLevelMeta> = {
     levelNumber: 1,
     name: 'Remembering',
     shortDesc: 'Recalling basic facts, terms, and core concepts without necessarily grasping their wider meaning.',
+    promptQuestion: 'What are the exact definitions, mathematical notations, and tensor dimensions?',
     actionVerbs: ['Recall', 'Define', 'List', 'State', 'Identify', 'Memorize'],
     color: 'text-sky-600 dark:text-sky-400',
     lightBg: 'bg-sky-50',
@@ -39,6 +41,7 @@ export const COGNITIVE_LEVELS: Record<CognitiveLevelId, CognitiveLevelMeta> = {
     levelNumber: 2,
     name: 'Understanding',
     shortDesc: 'Explaining ideas, translating concepts, or summarizing information in your own words.',
+    promptQuestion: 'Can you explain the intuition and mechanism in plain words without jargon (Feynman technique)?',
     actionVerbs: ['Explain', 'Translate', 'Paraphrase', 'Illustrate', 'Interpret', 'Summarize'],
     color: 'text-emerald-600 dark:text-emerald-400',
     lightBg: 'bg-emerald-50',
@@ -51,6 +54,7 @@ export const COGNITIVE_LEVELS: Record<CognitiveLevelId, CognitiveLevelMeta> = {
     levelNumber: 3,
     name: 'Applying',
     shortDesc: 'Using information, rules, or formulas to solve problems in new situations.',
+    promptQuestion: 'Can you compute a toy numerical example or write a minimal implementation?',
     actionVerbs: ['Compute', 'Calculate', 'Solve', 'Implement', 'Execute', 'Derive'],
     color: 'text-amber-600 dark:text-amber-400',
     lightBg: 'bg-amber-50',
@@ -63,6 +67,7 @@ export const COGNITIVE_LEVELS: Record<CognitiveLevelId, CognitiveLevelMeta> = {
     levelNumber: 4,
     name: 'Analyzing',
     shortDesc: 'Breaking information down into component parts to see patterns, relationships, and hidden structures.',
+    promptQuestion: 'What are the core assumptions, boundary conditions, and failure modes when stressed?',
     actionVerbs: ['Decompose', 'Contrast', 'Deduce', 'Dissect', 'Stress-Test', 'Isolate'],
     color: 'text-indigo-600 dark:text-indigo-400',
     lightBg: 'bg-indigo-50',
@@ -75,6 +80,7 @@ export const COGNITIVE_LEVELS: Record<CognitiveLevelId, CognitiveLevelMeta> = {
     levelNumber: 5,
     name: 'Evaluating',
     shortDesc: 'Making judgments, critiquing arguments, and validating ideas based on clear criteria.',
+    promptQuestion: 'What are the real-world trade-offs, limitations, and empirical edge cases?',
     actionVerbs: ['Critique', 'Validate', 'Falsify', 'Audit', 'Weigh', 'Detect Flaws'],
     color: 'text-rose-600 dark:text-rose-400',
     lightBg: 'bg-rose-50',
@@ -87,6 +93,7 @@ export const COGNITIVE_LEVELS: Record<CognitiveLevelId, CognitiveLevelMeta> = {
     levelNumber: 6,
     name: 'Creating',
     shortDesc: 'Combining separate elements in novel ways to build, design, or produce original work.',
+    promptQuestion: 'How can you synthesize this concept into a new research hypothesis or architecture?',
     actionVerbs: ['Synthesize', 'Conjecture', 'Hypothesize', 'Design', 'Formulate', 'Bridge to Claims'],
     color: 'text-purple-600 dark:text-purple-400',
     lightBg: 'bg-purple-50',
@@ -281,6 +288,12 @@ export interface LearningUnit {
   description: string;
   category: 'Linear Algebra' | 'Information Theory' | 'Optimization & Calculus' | 'Attention & Architecture' | 'LLM Reasoning & Alignment' | 'General Math';
   difficulty: 'Foundational' | 'Intermediate' | 'Advanced' | 'Research Frontier';
+  book?: string;
+  chapter?: string;
+  section?: string;
+  readingStatus?: 'reading' | 'annotated' | 'tested' | 'synthesized';
+  keyFormulaLatex?: string;
+  toyCodeSnippet?: string;
   tags: string[];
   prerequisites: string[];
   mathFields: string[];

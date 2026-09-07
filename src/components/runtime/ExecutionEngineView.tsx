@@ -50,6 +50,7 @@ import { AgentEnvironmentView } from './AgentEnvironmentView';
 interface ExecutionEngineViewProps {
   currentSubTab: EngineSubTab;
   onSubTabChange: (tab: EngineSubTab) => void;
+  hideSubnavTabs?: boolean;
   services: ServiceItem[];
   onAddService: (service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => void;
   onUpdateService: (id: string, changes: Partial<Omit<ServiceItem, 'id' | 'createdAt' | 'author'>>) => void;
@@ -78,6 +79,7 @@ interface ExecutionEngineViewProps {
 export function ExecutionEngineView({
   currentSubTab,
   onSubTabChange,
+  hideSubnavTabs = false,
   services,
   onAddService,
   onUpdateService,
@@ -306,99 +308,145 @@ export function ExecutionEngineView({
   return (
     <div className="execution-engine-view" id="execution-engine-root">
       {/* Sub-tab Navigation Header */}
-      <div className="engine-subnav-bar">
-        <div className="engine-subtabs-group" role="tablist" aria-label="Execution Engine sections">
-          <button
-            role="tab"
-            aria-selected={currentSubTab === 'agent-environment'}
-            className={`engine-subtab-btn ${currentSubTab === 'agent-environment' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('agent-environment')}
-            id="engine-tab-agent-environment"
-          >
-            <Settings2 size={15} />
-            <span>Agent Environment</span>
-          </button>
-
-          <button
-            role="tab"
-            aria-selected={currentSubTab === 'services'}
-            className={`engine-subtab-btn ${currentSubTab === 'services' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('services')}
-            id="engine-tab-services"
-          >
-            <ServerCog size={15} />
-            <span>Services</span>
-            <span className="engine-subtab-badge">{counts.services}</span>
-          </button>
-
-          <button
-            role="tab"
-            aria-selected={currentSubTab === 'llm-models'}
-            className={`engine-subtab-btn ${currentSubTab === 'llm-models' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('llm-models')}
-            id="engine-tab-llm-models"
-          >
-            <Cpu size={15} />
-            <span>LLM Models</span>
-            <span className="engine-subtab-badge">{counts['llm-models']}</span>
-          </button>
-
-          <button
-            role="tab"
-            aria-selected={currentSubTab === 'agent-jobs'}
-            className={`engine-subtab-btn ${currentSubTab === 'agent-jobs' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('agent-jobs')}
-            id="engine-tab-agent-jobs"
-          >
-            <Bot size={15} />
-            <span>Agent Jobs</span>
-            <span className="engine-subtab-badge">{counts['agent-jobs']}</span>
-          </button>
-        </div>
-
-        {/* Quick Search in Sub-bar */}
-        {!['agent-jobs', 'agent-environment'].includes(currentSubTab) && <div className="engine-filter-group">
-          {currentSubTab === 'services' && (
-            <button className="engine-add-btn" onClick={openAddService}>
-              <Plus size={13} />
-              Add service
+      {!hideSubnavTabs ? (
+        <div className="engine-subnav-bar">
+          <div className="engine-subtabs-group" role="tablist" aria-label="Execution Engine sections">
+            <button
+              role="tab"
+              aria-selected={currentSubTab === 'agent-environment'}
+              className={`engine-subtab-btn ${currentSubTab === 'agent-environment' ? 'active' : ''}`}
+              onClick={() => handleTabSwitch('agent-environment')}
+              id="engine-tab-agent-environment"
+            >
+              <Settings2 size={15} />
+              <span>Agent Environment</span>
             </button>
-          )}
-          {currentSubTab === 'llm-models' && (
-            <>
-              <button className="engine-add-btn" onClick={() => setIsAddingModel(true)}>
-                <Download size={13} />
-                Download
-              </button>
-              <button className="service-control-btn" onClick={() => void onRefreshModels()} title="Rescan model directory">
-                <RefreshCw size={13} />
-                Refresh
-              </button>
-            </>
-          )}
-          <div className="engine-search-box">
-            <Search size={13} className="engine-search-icon" />
-            <input
-              type="text"
-              placeholder={`Filter ${
-                currentSubTab === 'llm-models' ? 'LLM models' : currentSubTab
-              }...`}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="engine-search-input"
-            />
-            {searchQuery && (
-              <button
-                className="engine-search-clear"
-                onClick={() => setSearchQuery('')}
-                title="Clear search"
-              >
-                ×
+
+            <button
+              role="tab"
+              aria-selected={currentSubTab === 'services'}
+              className={`engine-subtab-btn ${currentSubTab === 'services' ? 'active' : ''}`}
+              onClick={() => handleTabSwitch('services')}
+              id="engine-tab-services"
+            >
+              <ServerCog size={15} />
+              <span>Services</span>
+              <span className="engine-subtab-badge">{counts.services}</span>
+            </button>
+
+            <button
+              role="tab"
+              aria-selected={currentSubTab === 'llm-models'}
+              className={`engine-subtab-btn ${currentSubTab === 'llm-models' ? 'active' : ''}`}
+              onClick={() => handleTabSwitch('llm-models')}
+              id="engine-tab-llm-models"
+            >
+              <Cpu size={15} />
+              <span>LLM Models</span>
+              <span className="engine-subtab-badge">{counts['llm-models']}</span>
+            </button>
+
+            <button
+              role="tab"
+              aria-selected={currentSubTab === 'agent-jobs'}
+              className={`engine-subtab-btn ${currentSubTab === 'agent-jobs' ? 'active' : ''}`}
+              onClick={() => handleTabSwitch('agent-jobs')}
+              id="engine-tab-agent-jobs"
+            >
+              <Bot size={15} />
+              <span>Agent Jobs</span>
+              <span className="engine-subtab-badge">{counts['agent-jobs']}</span>
+            </button>
+          </div>
+
+          {/* Quick Search in Sub-bar */}
+          {!['agent-jobs', 'agent-environment'].includes(currentSubTab) && <div className="engine-filter-group">
+            {currentSubTab === 'services' && (
+              <button className="engine-add-btn" onClick={openAddService}>
+                <Plus size={13} />
+                Add service
               </button>
             )}
+            {currentSubTab === 'llm-models' && (
+              <>
+                <button className="engine-add-btn" onClick={() => setIsAddingModel(true)}>
+                  <Download size={13} />
+                  Download
+                </button>
+                <button className="service-control-btn" onClick={() => void onRefreshModels()} title="Rescan model directory">
+                  <RefreshCw size={13} />
+                  Refresh
+                </button>
+              </>
+            )}
+            <div className="engine-search-box">
+              <Search size={13} className="engine-search-icon" />
+              <input
+                type="text"
+                placeholder={`Filter ${
+                  currentSubTab === 'llm-models' ? 'LLM models' : currentSubTab
+                }...`}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="engine-search-input"
+              />
+              {searchQuery && (
+                <button
+                  className="engine-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>}
+        </div>
+      ) : !['agent-jobs', 'agent-environment'].includes(currentSubTab) ? (
+        <div className="engine-subnav-bar !justify-end px-5 py-2">
+          <div className="engine-filter-group">
+            {currentSubTab === 'services' && (
+              <button className="engine-add-btn" onClick={openAddService}>
+                <Plus size={13} />
+                Add service
+              </button>
+            )}
+            {currentSubTab === 'llm-models' && (
+              <>
+                <button className="engine-add-btn" onClick={() => setIsAddingModel(true)}>
+                  <Download size={13} />
+                  Download
+                </button>
+                <button className="service-control-btn" onClick={() => void onRefreshModels()} title="Rescan model directory">
+                  <RefreshCw size={13} />
+                  Refresh
+                </button>
+              </>
+            )}
+            <div className="engine-search-box">
+              <Search size={13} className="engine-search-icon" />
+              <input
+                type="text"
+                placeholder={`Filter ${
+                  currentSubTab === 'llm-models' ? 'LLM models' : currentSubTab
+                }...`}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="engine-search-input"
+              />
+              {searchQuery && (
+                <button
+                  className="engine-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
-        </div>}
-      </div>
+        </div>
+      ) : null}
 
       {/* Sub-tab description and drag affordance banner */}
       {!['agent-jobs', 'agent-environment'].includes(currentSubTab) && <div className="engine-view-header-strip">

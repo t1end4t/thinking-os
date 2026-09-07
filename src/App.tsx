@@ -22,6 +22,7 @@ const WorkspaceShell: React.FC = () => {
     setSelectedLinkId,
     clearSelection,
     toggleDock,
+    dockPosition,
     taskEditor,
     closeTaskEditor
   } = useWorkspace();
@@ -65,6 +66,9 @@ const WorkspaceShell: React.FC = () => {
         {/* Left Surface Rail */}
         <Rail />
 
+        {/* Assistant dock when docked on the left (closer to research canvas & drag-and-drop) */}
+        {dockPosition === 'left' && <AssistantDock />}
+
         {/* Central Work Canvas / Active Surface */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 flex overflow-hidden relative">
@@ -82,8 +86,8 @@ const WorkspaceShell: React.FC = () => {
           <Inspector />
         </div>
 
-        {/* Right panel: assistant, editors, and settings */}
-        <AssistantDock />
+        {/* Assistant dock when docked on the right */}
+        {dockPosition === 'right' && <AssistantDock />}
       </div>
 
       {taskEditor && (

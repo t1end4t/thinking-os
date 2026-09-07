@@ -18,7 +18,8 @@ import {
   ArrowDownCircle,
   Maximize2,
   Minimize2,
-  Pencil
+  Pencil,
+  ArrowLeftRight
 } from 'lucide-react';
 
 const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, className = 'w-3 h-3' }) => {
@@ -44,6 +45,8 @@ export const AssistantDock: React.FC = () => {
     setIsDockOpen,
     dockWidth,
     setDockWidth,
+    dockPosition,
+    toggleDockPosition,
     openTaskEditor,
     activeContext,
     setActiveContext,
@@ -88,9 +91,9 @@ export const AssistantDock: React.FC = () => {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      const newWidth = window.innerWidth - e.clientX;
-      const minW = 340;
+      const minW = 320;
       const maxW = Math.floor(window.innerWidth * 0.75);
+      const newWidth = dockPosition === 'left' ? e.clientX - 48 : window.innerWidth - e.clientX;
       setDockWidth(Math.min(Math.max(newWidth, minW), maxW));
     };
 
@@ -181,15 +184,19 @@ export const AssistantDock: React.FC = () => {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`assistant-dock relative h-full border-l border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 select-none z-30 ${
+      className={`assistant-dock relative h-full ${
+        dockPosition === 'left' ? 'border-r' : 'border-l'
+      } border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 select-none z-30 ${
         isDragOver ? 'ring-2 ring-indigo-500/40 bg-indigo-50/20 dark:bg-indigo-950/20' : ''
       }`}
     >
-      {/* Resizing Handle on Left Edge */}
+      {/* Resizing Handle on appropriate edge */}
       <div
         onMouseDown={handleMouseDownResize}
         title="Drag to resize panel"
-        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-indigo-500/40 transition-colors z-40 -translate-x-1"
+        className={`absolute ${
+          dockPosition === 'left' ? 'right-0 translate-x-1' : 'left-0 -translate-x-1'
+        } top-0 bottom-0 w-2 cursor-ew-resize hover:bg-indigo-500/40 transition-colors z-40`}
       />
 
       {/* Toast Notification Banner */}
@@ -217,11 +224,19 @@ export const AssistantDock: React.FC = () => {
             Assistant Dock
           </span>
           <span className="px-1.5 py-0.2 rounded text-[0.6875rem] font-mono bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-            [cx/gpt-5.6-sol]
+            {dockPosition === 'left' ? 'Left' : 'Right'}
           </span>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={toggleDockPosition}
+            title={dockPosition === 'left' ? 'Move Dock to Right side' : 'Move Dock to Left side'}
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+          </button>
           <button
             type="button"
             onClick={toggleExpandDock}
@@ -463,6 +478,38 @@ export const AssistantDock: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Quick AI Learning Actions Strip */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[0.6875rem] font-mono">
+          <button
+            type="button"
+            onClick={() => setInputMessage('Explain the geometric intuition and why this formula holds.')}
+            className="px-2 py-0.5 rounded-full border border-sky-300/60 dark:border-sky-800 bg-sky-50/60 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 shrink-0 transition-colors"
+          >
+            📐 Intuition
+          </button>
+          <button
+            type="button"
+            onClick={() => setInputMessage('Show the step-by-step mathematical derivation of this.')}
+            className="px-2 py-0.5 rounded-full border border-indigo-300/60 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 shrink-0 transition-colors"
+          >
+            ⚡ Derivation
+          </button>
+          <button
+            type="button"
+            onClick={() => setInputMessage('What are the numerical edge cases or failure modes for this?')}
+            className="px-2 py-0.5 rounded-full border border-amber-300/60 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 shrink-0 transition-colors"
+          >
+            ⚠️ Stress-Test
+          </button>
+          <button
+            type="button"
+            onClick={() => setInputMessage('Write a clean Python / PyTorch verification test demonstrating this concept.')}
+            className="px-2 py-0.5 rounded-full border border-emerald-300/60 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 shrink-0 transition-colors"
+          >
+            🧪 Python Test
+          </button>
+        </div>
 
         {/* Composer Input Box */}
         <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-2xs overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500/50 transition-all relative">

@@ -11,7 +11,8 @@ import {
   GripVertical,
   HelpCircle,
   Sparkles,
-  Plus
+  Plus,
+  GitFork
 } from 'lucide-react';
 
 export const MapSurface: React.FC = () => {
@@ -308,16 +309,108 @@ export const MapSurface: React.FC = () => {
   };
 
   return (
-    <div
-      id="map-canvas-container"
-      ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
-      onClick={() => clearSelection()}
-      className="relative flex-1 h-full w-full overflow-hidden bg-[var(--color-paper)] select-none cursor-grab active:cursor-grabbing"
-    >
+    <div className="flex flex-col w-full h-full bg-[var(--color-paper)] overflow-hidden">
+      {/* Surface Header */}
+      <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 shrink-0 select-none shadow-2xs z-20">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-300 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+            <GitFork size={18} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-[var(--color-ink)] tracking-tight">
+                Argument Map
+              </h1>
+              <TabHelpTip
+                title="Argument Map"
+                category="Epistemic Graph"
+                summary="Interactive graph of questions, claims, and evidence nodes linked by logical relationships."
+                tips={[
+                  "Click & drag canvas to pan; scroll wheel to zoom.",
+                  "Click any node or link to inspect properties and audit confidence.",
+                  "Filter links to isolate Holds, Weak, or Missing connections.",
+                  "Hover a node or link to highlight its relation branch.",
+                  "Drag any node or edge into the Assistant Dock to prompt research discussions."
+                ]}
+                placement="bottom"
+                variant="inline"
+              />
+            </div>
+            <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">
+              Topological tree organizing Questions, Claims, and Evidence relationships
+            </p>
+          </div>
+        </div>
+
+        {/* Link Status Filter Bar */}
+        <nav aria-label="Link Filter" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs overflow-x-auto max-w-full">
+          <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] px-2">
+            Links
+          </span>
+          <button
+            id="status-filter-all"
+            type="button"
+            onClick={() => setLinkStatusFilter('all')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all ${
+              linkStatusFilter === 'all'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold shadow-xs'
+                : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+            }`}
+          >
+            All <span className="opacity-65 text-[0.6875rem]">({linkCounts.all})</span>
+          </button>
+          <button
+            id="status-filter-holds"
+            type="button"
+            onClick={() => setLinkStatusFilter('holds')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+              linkStatusFilter === 'holds'
+                ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-semibold shadow-xs border border-emerald-300/40'
+                : 'text-[var(--color-ink-muted)] hover:text-emerald-600 dark:hover:text-emerald-400'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Holds <span className="opacity-70 text-[0.6875rem]">({linkCounts.holds})</span>
+          </button>
+          <button
+            id="status-filter-weak"
+            type="button"
+            onClick={() => setLinkStatusFilter('weak')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+              linkStatusFilter === 'weak'
+                ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-semibold shadow-xs border border-amber-300/40'
+                : 'text-[var(--color-ink-muted)] hover:text-amber-600 dark:hover:text-amber-400'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Weak <span className="opacity-70 text-[0.6875rem]">({linkCounts.weak})</span>
+          </button>
+          <button
+            id="status-filter-missing"
+            type="button"
+            onClick={() => setLinkStatusFilter('missing')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+              linkStatusFilter === 'missing'
+                ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-semibold shadow-xs border border-rose-300/40'
+                : 'text-[var(--color-ink-muted)] hover:text-rose-600 dark:hover:text-rose-400'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            Missing <span className="opacity-70 text-[0.6875rem]">({linkCounts.missing})</span>
+          </button>
+        </nav>
+      </header>
+
+      <div
+        id="map-canvas-container"
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
+        onClick={() => clearSelection()}
+        className="relative flex-1 h-full w-full overflow-hidden bg-[var(--color-paper)] select-none cursor-grab active:cursor-grabbing"
+      >
       {/* Background Subtle Dot Matrix Grid */}
       <div
         className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-20"
@@ -574,81 +667,7 @@ export const MapSurface: React.FC = () => {
           {zoomLevel}
         </span>
       </div>
-
-      {/* Floating Link Status Filter Bar (Top-Left of Graph Canvas) */}
-      <div
-        id="map-link-filter"
-        className="absolute top-4 left-4 z-20 flex items-center bg-[var(--color-surface)]/95 backdrop-blur-xs border border-[var(--color-rule)] rounded-full p-1 shadow-sm select-none gap-1"
-      >
-        <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] px-2.5">
-          Links
-        </span>
-        <button
-          id="status-filter-all"
-          onClick={() => setLinkStatusFilter('all')}
-          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono transition-all ${
-            linkStatusFilter === 'all'
-              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-semibold shadow-xs'
-              : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
-          }`}
-        >
-          All <span className="opacity-65 text-[0.6875rem]">({linkCounts.all})</span>
-        </button>
-        <button
-          id="status-filter-holds"
-          onClick={() => setLinkStatusFilter('holds')}
-          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono flex items-center gap-1.5 transition-all ${
-            linkStatusFilter === 'holds'
-              ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-semibold shadow-xs'
-              : 'text-[var(--color-ink-muted)] hover:text-emerald-600 dark:hover:text-emerald-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          Holds <span className="opacity-70 text-[0.6875rem]">({linkCounts.holds})</span>
-        </button>
-        <button
-          id="status-filter-weak"
-          onClick={() => setLinkStatusFilter('weak')}
-          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono flex items-center gap-1.5 transition-all ${
-            linkStatusFilter === 'weak'
-              ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-300 font-semibold shadow-xs'
-              : 'text-[var(--color-ink-muted)] hover:text-amber-600 dark:hover:text-amber-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          Weak <span className="opacity-70 text-[0.6875rem]">({linkCounts.weak})</span>
-        </button>
-        <button
-          id="status-filter-missing"
-          onClick={() => setLinkStatusFilter('missing')}
-          className={`px-2.5 py-1 rounded-full text-[0.75rem] font-mono flex items-center gap-1.5 transition-all ${
-            linkStatusFilter === 'missing'
-              ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-300 font-semibold shadow-xs'
-              : 'text-[var(--color-ink-muted)] hover:text-rose-600 dark:hover:text-rose-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-rose-500" />
-          Missing <span className="opacity-70 text-[0.6875rem]">({linkCounts.missing})</span>
-        </button>
-
-        <div className="w-px h-4 bg-[var(--color-rule)] mx-1" />
-
-        <TabHelpTip
-          title="Argument Map"
-          category="Epistemic Graph"
-          summary="Interactive graph of questions, claims, and evidence nodes linked by logical relationships."
-          tips={[
-            "Click & drag canvas to pan; scroll wheel to zoom.",
-            "Click any node or link to inspect properties and audit confidence.",
-            "Filter links above to isolate Holds, Weak, or Missing connections.",
-            "Hover a node or link to highlight its relation branch.",
-            "Drag any node or edge into the Assistant Dock to prompt research discussions."
-          ]}
-          placement="bottom"
-          variant="inline"
-          className="!ml-0 mr-1"
-        />
-      </div>
     </div>
+  </div>
   );
 };

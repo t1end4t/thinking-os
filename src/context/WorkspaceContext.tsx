@@ -180,6 +180,9 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   toggleDock: () => void;
   dockWidth: number;
   setDockWidth: (width: number) => void;
+  dockPosition: 'left' | 'right';
+  setDockPosition: (pos: 'left' | 'right') => void;
+  toggleDockPosition: () => void;
   rightPanelView: RightPanelView;
   setRightPanelView: (view: RightPanelView) => void;
   taskEditor: TaskEditorState | null;
@@ -262,7 +265,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(SAMPLE_LEARNING_UNITS);
   const [activeLearningUnitId, setActiveLearningUnitId] = useState<string | null>(() => SAMPLE_LEARNING_UNITS[0]?.id ?? null);
   const [activeCognitiveLevel, setActiveCognitiveLevel] = useState<CognitiveLevelId>('remembering');
-  const [activeLearnTab, setActiveLearnTab] = useState<LearnViewMode>('roadmap');
+  const [activeLearnTab, setActiveLearnTab] = useState<LearnViewMode>('desk');
 
   const addService = useCallback((service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => {
     setServices(current => {
@@ -288,6 +291,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Assistant Dock
   const [isDockOpen, setIsDockOpen] = useState<boolean>(true);
   const [dockWidth, setDockWidth] = useState<number>(360);
+  const [dockPosition, setDockPositionState] = useState<'left' | 'right'>(() => {
+    const saved = localStorage.getItem('thinking_os_dock_position');
+    return saved === 'left' || saved === 'right' ? saved : 'right';
+  });
+  const setDockPosition = useCallback((pos: 'left' | 'right') => {
+    setDockPositionState(pos);
+    localStorage.setItem('thinking_os_dock_position', pos);
+  }, []);
+  const toggleDockPosition = useCallback(() => {
+    setDockPositionState(pos => {
+      const next = pos === 'left' ? 'right' : 'left';
+      localStorage.setItem('thinking_os_dock_position', next);
+      return next;
+    });
+  }, []);
   const [rightPanelView, setRightPanelView] = useState<RightPanelView>('assistant');
   const [taskEditor, setTaskEditor] = useState<TaskEditorState | null>(null);
   const [activeContext, setActiveContext] = useState<AssistantContextObject | null>({
@@ -1085,6 +1103,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleDock,
         dockWidth,
         setDockWidth,
+        dockPosition,
+        setDockPosition,
+        toggleDockPosition,
         rightPanelView,
         setRightPanelView,
         taskEditor,

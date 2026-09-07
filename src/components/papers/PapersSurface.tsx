@@ -118,55 +118,69 @@ export const PapersSurface: React.FC = () => {
       className="flex-1 h-full flex flex-col bg-[var(--color-surface)] overflow-hidden"
     >
       {/* Paper Tabs Header */}
-      <div className="h-12 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/70 px-4 flex items-center gap-2 shrink-0 overflow-x-auto">
-        <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] shrink-0 mr-0.5 flex items-center gap-1.5">
-          <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-          Papers Vault
-        </span>
-        <TabHelpTip
-          title="Papers Vault & Reader"
-          category="Literature Review"
-          summary="In-depth academic paper reader with annotation, excerpt highlighting, and evidence linking."
-          tips={[
-            "Switch between loaded literature vault papers using the tabs above.",
-            "Select/highlight any text passage in the reader to spawn the 'Link Evidence' toolbar.",
-            "Link findings directly to Argument Map claims to establish formal citations.",
-            "Drag paper documents or citations into the Assistant Dock for deep Q&A."
-          ]}
-          placement="bottom"
-          variant="inline"
-        />
-        <div className="w-px h-4 bg-[var(--color-rule)] mx-1 shrink-0" />
+      <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+            <BookOpen size={18} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-[var(--color-ink)] tracking-tight">
+                Papers Vault
+              </h1>
+              <TabHelpTip
+                title="Papers Vault & Reader"
+                category="Literature Review"
+                summary="In-depth academic paper reader with annotation, excerpt highlighting, and evidence linking."
+                tips={[
+                  "Switch between loaded literature vault papers using the tabs on the right.",
+                  "Select/highlight any text passage in the reader to spawn the 'Link Evidence' toolbar.",
+                  "Link findings directly to Argument Map claims to establish formal citations.",
+                  "Drag paper documents or citations into the Assistant Dock for deep Q&A."
+                ]}
+                placement="bottom"
+                variant="inline"
+              />
+            </div>
+            <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">
+              Literature reader, inline evidence extraction, and citation linking
+            </p>
+          </div>
+        </div>
 
-        {papers.length === 0 ? (
-          <span className="text-xs font-mono text-slate-400">No papers loaded</span>
-        ) : (
-          papers.map(p => {
-            const isActive = p.id === activePaperId;
-            return (
-              <button
-                key={p.id}
-                id={`paper-tab-${p.id}`}
-                onClick={() => {
-                  setActivePaperId(p.id);
-                  setFloatingToolbarPos(null);
-                }}
-                className={`px-3.5 py-1.5 text-xs font-mono rounded-full flex items-center gap-2 transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 font-bold shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span className="truncate max-w-[180px]">{p.title}</span>
-                <span className="text-[0.75rem] text-teal-600/70 dark:text-teal-400/70">
-                  ({p.year})
-                </span>
-              </button>
-            );
-          })
-        )}
-      </div>
+        {/* Paper Subtabs Switcher */}
+        <nav aria-label="Loaded Literature Papers" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs overflow-x-auto max-w-full">
+          {papers.length === 0 ? (
+            <span className="text-xs font-mono text-[var(--color-ink-muted)] px-3 py-1">No papers loaded</span>
+          ) : (
+            papers.map(p => {
+              const isActive = p.id === activePaperId;
+              return (
+                <button
+                  key={p.id}
+                  id={`paper-tab-${p.id}`}
+                  type="button"
+                  onClick={() => {
+                    setActivePaperId(p.id);
+                    setFloatingToolbarPos(null);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-mono rounded-lg flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-[var(--color-surface)] text-teal-700 dark:text-teal-300 border border-teal-300/60 dark:border-teal-700/60 font-semibold shadow-xs'
+                      : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface)]/60'
+                  }`}
+                >
+                  <FileText size={13} className={isActive ? 'text-teal-600 dark:text-teal-400' : 'opacity-60'} />
+                  <span className="truncate max-w-[160px]">{p.title}</span>
+                  <span className="text-[0.6875rem] opacity-70">
+                    ({p.year})
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </nav>
+      </header>
 
       {/* Main Reader View */}
       {!activePaper ? (

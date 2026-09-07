@@ -9,9 +9,15 @@ import {
   Eye,
   EyeOff,
   Sparkles,
-  RotateCcw
+  RotateCcw,
+  Move,
+  Bot,
+  Zap
 } from 'lucide-react';
 import { LearningUnit } from '../../../learnTypes';
+import { MathView } from '../../common/MathView';
+import { useWorkspace } from '../../../context/WorkspaceContext';
+import { AssistantContextObject } from '../../../types';
 
 interface ApplyingViewProps {
   unit: LearningUnit;
@@ -23,6 +29,40 @@ export const ApplyingView: React.FC<ApplyingViewProps> = ({
   unit,
   onUpdateProgress
 }) => {
+  const { addAttachedContext, setIsDockOpen } = useWorkspace();
+
+  const handleAskAiDerivation = (derivation: typeof unit.applying.workedDerivations[0]) => {
+    setIsDockOpen(true);
+    const ctx: AssistantContextObject = {
+      type: 'artifact',
+      id: `derivation-${unit.id}-${derivation.id}`,
+      label: derivation.title,
+      secondaryLabel: `Mathematical Derivation: ${unit.title}`,
+      metadata: {
+        problemStatement: derivation.problemStatement,
+        stepsCount: derivation.steps.length,
+        conclusion: derivation.conclusion
+      }
+    };
+    addAttachedContext(ctx);
+  };
+
+  const handleAskAiChallenge = (challenge: typeof unit.applying.practiceChallenges[0]) => {
+    setIsDockOpen(true);
+    const ctx: AssistantContextObject = {
+      type: 'artifact',
+      id: `challenge-${unit.id}-${challenge.id}`,
+      label: challenge.question.slice(0, 45) + '...',
+      secondaryLabel: `Practice Challenge: ${unit.title}`,
+      metadata: {
+        question: challenge.question,
+        mathContext: challenge.mathContext || '',
+        hints: (challenge.hints || []).join('; ')
+      }
+    };
+    addAttachedContext(ctx);
+  };
+
   // Expansion state for derivations
   const [expandedDerivations, setExpandedDerivations] = useState<Record<string, boolean>>({
     '0': true
@@ -383,18 +423,64 @@ export const ApplyingView: React.FC<ApplyingViewProps> = ({
               >
                 {/* Derivation Header */}
                 <div
-                  onClick={() => toggleDerivation(dIdx)}
+                  draggable={true}
+                  onDragStart={e => {
+                    const ctx: AssistantContextObject = {
+                      type: 'artifact',
+                      id: `derivation-${unit.id}-${derivation.id}`,
+                      label: derivation.title,
+                      secondaryLabel: `Mathematical Derivation: ${unit.title}`,
+                      metadata: {
+                        problemStatement: derivation.problemStatement,
+                        stepsCount: derivation.steps.length,
+                        conclusion: derivation.conclusion
+                      }
+                    };
+                    e.dataTransfer.setData('application/json', JSON.stringify(ctx));
+                    e.dataTransfer.setData(
+                      'text/plain',
+                      `Mathematical Derivation: ${derivation.title}\nProblem: ${derivation.problemStatement}\nConclusion: ${derivation.conclusion}`
+                    );
+                  }}
                   className="p-4 bg-[var(--color-paper)] border-b border-[var(--color-rule)] flex items-center justify-between cursor-pointer hover:bg-[var(--color-rule)]/20 transition-colors"
                 >
-                  <div className="flex items-center gap-2">
+                  <div
+                    onClick={() => toggleDerivation(dIdx)}
+                    className="flex items-center gap-2 flex-1"
+                  >
                     {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    <h4 className="text-xs md:text-sm font-semibold text-[var(--color-ink)]">
-                      {derivation.title}
-                    </h4>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[0.625rem] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                          Derivation 0{dIdx + 1}
+                        </span>
+                        <span className="text-[0.625rem] font-mono text-slate-400 flex items-center gap-0.5">
+                          <Move size={9} className="text-amber-500" />
+                          <span>Drag to AI</span>
+                        </span>
+                      </div>
+                      <h4 className="text-xs md:text-sm font-semibold text-[var(--color-ink)]">
+                        {derivation.title}
+                      </h4>
+                    </div>
                   </div>
-                  <span className="text-xs font-mono text-[var(--color-ink-muted)]">
-                    {derivation.steps.length} mathematical steps
-                  </span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-mono text-[var(--color-ink-muted)]">
+                      {derivation.steps.length} steps
+                    </span>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleAskAiDerivation(derivation);
+                      }}
+                      className="p-1.5 rounded-lg border border-[var(--color-rule)] text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                      title="Explain this derivation with AI"
+                    >
+                      <Sparkles size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 {isExpanded && (
@@ -420,18 +506,43 @@ export const ApplyingView: React.FC<ApplyingViewProps> = ({
                       {derivation.steps.map((step, sIdx) => (
                         <div
                           key={sIdx}
-                          className="p-3.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2"
+                          draggable={true}
+                          onDragStart={e => {
+                            const ctx: AssistantContextObject = {
+                              type: 'artifact',
+                              id: `derivation-step-${unit.id}-${derivation.id}-${step.stepIndex}`,
+                              label: `Step ${step.stepIndex}: ${step.label || 'Derivation Step'}`,
+                              secondaryLabel: derivation.title,
+                              metadata: {
+                                mathExpression: step.mathExpression,
+                                justification: step.justification || ''
+                              }
+                            };
+                            e.dataTransfer.setData('application/json', JSON.stringify(ctx));
+                            e.dataTransfer.setData(
+                              'text/plain',
+                              `Step ${step.stepIndex}: ${step.mathExpression}\nJustification: ${step.justification || ''}`
+                            );
+                          }}
+                          className="p-3.5 rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2 shadow-2xs"
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-[0.7188rem] font-mono font-bold text-amber-600 dark:text-amber-400">
                               Step {step.stepIndex}: {step.label || step.justification}
                             </span>
+                            <span className="text-[0.625rem] font-mono text-slate-400 flex items-center gap-0.5">
+                              <Move size={9} className="text-amber-500" />
+                              <span>Drag step</span>
+                            </span>
                           </div>
 
-                          <div className="p-2.5 rounded bg-[var(--color-surface)] border border-[var(--color-rule)] overflow-x-auto">
-                            <code className="text-xs md:text-sm font-mono font-semibold text-[var(--color-ink)]">
-                              {step.mathExpression}
-                            </code>
+                          <div className="p-2.5 rounded-lg bg-[var(--color-surface)] border border-[var(--color-rule)]">
+                            <MathView
+                              math={step.mathExpression}
+                              block={true}
+                              label={`Step ${step.stepIndex}`}
+                              contextId={`step-${derivation.id}-${step.stepIndex}`}
+                            />
                           </div>
 
                           {step.justification && (
@@ -476,33 +587,79 @@ export const ApplyingView: React.FC<ApplyingViewProps> = ({
               return (
                 <div
                   key={challenge.id || cIdx}
-                  className={`p-4 rounded-xl border transition-all ${
+                  draggable={true}
+                  onDragStart={e => {
+                    const ctx: AssistantContextObject = {
+                      type: 'artifact',
+                      id: `challenge-${unit.id}-${challenge.id}`,
+                      label: challenge.question.slice(0, 45) + '...',
+                      secondaryLabel: `Practice Challenge: ${unit.title}`,
+                      metadata: {
+                        question: challenge.question,
+                        mathContext: challenge.mathContext || '',
+                        hints: (challenge.hints || []).join('; ')
+                      }
+                    };
+                    e.dataTransfer.setData('application/json', JSON.stringify(ctx));
+                    e.dataTransfer.setData(
+                      'text/plain',
+                      `Practice Challenge: ${challenge.question}\nContext: ${challenge.mathContext || ''}\nSolution: ${challenge.solutionWalkthrough}`
+                    );
+                  }}
+                  className={`p-4 md:p-5 rounded-2xl border transition-all ${
                     isSolved
                       ? 'border-amber-500/50 bg-amber-50/15 dark:bg-amber-950/10'
-                      : 'border-[var(--color-rule)] bg-[var(--color-surface)]'
+                      : 'border-[var(--color-rule)] bg-[var(--color-surface)] hover:border-amber-400/40'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
-                    <h4 className="text-xs md:text-sm font-semibold text-[var(--color-ink)]">
-                      {challenge.question}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => toggleSolveChallenge(challenge.id)}
-                      className={`p-1.5 rounded text-xs flex items-center gap-1 font-mono transition-colors ${
-                        isSolved
-                          ? 'bg-amber-500 text-white'
-                          : 'border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
-                      }`}
-                    >
-                      <CheckCircle2 size={14} />
-                      <span>{isSolved ? 'Completed' : 'Mark Solved'}</span>
-                    </button>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[0.625rem] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                          Challenge 0{cIdx + 1}
+                        </span>
+                        <span className="text-[0.625rem] font-mono text-slate-400 flex items-center gap-0.5">
+                          <Move size={9} className="text-amber-500" />
+                          <span>Drag to AI</span>
+                        </span>
+                      </div>
+                      <h4 className="text-xs md:text-sm font-semibold text-[var(--color-ink)] leading-snug">
+                        {challenge.question}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleAskAiChallenge(challenge)}
+                        className="p-1.5 rounded-lg border border-[var(--color-rule)] text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                        title="Work on this challenge with AI"
+                      >
+                        <Sparkles size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleSolveChallenge(challenge.id)}
+                        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 font-mono transition-colors ${
+                          isSolved
+                            ? 'bg-amber-500 text-white'
+                            : 'border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                        }`}
+                      >
+                        <CheckCircle2 size={14} />
+                        <span>{isSolved ? 'Completed' : 'Mark Solved'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {challenge.mathContext && (
-                    <div className="p-2.5 my-2 rounded-lg bg-[var(--color-paper)] border border-[var(--color-rule)] text-xs font-mono text-[var(--color-ink-muted)]">
-                      {challenge.mathContext}
+                    <div className="p-3 my-2.5 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)]">
+                      <MathView
+                        math={challenge.mathContext}
+                        block={false}
+                        label={`Context 0${cIdx + 1}`}
+                        contextId={`challenge-ctx-${challenge.id}`}
+                      />
                     </div>
                   )}
 

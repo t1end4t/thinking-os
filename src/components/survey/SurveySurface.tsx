@@ -93,18 +93,19 @@ export const SurveySurface: React.FC = () => {
       className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]"
     >
       {/* Surface Header with Deliberate Friction Gate Indicator */}
-      <header className="surface-intro">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="px-5 py-3 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <Compass size={18} />
+          </div>
           <div>
-            <p className="surface-kicker flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-              <Compass className="w-3.5 h-3.5" />
-              Pre-Question Exploration
-            </p>
             <div className="flex items-center gap-2">
-              <h1>Survey Field</h1>
+              <h1 className="text-sm font-bold text-[var(--color-ink)] tracking-tight">
+                Literature Survey
+              </h1>
               <TabHelpTip
-                title="Survey Field"
-                category="Literature Scouting"
+                title="Literature Survey"
+                category="Pre-Question Exploration"
                 summary="Pre-question exploration: capture open problems from background reading and cluster them into candidate research questions."
                 tips={[
                   "Add unclustered open problem notes from background reading.",
@@ -116,43 +117,43 @@ export const SurveySurface: React.FC = () => {
                 variant="inline"
               />
             </div>
-            <p>
-              Loose open-problem notes form candidate question clusters. Synthesize clusters before promoting into the argument tree.
+            <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">
+              Synthesize loose open-problem notes into candidate clusters before promoting to claims
             </p>
           </div>
+        </div>
 
-          {/* Gate 2: 15-Note Counter Meter */}
-          <div className="flex items-center gap-4 bg-[var(--color-surface)] border border-[var(--color-rule)] px-4 py-2 rounded-full shadow-2xs self-start md:self-auto">
-            <div className="flex flex-col">
-              <span className="font-mono text-[0.6875rem] uppercase text-[var(--color-ink-muted)] font-medium">
-                Unclustered Notes
-              </span>
-              <span className="font-mono text-xs font-bold text-[var(--color-ink)]">
-                {unclusteredOpenProblemsCount} / 15 Max
-              </span>
-            </div>
+        {/* Gate 2: 15-Note Counter Meter */}
+        <div className="flex items-center gap-3.5 bg-[var(--color-paper)] border border-[var(--color-rule)] px-3.5 py-1.5 rounded-xl shadow-2xs self-start md:self-auto">
+          <div className="flex flex-col">
+            <span className="font-mono text-[0.625rem] uppercase text-[var(--color-ink-muted)] font-medium">
+              Unclustered Notes
+            </span>
+            <span className="font-mono text-xs font-bold text-[var(--color-ink)]">
+              {unclusteredOpenProblemsCount} / 15 Max
+            </span>
+          </div>
 
-            <div className="w-24 h-2 bg-[var(--color-paper)] rounded-full overflow-hidden border border-[var(--color-rule)]">
-              <div
-                style={{ width: `${Math.min((unclusteredOpenProblemsCount / 15) * 100, 100)}%` }}
-                className={`h-full transition-all duration-300 ${
-                  unclusteredOpenProblemsCount >= 13
-                    ? 'bg-rose-500'
-                    : unclusteredOpenProblemsCount >= 8
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-                }`}
-              />
-            </div>
+          <div className="w-20 h-2 bg-[var(--color-surface)] rounded-full overflow-hidden border border-[var(--color-rule)]">
+            <div
+              style={{ width: `${Math.min((unclusteredOpenProblemsCount / 15) * 100, 100)}%` }}
+              className={`h-full transition-all duration-300 ${
+                unclusteredOpenProblemsCount >= 13
+                  ? 'bg-rose-500'
+                  : unclusteredOpenProblemsCount >= 8
+                  ? 'bg-amber-500'
+                  : 'bg-emerald-500'
+              }`}
+            />
+          </div>
 
-            <div className="flex flex-col border-l border-[var(--color-rule)] pl-3">
-              <span className="font-mono text-[0.6875rem] uppercase text-[var(--color-ink-muted)] font-medium">
-                Candidates
-              </span>
-              <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
-                {candidateQuestions.length} Formed
-              </span>
-            </div>
+          <div className="flex flex-col border-l border-[var(--color-rule)] pl-3">
+            <span className="font-mono text-[0.625rem] uppercase text-[var(--color-ink-muted)] font-medium">
+              Candidates
+            </span>
+            <span className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
+              {candidateQuestions.length} Formed
+            </span>
           </div>
         </div>
       </header>
