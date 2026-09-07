@@ -66,6 +66,10 @@ package-lock.json
 *v8.log
 /lib/
 /dist/
+*.tsbuildinfo
+.env.local
+.env.*.local
+*.log
 
 # nix stuff
 .devenv/
