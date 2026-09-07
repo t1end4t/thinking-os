@@ -107,6 +107,7 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   activeSurface: SurfaceId;
   setActiveSurface: (surface: SurfaceId) => void;
   theme: 'light' | 'dark';
+  toggleTheme: () => void;
   fontSize: number;
   setFontSize: (size: number) => void;
   
@@ -131,6 +132,9 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   tasks: TaskItem[];
   setTasks: React.Dispatch<React.SetStateAction<TaskItem[]>>;
   services: ServiceItem[];
+  addService: (service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => void;
+  updateService: (id: string, changes: Partial<Omit<ServiceItem, 'id' | 'createdAt' | 'author'>>) => void;
+  deleteService: (id: string) => void;
   runs: RunItem[];
   models: LLMModelItem[];
   automations: AutomationItem[];
@@ -237,6 +241,23 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [models, setModels] = useState<LLMModelItem[]>([]);
   const [automations, setAutomations] = useState<AutomationItem[]>([]);
   const [targets, setTargets] = useState<TargetItem[]>([]);
+
+  const addService = useCallback((service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => {
+    setServices(current => {
+      const slug = service.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'service';
+      const baseId = `srv-${slug}`;
+      const id = current.some(item => item.id === baseId) ? `${baseId}-${Date.now()}` : baseId;
+      return [...current, { ...service, id, createdAt: Date.now(), author: 'user' }];
+    });
+  }, []);
+
+  const updateService = useCallback((id: string, changes: Partial<Omit<ServiceItem, 'id' | 'createdAt' | 'author'>>) => {
+    setServices(current => current.map(item => (item.id === id ? { ...item, ...changes } : item)));
+  }, []);
+
+  const deleteService = useCallback((id: string) => {
+    setServices(current => current.filter(item => item.id !== id));
+  }, []);
 
   // Selection
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -443,6 +464,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const onChange = (event: MediaQueryListEvent) => apply(event.matches);
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(current => {
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.classList.toggle('dark', next === 'dark');
+      return next;
+    });
   }, []);
 
   const toggleDock = useCallback(() => {
@@ -848,6 +877,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activeSurface,
         setActiveSurface,
         theme,
+        toggleTheme,
         fontSize,
         setFontSize,
         activeTag,
@@ -868,6 +898,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         tasks,
         setTasks,
         services,
+        addService,
+        updateService,
+        deleteService,
         runs,
         models,
         automations,

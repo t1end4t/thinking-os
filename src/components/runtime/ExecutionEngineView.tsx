@@ -1,4 +1,4 @@
-import { DragEvent, useState, useMemo } from 'react';
+import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   GripVertical,
   Play,
@@ -15,25 +15,59 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
-  Layers
+  Layers,
+  Plus,
+  X,
+  Square,
+  Pencil,
+  Trash2,
+  ScrollText,
+  RefreshCw,
+  Eraser,
+  Bot,
+  Download,
+  HardDrive
 } from 'lucide-react';
 import {
   EngineSubTab,
   ServiceItem,
   RunItem,
-  LLMModelItem,
   AutomationItem,
   TargetItem,
   WorkspaceObject
 } from '../../productivityTypes';
 import { setDragObjectData } from '../../utils/dragDrop';
+import {
+  LocalModelStatus,
+  ModelDownloadRequest,
+  ModelHardwareStatus,
+  ServiceAction,
+  ServiceProcessStatus
+} from '../../runtimeClient';
 
 interface ExecutionEngineViewProps {
   currentSubTab: EngineSubTab;
   onSubTabChange: (tab: EngineSubTab) => void;
   services: ServiceItem[];
+  onAddService: (service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => void;
+  onUpdateService: (id: string, changes: Partial<Omit<ServiceItem, 'id' | 'createdAt' | 'author'>>) => void;
+  processes: Record<string, ServiceProcessStatus>;
+  execEnabled: boolean;
+  busyServiceId: string | null;
+  onServiceAction: (id: string, action: ServiceAction) => void;
+  onShowLogs: (id: string) => void;
+  logs: string[] | null;
+  logsServiceId: string | null;
+  onCloseLogs: () => void;
   runs: RunItem[];
-  models: LLMModelItem[];
+  localModels: LocalModelStatus[];
+  modelsDir: string;
+  modelHardware: ModelHardwareStatus | null;
+  llamaServerAvailable: boolean;
+  busyModelId: string | null;
+  onRefreshModels: () => Promise<void>;
+  onModelAction: (model: LocalModelStatus, action: 'run' | 'stop' | 'remove' | 'cancel-download') => void;
+  onModelDownload: (request: ModelDownloadRequest) => Promise<void>;
   automations: AutomationItem[];
   targets: TargetItem[];
   onToggleAutomation?: (id: string) => void;
@@ -43,8 +77,25 @@ export function ExecutionEngineView({
   currentSubTab,
   onSubTabChange,
   services,
+  onAddService,
+  onUpdateService,
+  processes,
+  execEnabled,
+  busyServiceId,
+  onServiceAction,
+  onShowLogs,
+  logs,
+  logsServiceId,
+  onCloseLogs,
   runs,
-  models,
+  localModels,
+  modelsDir,
+  modelHardware,
+  llamaServerAvailable,
+  busyModelId,
+  onRefreshModels,
+  onModelAction,
+  onModelDownload,
   automations,
   targets,
   onToggleAutomation
@@ -53,11 +104,106 @@ export function ExecutionEngineView({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isAddingService, setIsAddingService] = useState(false);
+  const [serviceName, setServiceName] = useState('');
+  const [serviceCommand, setServiceCommand] = useState('');
+  const [servicePort, setServicePort] = useState('');
+  const [serviceProtocol, setServiceProtocol] = useState('');
+  const [serviceCwd, setServiceCwd] = useState('');
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [logFloor, setLogFloor] = useState(0);
+  const [isAddingModel, setIsAddingModel] = useState(false);
+  const [modelRepo, setModelRepo] = useState('');
+  const [modelFileName, setModelFileName] = useState('');
+  const [modelLocalName, setModelLocalName] = useState('');
+  const [isSubmittingDownload, setIsSubmittingDownload] = useState(false);
+  const serviceNameRef = useRef<HTMLInputElement>(null);
+  const modelRepoRef = useRef<HTMLInputElement>(null);
+
+  // ponytail: clearing only hides lines already fetched; journalctl keeps them. Add `journalctl --rotate --vacuum-time` if real deletion is needed.
+  useEffect(() => setLogFloor(0), [logsServiceId]);
+  const visibleLogs = logs ? logs.slice(Math.min(logFloor, logs.length)) : null;
+
+  useEffect(() => {
+    if (!isAddingService && !isAddingModel && !logsServiceId) return;
+    if (isAddingService) serviceNameRef.current?.focus();
+    if (isAddingModel) modelRepoRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (logsServiceId) onCloseLogs();
+      else if (isAddingModel) setIsAddingModel(false);
+      else setIsAddingService(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isAddingModel, isAddingService, logsServiceId, onCloseLogs]);
+
+  const resetServiceForm = () => {
+    setServiceName('');
+    setServiceCommand('');
+    setServicePort('');
+    setServiceProtocol('');
+    setServiceCwd('');
+    setEditingServiceId(null);
+  };
+
+  const openAddService = () => {
+    resetServiceForm();
+    setIsAddingService(true);
+  };
+
+  const openEditService = (service: ServiceItem) => {
+    setEditingServiceId(service.id);
+    setServiceName(service.name);
+    setServiceCommand(service.command);
+    setServicePort(service.port === null ? '' : String(service.port));
+    setServiceProtocol(service.protocol ?? '');
+    setServiceCwd(service.cwd ?? '');
+    setIsAddingService(true);
+  };
+
+  const handleAddService = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const port = servicePort.trim() ? Number(servicePort) : null;
+    if (!serviceName.trim() || !serviceCommand.trim() || (port !== null && (!Number.isInteger(port) || port < 1 || port > 65535))) return;
+    const values = {
+      name: serviceName.trim(),
+      command: serviceCommand.trim(),
+      port,
+      protocol: serviceProtocol.trim() || undefined,
+      cwd: serviceCwd.trim() || undefined
+    };
+    if (editingServiceId) onUpdateService(editingServiceId, values);
+    else onAddService({ ...values, status: 'stopped' });
+    resetServiceForm();
+    setIsAddingService(false);
+  };
 
   const copyText = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleModelDownload = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!modelRepo.trim() || !modelFileName.trim()) return;
+    setIsSubmittingDownload(true);
+    try {
+      await onModelDownload({
+        repo: modelRepo.trim(),
+        fileName: modelFileName.trim(),
+        localName: modelLocalName.trim() || undefined
+      });
+      setModelRepo('');
+      setModelFileName('');
+      setModelLocalName('');
+      setIsAddingModel(false);
+    } catch {
+      return;
+    } finally {
+      setIsSubmittingDownload(false);
+    }
   };
 
   const handleDragStart = (e: DragEvent, obj: WorkspaceObject) => {
@@ -73,9 +219,10 @@ export function ExecutionEngineView({
   const counts = {
     services: services.length,
     runs: runs.length,
-    'llm-models': models.length,
+    'llm-models': localModels.length,
     automations: automations.length,
-    targets: targets.length
+    targets: targets.length,
+    'agent-jobs': 0
   };
 
   // Filtered Services
@@ -85,10 +232,11 @@ export function ExecutionEngineView({
         srv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         srv.command.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (srv.protocol && srv.protocol.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesStatus = statusFilter === 'all' || srv.status === statusFilter;
+      const liveStatus = execEnabled ? (processes[srv.id]?.running ? 'running' : 'stopped') : srv.status;
+      const matchesStatus = statusFilter === 'all' || liveStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [services, searchQuery, statusFilter]);
+  }, [services, searchQuery, statusFilter, execEnabled, processes]);
 
   // Filtered Runs
   const filteredRuns = useMemo(() => {
@@ -105,16 +253,16 @@ export function ExecutionEngineView({
 
   // Filtered LLM Models
   const filteredModels = useMemo(() => {
-    return models.filter(mdl => {
+    return localModels.filter(model => {
       const matchesSearch =
-        mdl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (mdl.family && mdl.family.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        mdl.quantization.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        mdl.hash.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || mdl.status === statusFilter;
+        model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        model.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        model.quantization.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        model.parameters.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || model.status === statusFilter || (statusFilter === 'running' && model.status === 'starting');
       return matchesSearch && matchesStatus;
     });
-  }, [models, searchQuery, statusFilter]);
+  }, [localModels, searchQuery, statusFilter]);
 
   // Filtered Automations
   const filteredAutomations = useMemo(() => {
@@ -171,18 +319,6 @@ export function ExecutionEngineView({
 
           <button
             role="tab"
-            aria-selected={currentSubTab === 'runs'}
-            className={`engine-subtab-btn ${currentSubTab === 'runs' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('runs')}
-            id="engine-tab-runs"
-          >
-            <Play size={14} />
-            <span>Runs</span>
-            <span className="engine-subtab-badge">{counts.runs}</span>
-          </button>
-
-          <button
-            role="tab"
             aria-selected={currentSubTab === 'llm-models'}
             className={`engine-subtab-btn ${currentSubTab === 'llm-models' ? 'active' : ''}`}
             onClick={() => handleTabSwitch('llm-models')}
@@ -195,31 +331,37 @@ export function ExecutionEngineView({
 
           <button
             role="tab"
-            aria-selected={currentSubTab === 'automations'}
-            className={`engine-subtab-btn ${currentSubTab === 'automations' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('automations')}
-            id="engine-tab-automations"
+            aria-selected={currentSubTab === 'agent-jobs'}
+            className={`engine-subtab-btn ${currentSubTab === 'agent-jobs' ? 'active' : ''}`}
+            onClick={() => handleTabSwitch('agent-jobs')}
+            id="engine-tab-agent-jobs"
           >
-            <Repeat2 size={15} />
-            <span>Automations</span>
-            <span className="engine-subtab-badge">{counts.automations}</span>
-          </button>
-
-          <button
-            role="tab"
-            aria-selected={currentSubTab === 'targets'}
-            className={`engine-subtab-btn ${currentSubTab === 'targets' ? 'active' : ''}`}
-            onClick={() => handleTabSwitch('targets')}
-            id="engine-tab-targets"
-          >
-            <Target size={15} />
-            <span>Targets</span>
-            <span className="engine-subtab-badge">{counts.targets}</span>
+            <Bot size={15} />
+            <span>Agent Jobs</span>
+            <span className="engine-subtab-badge">{counts['agent-jobs']}</span>
           </button>
         </div>
 
         {/* Quick Search in Sub-bar */}
-        <div className="engine-filter-group">
+        {currentSubTab !== 'agent-jobs' && <div className="engine-filter-group">
+          {currentSubTab === 'services' && (
+            <button className="engine-add-btn" onClick={openAddService}>
+              <Plus size={13} />
+              Add service
+            </button>
+          )}
+          {currentSubTab === 'llm-models' && (
+            <>
+              <button className="engine-add-btn" onClick={() => setIsAddingModel(true)}>
+                <Download size={13} />
+                Download
+              </button>
+              <button className="service-control-btn" onClick={() => void onRefreshModels()} title="Rescan model directory">
+                <RefreshCw size={13} />
+                Refresh
+              </button>
+            </>
+          )}
           <div className="engine-search-box">
             <Search size={13} className="engine-search-icon" />
             <input
@@ -241,17 +383,24 @@ export function ExecutionEngineView({
               </button>
             )}
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Sub-tab description and drag affordance banner */}
-      <div className="engine-view-header-strip">
-        <div className="drag-hint-banner m-0">
+      {currentSubTab !== 'agent-jobs' && <div className="engine-view-header-strip">
+        <div className={`drag-hint-banner m-0 ${currentSubTab === 'llm-models' ? 'model-runtime-summary' : ''}`}>
           <span className="drag-hint-pill">Tip</span>
-          <span>
-            Drag any {currentSubTab === 'llm-models' ? 'LLM model' : currentSubTab.slice(0, -1)} card
-            directly onto the <strong>Assistant chat</strong> to inspect locks, query weights, or run diagnostics.
-          </span>
+          {currentSubTab === 'llm-models' ? (
+            <span>
+              <strong>{modelsDir}</strong> · {modelHardware?.gpuName ?? 'No NVIDIA GPU'}
+              {modelHardware ? ` · VRAM ${modelHardware.vramFree} free · RAM ${modelHardware.ramFree} free` : ''}
+              {!llamaServerAvailable ? ' · llama-server unavailable' : ''}
+            </span>
+          ) : (
+            <span>
+              Drag any {currentSubTab.slice(0, -1)} card directly onto the <strong>Assistant chat</strong> to inspect locks, query weights, or run diagnostics.
+            </span>
+          )}
         </div>
 
         {/* Status quick toggles */}
@@ -271,10 +420,10 @@ export function ExecutionEngineView({
                 Running
               </button>
               <button
-                className={`engine-status-pill ${statusFilter === 'idle' ? 'active' : ''}`}
-                onClick={() => setStatusFilter('idle')}
+                className={`engine-status-pill ${statusFilter === 'stopped' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('stopped')}
               >
-                Idle
+                Stopped
               </button>
             </>
           )}
@@ -303,16 +452,28 @@ export function ExecutionEngineView({
           {currentSubTab === 'llm-models' && (
             <>
               <button
-                className={`engine-status-pill ${statusFilter === 'loaded' ? 'active' : ''}`}
-                onClick={() => setStatusFilter('loaded')}
+                className={`engine-status-pill ${statusFilter === 'running' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('running')}
               >
-                Loaded in VRAM
+                Running
               </button>
               <button
                 className={`engine-status-pill ${statusFilter === 'ready' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('ready')}
               >
                 Ready on Disk
+              </button>
+              <button
+                className={`engine-status-pill ${statusFilter === 'downloading' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('downloading')}
+              >
+                Downloading
+              </button>
+              <button
+                className={`engine-status-pill ${statusFilter === 'failed' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('failed')}
+              >
+                Failed
               </button>
             </>
           )}
@@ -349,10 +510,16 @@ export function ExecutionEngineView({
             </>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Main Grid Views for Each Section */}
       <div className="engine-content-scroll">
+        {currentSubTab === 'agent-jobs' && (
+          <div className="objects-grid" id="agent-jobs-grid">
+            <div className="engine-empty-results">No agent jobs yet.</div>
+          </div>
+        )}
+
         {/* SERVICES SECTION */}
         {currentSubTab === 'services' && (
           <div className="objects-grid" id="services-grid">
@@ -395,14 +562,65 @@ export function ExecutionEngineView({
                         </div>
                       </div>
                       <div className="object-header-actions">
-                        <span className={`status-pill ${srv.status}`}>{srv.status}</span>
+                        <span className={`status-pill ${execEnabled ? (processes[srv.id]?.running ? 'running' : 'stopped') : srv.status}`}>
+                          {execEnabled ? (processes[srv.id]?.running ? 'running' : 'stopped') : srv.status}
+                        </span>
+                        <div className="service-card-tools">
+                          <button onClick={() => openEditService(srv)} title="Edit service" aria-label={`Edit ${srv.name}`}>
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete ${srv.name}? This stops it and removes its autostart unit.`)) {
+                                onServiceAction(srv.id, 'uninstall');
+                              }
+                            }}
+                            title="Delete service"
+                            aria-label={`Delete ${srv.name}`}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     <div className="object-meta-row">
                       {srv.protocol && <span><strong>Protocol:</strong> {srv.protocol}</span>}
-                      {srv.uptime && <span><strong>Uptime:</strong> {srv.uptime}</span>}
+                      {!execEnabled && srv.uptime && <span><strong>Uptime:</strong> {srv.uptime}</span>}
                     </div>
+
+                    {execEnabled && (
+                      <div className="service-control-row">
+                        <span className={`status-pill ${processes[srv.id]?.running ? 'running' : 'stopped'}`}>
+                          {processes[srv.id]?.installed
+                            ? `${processes[srv.id]?.activeState}${processes[srv.id]?.pid ? ` · pid ${processes[srv.id]?.pid}` : ''}`
+                            : 'no unit installed'}
+                        </span>
+                        <div className="action-buttons-group">
+                          <button
+                            className="service-control-btn"
+                            onClick={() => onServiceAction(srv.id, 'start')}
+                            disabled={busyServiceId === srv.id || processes[srv.id]?.running}
+                          >
+                            <Play size={12} /> Start
+                          </button>
+                          <button
+                            className="service-control-btn"
+                            onClick={() => onServiceAction(srv.id, 'stop')}
+                            disabled={busyServiceId === srv.id || !processes[srv.id]?.running}
+                          >
+                            <Square size={12} /> Stop
+                          </button>
+                          <button
+                            className={`service-control-btn ${processes[srv.id]?.autostart ? 'is-enabled' : ''}`}
+                            onClick={() => onServiceAction(srv.id, processes[srv.id]?.autostart ? 'disable' : 'enable')}
+                            disabled={busyServiceId === srv.id}
+                          >
+                            <Power size={12} /> Autostart {processes[srv.id]?.autostart ? 'on' : 'off'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="code-block-wrap">
                       <code>{srv.command}</code>
@@ -417,15 +635,27 @@ export function ExecutionEngineView({
                     </div>
 
                     <div className="object-card-footer">
-                      <span className="drag-chip-hint">⠿ Drag to chat</span>
-                      <div className="action-buttons-group">
-                        {srv.port && (
-                          <span className="footer-link">
-                            <Terminal size={11} />
-                            curl http://localhost:{srv.port}
-                          </span>
-                        )}
-                      </div>
+                      {execEnabled && (
+                        <button
+                          className="service-control-btn service-footer-logs"
+                          onClick={() => onShowLogs(srv.id)}
+                          disabled={busyServiceId === srv.id || !processes[srv.id]?.installed}
+                        >
+                          <ScrollText size={12} /> View logs
+                        </button>
+                      )}
+                      {srv.port && (
+                        <a
+                          className="footer-link is-link"
+                          href={`http://localhost:${srv.port}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={`Open http://localhost:${srv.port}`}
+                        >
+                          <Terminal size={11} />
+                          localhost:{srv.port}
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
@@ -515,32 +745,39 @@ export function ExecutionEngineView({
         {currentSubTab === 'llm-models' && (
           <div className="objects-grid" id="llm-models-grid">
             {filteredModels.length === 0 ? (
-              <div className="engine-empty-results">No LLM models found matching filters.</div>
+              <div className="engine-empty-results">
+                No GGUF files found in <code>{modelsDir}</code>. Download one or copy it into the directory, then refresh.
+              </div>
             ) : (
-              filteredModels.map(mdl => {
-                const isDragging = draggedId === mdl.id;
+              filteredModels.map(model => {
+                const isDragging = draggedId === model.id;
+                const isBusy = busyModelId === model.id;
+                const isRunning = model.status === 'running' || model.status === 'starting';
+                const downloadPercent = model.download?.totalBytes
+                  ? Math.min(100, Math.round(model.download.receivedBytes / model.download.totalBytes * 100))
+                  : null;
                 const objData: WorkspaceObject = {
                   objectType: 'model',
-                  id: mdl.id,
-                  title: mdl.name,
-                  subtitle: mdl.family || mdl.quantization,
-                  details: `Params: ${mdl.parameters} · Context: ${mdl.contextLength} · VRAM: ${mdl.vramRequired}`,
+                  id: model.id,
+                  title: model.name,
+                  subtitle: `${model.parameters} · ${model.quantization}`,
+                  details: `${model.size} · ${model.fit?.label ?? 'Projector asset'} · ${model.path}`,
                   meta: {
-                    family: mdl.family,
-                    hash: mdl.hash,
-                    quantization: mdl.quantization,
-                    parameters: mdl.parameters,
-                    contextLength: mdl.contextLength,
-                    vram: mdl.vramRequired,
-                    status: mdl.status,
-                    instructFormat: mdl.instructFormat
+                    fileName: model.fileName,
+                    path: model.path,
+                    quantization: model.quantization,
+                    parameters: model.parameters,
+                    size: model.size,
+                    status: model.status,
+                    fit: model.fit?.label,
+                    endpoint: model.runtime ? `http://127.0.0.1:${model.runtime.port}` : undefined
                   }
                 };
 
                 return (
                   <div
-                    key={mdl.id}
-                    id={`llm-model-${mdl.id}`}
+                    key={model.id}
+                    id={`llm-model-${model.id}`}
                     className={`object-card model-card ${isDragging ? 'is-dragging' : ''}`}
                     draggable
                     onDragStart={e => handleDragStart(e, objData)}
@@ -550,52 +787,106 @@ export function ExecutionEngineView({
                     <div className="object-card-header">
                       <div className="object-title-group">
                         <GripVertical size={14} className="drag-grip" />
-                        <Cpu size={16} className="object-type-icon model" />
+                        {model.kind === 'projector'
+                          ? <HardDrive size={16} className="object-type-icon model" />
+                          : <Cpu size={16} className="object-type-icon model" />}
                         <div className="object-title-text flex-col items-start gap-0.5">
-                          <strong className="object-name" title={mdl.name}>{mdl.name}</strong>
+                          <strong className="object-name" title={model.fileName}>{model.name}</strong>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            {mdl.family && <span className="llm-family-badge">{mdl.family}</span>}
-                            <span className="object-sub-tag font-mono">{mdl.quantization}</span>
+                            <span className="llm-family-badge">{model.kind}</span>
+                            <span className="object-sub-tag font-mono">{model.quantization}</span>
                           </div>
                         </div>
                       </div>
-                      <span className={`status-pill ${mdl.status}`}>
-                        {mdl.status === 'loaded' && <span className="pulse-dot" />}
-                        {mdl.status === 'loaded' ? 'In VRAM' : mdl.status}
+                      <span className={`status-pill ${model.status}`}>
+                        {isRunning && <span className="pulse-dot" />}
+                        {model.status}
                       </span>
                     </div>
 
                     <div className="object-spec-grid">
                       <div className="spec-item">
+                        <span className="spec-label">File size</span>
+                        <span className="spec-value">{model.size}</span>
+                      </div>
+                      <div className="spec-item">
                         <span className="spec-label">Parameters</span>
-                        <span className="spec-value">{mdl.parameters}</span>
+                        <span className="spec-value">{model.parameters}</span>
                       </div>
                       <div className="spec-item">
-                        <span className="spec-label">Context Window</span>
-                        <span className="spec-value">{mdl.contextLength}</span>
-                      </div>
-                      <div className="spec-item">
-                        <span className="spec-label">VRAM Footprint</span>
-                        <span className="spec-value">{mdl.vramRequired}</span>
+                        <span className="spec-label">GPU layers</span>
+                        <span className="spec-value">{model.runtime?.gpuLayers ?? model.fit?.suggestedGpuLayers ?? '—'}</span>
                       </div>
                     </div>
 
                     <div className="model-hash-row">
-                      <span className="hash-label">Weight Hash:</span>
-                      <code className="hash-code">{mdl.hash}</code>
+                      <span className="hash-label">File:</span>
+                      <code className="hash-code" title={model.path}>{model.fileName}</code>
+                      <button className="model-copy-path" onClick={() => copyText(model.path, `path-${model.id}`)} title="Copy path" aria-label={`Copy path for ${model.name}`}>
+                        {copiedId === `path-${model.id}` ? <Check size={12} /> : <Copy size={12} />}
+                      </button>
                     </div>
 
-                    {mdl.instructFormat && (
-                      <div className="llm-prompt-row">
-                        <span className="hash-label">Template:</span>
-                        <span className="font-mono text-[0.75rem] text-[var(--accent)]">{mdl.instructFormat}</span>
+                    {model.fit && (
+                      <div className={`model-fit-row ${model.fit.mode}`} title="Estimate includes weight size plus coarse runtime overhead; KV cache varies with context.">
+                        <strong>{model.fit.label}</strong>
+                        <span>{model.fit.detail}</span>
                       </div>
                     )}
+
+                    {model.download && (
+                      <div className="model-download-row">
+                        <div className="model-download-track"><span style={{ width: `${downloadPercent ?? 8}%` }} /></div>
+                        <span>{downloadPercent === null ? model.size : `${downloadPercent}%`}</span>
+                      </div>
+                    )}
+
+                    {model.runtime && (
+                      <div className="llm-prompt-row">
+                        <span className="hash-label">Endpoint:</span>
+                        <code className="hash-code">http://127.0.0.1:{model.runtime.port}</code>
+                        <span className="hash-label">ctx {model.runtime.contextLength}</span>
+                      </div>
+                    )}
+
+                    {(model.runtime?.error || model.download?.error) && (
+                      <p className="model-runtime-error">{model.runtime?.error ?? model.download?.error}</p>
+                    )}
+
+                    <div className="model-control-row">
+                      {model.status === 'downloading' ? (
+                        <button className="service-control-btn" disabled={isBusy} onClick={() => onModelAction(model, 'cancel-download')}>
+                          <Square size={12} /> Cancel
+                        </button>
+                      ) : model.kind === 'model' && isRunning ? (
+                        <button className="service-control-btn" disabled={isBusy} onClick={() => onModelAction(model, 'stop')}>
+                          <Square size={12} /> Stop
+                        </button>
+                      ) : model.kind === 'model' ? (
+                        <button
+                          className="service-control-btn is-enabled"
+                          disabled={isBusy || !llamaServerAvailable || model.fit?.mode === 'insufficient'}
+                          onClick={() => onModelAction(model, 'run')}
+                          title={model.fit?.mode === 'insufficient' ? 'Free RAM/VRAM before starting this model.' : 'Start llama-server on the next free port.'}
+                        >
+                          <Play size={12} /> Run
+                        </button>
+                      ) : <span className="footer-status-text">Attached automatically to matching multimodal models.</span>}
+                      <button
+                        className="service-control-btn model-remove-btn"
+                        disabled={isBusy || model.status === 'downloading'}
+                        onClick={() => {
+                          if (window.confirm(`Remove ${model.fileName} from disk?`)) onModelAction(model, 'remove');
+                        }}
+                      >
+                        <Trash2 size={12} /> Remove
+                      </button>
+                    </div>
 
                     <div className="object-card-footer">
                       <span className="drag-chip-hint">⠿ Drag to chat</span>
                       <span className="footer-status-text">
-                        {mdl.status === 'loaded' ? 'Active local inference weights' : 'Cached in local weights registry'}
+                        {model.projectorFileName ? `Projector: ${model.projectorFileName}` : model.path}
                       </span>
                     </div>
                   </div>
@@ -749,6 +1040,151 @@ export function ExecutionEngineView({
           </div>
         )}
       </div>
+
+      {isAddingService && (
+        <div className="kanban-modal-backdrop" onMouseDown={() => setIsAddingService(false)}>
+          <div
+            className="kanban-modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-service-title"
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <div className="kanban-modal-header">
+              <h2 id="add-service-title" className="kanban-modal-heading">
+                {editingServiceId ? 'Edit service command' : 'Add service command'}
+              </h2>
+              <button className="engine-dialog-close" onClick={() => setIsAddingService(false)} aria-label="Close add service dialog">
+                <X size={16} />
+              </button>
+            </div>
+            <form className="kanban-modal-form" onSubmit={handleAddService}>
+              <div className="form-field">
+                <label htmlFor="service-name">Name</label>
+                <input ref={serviceNameRef} id="service-name" value={serviceName} onChange={event => setServiceName(event.target.value)} placeholder="9router" required />
+              </div>
+              <div className="form-field">
+                <label htmlFor="service-command">Command</label>
+                <textarea id="service-command" value={serviceCommand} onChange={event => setServiceCommand(event.target.value)} placeholder="docker run ..." rows={5} required />
+              </div>
+              <div className="task-editor-grid">
+                <div className="form-field">
+                  <label htmlFor="service-port">Port (optional)</label>
+                  <input id="service-port" type="number" min="1" max="65535" value={servicePort} onChange={event => setServicePort(event.target.value)} placeholder="8787" />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="service-protocol">Protocol (optional)</label>
+                  <input id="service-protocol" value={serviceProtocol} onChange={event => setServiceProtocol(event.target.value)} placeholder="HTTP/REST" />
+                </div>
+              </div>
+              <div className="form-field">
+                <label htmlFor="service-cwd">Working directory (optional)</label>
+                <input id="service-cwd" value={serviceCwd} onChange={event => setServiceCwd(event.target.value)} placeholder="~/code/my-project" />
+              </div>
+              <p className="task-editor-tip">
+                {editingServiceId
+                  ? 'Changes apply the next time the service starts.'
+                  : 'Start installs a persistent systemd user service. Autostart runs it after login.'}
+              </p>
+              <div className="task-editor-actions">
+                <button type="button" className="task-editor-button is-secondary" onClick={() => setIsAddingService(false)}>Cancel</button>
+                <button type="submit" className="task-editor-button is-primary" disabled={!serviceName.trim() || !serviceCommand.trim()}>
+                  {editingServiceId ? 'Save changes' : 'Add service'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isAddingModel && (
+        <div className="kanban-modal-backdrop" onMouseDown={() => !isSubmittingDownload && setIsAddingModel(false)}>
+          <div
+            className="kanban-modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="download-model-title"
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <div className="kanban-modal-header">
+              <h2 id="download-model-title" className="kanban-modal-heading">Download GGUF model</h2>
+              <button className="engine-dialog-close" disabled={isSubmittingDownload} onClick={() => setIsAddingModel(false)} aria-label="Close model download dialog">
+                <X size={16} />
+              </button>
+            </div>
+            <form className="kanban-modal-form" onSubmit={handleModelDownload}>
+              <div className="form-field">
+                <label htmlFor="model-repo">Hugging Face repository</label>
+                <input ref={modelRepoRef} id="model-repo" value={modelRepo} onChange={event => setModelRepo(event.target.value)} placeholder="unsloth/Qwen3.6-35B-A3B-GGUF" pattern="[A-Za-z0-9._-]+/[A-Za-z0-9._-]+" required />
+              </div>
+              <div className="form-field">
+                <label htmlFor="model-file-name">Repository filename</label>
+                <input id="model-file-name" value={modelFileName} onChange={event => setModelFileName(event.target.value)} placeholder="Qwen3.6-35B-A3B-UD-Q4_K_M.gguf" required />
+              </div>
+              <div className="form-field">
+                <label htmlFor="model-local-name">Local filename (optional)</label>
+                <input id="model-local-name" value={modelLocalName} onChange={event => setModelLocalName(event.target.value)} placeholder="Defaults to repository filename" pattern="[A-Za-z0-9._+()-]+\.[Gg][Gg][Uu][Ff]" />
+              </div>
+              <p className="task-editor-tip">
+                Saves into <code>{modelsDir}</code>. Private or gated repositories use the server process <code>HF_TOKEN</code> environment variable.
+              </p>
+              <div className="task-editor-actions">
+                <button type="button" className="task-editor-button is-secondary" disabled={isSubmittingDownload} onClick={() => setIsAddingModel(false)}>Cancel</button>
+                <button type="submit" className="task-editor-button is-primary" disabled={isSubmittingDownload || !modelRepo.trim() || !modelFileName.trim()}>
+                  {isSubmittingDownload ? 'Starting…' : 'Download'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {logsServiceId && (
+        <div className="kanban-modal-backdrop" onMouseDown={onCloseLogs}>
+          <div
+            className="kanban-modal-panel runtime-log-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="service-logs-title"
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <div className="kanban-modal-header runtime-log-header">
+              <div className="runtime-log-title">
+                <h2 id="service-logs-title" className="kanban-modal-heading">Service logs</h2>
+                <span className="runtime-log-unit">{logsServiceId}</span>
+                <span className="runtime-log-count">{visibleLogs ? `${visibleLogs.length} lines` : 'loading'}</span>
+              </div>
+              <div className="runtime-log-actions">
+                <button
+                  className="runtime-log-action"
+                  onClick={() => setLogFloor(logs?.length ?? 0)}
+                  disabled={!visibleLogs?.length}
+                  title="Clear view"
+                  aria-label="Clear log view"
+                >
+                  <Eraser size={14} />
+                  Clear
+                </button>
+                <button
+                  className="runtime-log-action"
+                  onClick={() => onShowLogs(logsServiceId)}
+                  title="Refresh"
+                  aria-label="Refresh logs"
+                >
+                  <RefreshCw size={14} />
+                  Refresh
+                </button>
+                <button className="engine-dialog-close" onClick={onCloseLogs} title="Close" aria-label="Close service logs">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <pre className="runtime-log-viewer">
+              {visibleLogs === null ? 'Loading logs…' : visibleLogs.length ? visibleLogs.join('\n') : 'No logs yet.'}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

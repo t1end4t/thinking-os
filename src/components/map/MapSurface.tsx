@@ -641,17 +641,13 @@ export const MapSurface: React.FC = () => {
             "Click & drag canvas to pan; scroll wheel to zoom.",
             "Click any node or link to inspect properties and audit confidence.",
             "Filter links above to isolate Holds, Weak, or Missing connections.",
+            "Hover a node or link to highlight its relation branch.",
             "Drag any node or edge into the Assistant Dock to prompt research discussions."
           ]}
           placement="bottom"
           variant="inline"
+          className="!ml-0 mr-1"
         />
-      </div>
-
-      {/* Interactive Helper Toast Hint */}
-      <div className="absolute top-4 right-4 z-20 pointer-events-none hidden md:flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface)]/90 backdrop-blur-xs border border-[var(--color-rule)] rounded-full text-[0.8125rem] font-mono text-slate-500 shadow-2xs">
-        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-        <span>Hover to highlight relation branch • Drag node/link to Assistant Dock</span>
       </div>
     </div>
   );

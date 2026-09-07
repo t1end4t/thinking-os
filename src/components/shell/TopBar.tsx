@@ -6,7 +6,8 @@ import {
   Settings,
   Type,
   X,
-  Sparkles,
+  Moon,
+  Sun,
   Folder,
   FolderOpen,
   Home,
@@ -32,7 +33,8 @@ export const TopBar: React.FC = () => {
     workspaceLoading,
     workspaceError,
     setWorkspaceDir,
-    loadSampleData
+    theme,
+    toggleTheme
   } = useWorkspace();
 
   const [folderPicker, setFolderPicker] = useState<WorkspaceDirListing | null>(null);
@@ -180,16 +182,15 @@ export const TopBar: React.FC = () => {
       {/* Right: Settings, Theme and Dock Toggle */}
       <div className="topbar-actions relative flex items-center gap-2.5 shrink-0">
         <button
-          id="seed-sample-btn"
+          id="theme-toggle-btn"
           type="button"
-          onClick={() => {
-            void loadSampleData();
-          }}
-          title="Seed and reload rich research content"
-          className="px-2.5 py-1.5 rounded-full border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/70 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-mono text-[0.75rem] flex items-center gap-1.5 transition-all shadow-2xs"
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="px-2.5 py-1.5 rounded-full border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)] hover:border-slate-400/60 font-mono text-[0.75rem] flex items-center gap-1.5 transition-all shadow-2xs"
         >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span className="topbar-control-label">Sample Data</span>
+          {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          <span className="topbar-control-label">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
 
         <button

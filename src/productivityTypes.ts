@@ -2,7 +2,7 @@ import { EntityAuthor } from './types';
 
 export type TabId = 'task-pipeline' | 'execution-engine';
 
-export type EngineSubTab = 'services' | 'runs' | 'llm-models' | 'automations' | 'targets';
+export type EngineSubTab = 'services' | 'runs' | 'llm-models' | 'automations' | 'targets' | 'agent-jobs';
 
 export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done';
 
@@ -35,6 +35,9 @@ export interface ServiceItem {
   status: 'running' | 'idle' | 'stopped';
   uptime?: string;
   protocol?: string;
+  cwd?: string;
+  createdAt?: number;
+  author?: EntityAuthor;
 }
 
 export interface RunItem {

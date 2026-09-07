@@ -128,13 +128,12 @@ const PRIMARY_SURFACES: SurfaceItem[] = [
     id: 'runtime',
     label: 'Runtime',
     icon: Cpu,
-    description: 'Execution layer for services, runs, models, automations, and targets.',
+    description: 'Execution layer for services, models, and agent jobs.',
     category: 'Execution Layer',
     tips: [
-      'Click tab to inspect daemons, batch runs, and hardware targets.',
-      'Use sub-tabs to switch between Services, Runs, Models, Automations, and Targets.',
-      'Drag any service, run, or model card into the chat dock to debug with AI.',
-      'Toggle background automations on or off with a single click.'
+      'Click tab to inspect services, models, and agent jobs.',
+      'Use sub-tabs to switch between Services, LLM Models, and Agent Jobs.',
+      'Drag any service or model card into the chat dock to inspect it.'
     ],
     shortcut: 'Primary 2',
     activeColor: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/60 ring-1 ring-violet-200/80 dark:ring-violet-800/60 shadow-xs shadow-violet-500/10',
