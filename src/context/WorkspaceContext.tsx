@@ -11,7 +11,8 @@ import {
   SurfaceId,
   AssistantContextObject,
   AssistantMessage,
-  LinkStatus
+  LinkStatus,
+  LinkKind
 } from '../types';
 import {
   AutomationItem,
@@ -158,6 +159,14 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   clearSelection: () => void;
 
   // Actions on Graph & Links
+  addQuestion: (title: string, tags: string[]) => { success: boolean; error?: string; questionId?: string };
+  addClaim: (text: string, questionId: string, userReason: string) => { success: boolean; error?: string; claimId?: string };
+  updateQuestion: (id: string, changes: { title?: string; tags?: string[] }) => void;
+  updateClaim: (id: string, changes: { text?: string }) => void;
+  updateEvidence: (id: string, changes: Partial<Pick<Evidence, 'title' | 'origin' | 'form' | 'citation'>>) => void;
+  connectNodes: (kind: LinkKind, parentId: string, childId: string, userReason: string) => { success: boolean; error?: string };
+  setLinkStatus: (linkId: string, status: LinkStatus) => void;
+  deleteLink: (linkId: string) => void;
   updateLinkUserReason: (linkId: string, userReason: string) => void;
   weakenClaim: (claimId: string, note: string) => void;
   rejectClaim: (claimId: string, reason: string) => void;
@@ -166,7 +175,7 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
     newEvidence: Omit<Evidence, 'id' | 'createdAt' | 'author'>,
     claimId: string,
     userReason: string
-  ) => { success: boolean; error?: string };
+  ) => { success: boolean; error?: string; evidenceId?: string };
 
   // Actions on Survey
   addSurveyOpenProblem: (text: string, citation: string) => { success: boolean; error?: string };
@@ -641,6 +650,100 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Unclustered open problems count (for the 15-note gate)
   const unclusteredOpenProblemsCount = openProblems.filter(op => !op.candidateId).length;
 
+  // Create a question (root of the research chain)
+  const addQuestion = useCallback((title: string, tags: string[]) => {
+    const trimmed = title.trim();
+    if (!trimmed) return { success: false, error: 'A question needs a title.' };
+    const questionId = `q-${Date.now()}`;
+    setQuestions(prev => [...prev, {
+      id: questionId,
+      title: trimmed,
+      tags: tags.map(tag => tag.trim()).filter(Boolean),
+      createdAt: Date.now(),
+      author: 'user'
+    }]);
+    return { success: true, questionId };
+  }, []);
+
+  // Create a claim under a question (every link needs a user reason)
+  const addClaim = useCallback((text: string, questionId: string, userReason: string) => {
+    const trimmedText = text.trim();
+    const trimmedReason = userReason.trim();
+    if (!trimmedText) return { success: false, error: 'A claim needs text.' };
+    if (!questions.some(question => question.id === questionId)) {
+      return { success: false, error: 'Pick a parent question.' };
+    }
+    if (!trimmedReason) {
+      return { success: false, error: 'Every question-claim link requires a committed user reason.' };
+    }
+    const claimId = `c-${Date.now()}`;
+    setClaims(prev => [...prev, {
+      id: claimId,
+      text: trimmedText,
+      rejected: false,
+      createdAt: Date.now(),
+      author: 'user'
+    }]);
+    setLinks(prev => [...prev, {
+      id: `${questionId}--${claimId}`,
+      kind: 'question-claim',
+      parentId: questionId,
+      childId: claimId,
+      status: 'holds',
+      userReason: trimmedReason,
+      createdAt: Date.now(),
+      author: 'user'
+    }]);
+    return { success: true, claimId };
+  }, [questions]);
+
+  const updateQuestion = useCallback((id: string, changes: { title?: string; tags?: string[] }) => {
+    setQuestions(prev => prev.map(q => (q.id === id ? { ...q, ...changes } : q)));
+  }, []);
+
+  const updateClaim = useCallback((id: string, changes: { text?: string }) => {
+    setClaims(prev => prev.map(c => (c.id === id ? { ...c, ...changes } : c)));
+  }, []);
+
+  const updateEvidence = useCallback((id: string, changes: Partial<Pick<Evidence, 'title' | 'origin' | 'form' | 'citation'>>) => {
+    setEvidence(prev => prev.map(item => (item.id === id ? { ...item, ...changes } : item)));
+  }, []);
+
+  // Connect two existing entities; reason is mandatory, duplicates rejected
+  const connectNodes = useCallback((kind: LinkKind, parentId: string, childId: string, userReason: string) => {
+    const trimmedReason = userReason.trim();
+    if (!parentId || !childId) return { success: false, error: 'Pick both ends of the link.' };
+    if (!trimmedReason) return { success: false, error: 'Every link requires a committed user reason.' };
+    const validEndpoints = kind === 'question-claim'
+      ? questions.some(item => item.id === parentId) && claims.some(item => item.id === childId)
+      : claims.some(item => item.id === parentId) && evidence.some(item => item.id === childId);
+    if (!validEndpoints) return { success: false, error: 'The selected entities do not match this link type.' };
+    if (links.some(link => link.parentId === parentId && link.childId === childId)) {
+      return { success: false, error: 'That link already exists.' };
+    }
+    const linkId = `${parentId}--${childId}`;
+    setLinks(prev => [...prev, {
+        id: linkId,
+        kind,
+        parentId,
+        childId,
+        status: 'holds',
+        userReason: trimmedReason,
+        createdAt: Date.now(),
+        author: 'user'
+      }]);
+    return { success: true };
+  }, [claims, evidence, links, questions]);
+
+  const setLinkStatus = useCallback((linkId: string, status: LinkStatus) => {
+    setLinks(prev => prev.map(l => (l.id === linkId ? { ...l, status } : l)));
+  }, []);
+
+  const deleteLink = useCallback((linkId: string) => {
+    setLinks(prev => prev.filter(l => l.id !== linkId));
+    setSelectedLinkId(current => (current === linkId ? null : current));
+  }, []);
+
   // Update a link's user reason
   const updateLinkUserReason = useCallback((linkId: string, userReason: string) => {
     if (!userReason.trim()) return;
@@ -713,6 +816,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     claimId: string,
     userReason: string
   ) => {
+    if (!claims.some(claim => claim.id === claimId)) {
+      return { success: false, error: 'Pick a parent claim.' };
+    }
     if (!userReason.trim()) {
       return {
         success: false,
@@ -740,8 +846,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     setEvidence(prev => [...prev, evidenceItem]);
     setLinks(prev => [...prev, newLink]);
-    return { success: true };
-  }, []);
+    return { success: true, evidenceId };
+  }, [claims]);
 
   // Add survey note (Gate 2: 15-note stop gate!)
   const addSurveyOpenProblem = useCallback((text: string, citation: string) => {
@@ -1065,6 +1171,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         selectedLinkId,
         setSelectedLinkId,
         clearSelection,
+        addQuestion,
+        addClaim,
+        updateQuestion,
+        updateClaim,
+        updateEvidence,
+        connectNodes,
+        setLinkStatus,
+        deleteLink,
         updateLinkUserReason,
         weakenClaim,
         rejectClaim,

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { computeMapLayout, LayoutEdge, LayoutNode } from './computeLayout';
 import { NodeCard } from './NodeCard';
+import { DetailView } from './DetailView';
 import { TabHelpTip } from '../common/TabHelpTip';
 import {
   ZoomIn,
@@ -34,6 +35,8 @@ export const MapSurface: React.FC = () => {
   } = useWorkspace();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [activeView, setActiveView] = useState<'map' | 'detail'>('map');
+  const [creating, setCreating] = useState(false);
 
   // Pan & Zoom state
   const [scale, setScale] = useState<number>(1);
@@ -342,8 +345,43 @@ export const MapSurface: React.FC = () => {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <nav aria-label="Argument Map View" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView('map');
+                setCreating(false);
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${activeView === 'map' ? 'bg-[var(--color-ink)] text-[var(--color-surface)] font-semibold' : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'}`}
+            >
+              Map
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView('detail');
+                setCreating(false);
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${activeView === 'detail' && !creating ? 'bg-[var(--color-ink)] text-[var(--color-surface)] font-semibold' : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'}`}
+            >
+              Detail
+            </button>
+          </nav>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveView('detail');
+              setCreating(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-mono font-semibold shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New
+          </button>
+
         {/* Link Status Filter Bar */}
-        <nav aria-label="Link Filter" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs overflow-x-auto max-w-full">
+        {activeView === 'map' && <nav aria-label="Link Filter" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs overflow-x-auto max-w-full">
           <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] px-2">
             Links
           </span>
@@ -398,9 +436,13 @@ export const MapSurface: React.FC = () => {
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
             Missing <span className="opacity-70 text-[0.6875rem]">({linkCounts.missing})</span>
           </button>
-        </nav>
+        </nav>}
+        </div>
       </header>
 
+      {activeView === 'detail' ? (
+        <DetailView creating={creating} onCreatingChange={setCreating} />
+      ) : (
       <div
         id="map-canvas-container"
         ref={containerRef}
@@ -680,7 +722,8 @@ export const MapSurface: React.FC = () => {
           {zoomLevel}
         </span>
       </div>
+      </div>
+      )}
     </div>
-  </div>
   );
 };
