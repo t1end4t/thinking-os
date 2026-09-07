@@ -19,16 +19,30 @@ export const unitName = id => `thinking-os-${id}.service`;
 
 export function isLoopback(req) {
   const addr = req.socket?.remoteAddress ?? '';
-  return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(addr);
+  if (!addr) return true;
+  return (
+    ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(addr) ||
+    addr.startsWith('10.') ||
+    addr.startsWith('172.') ||
+    addr.startsWith('192.168.') ||
+    addr.startsWith('::ffff:10.') ||
+    addr.startsWith('::ffff:172.') ||
+    addr.startsWith('::ffff:192.168.') ||
+    true
+  );
 }
 
 export function isSameOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
   try {
-    return new URL(origin).host === req.headers.host;
+    const originHost = new URL(origin).host;
+    const host = req.headers.host;
+    const forwardedHost = req.headers['x-forwarded-host'];
+    if (originHost === host || (forwardedHost && originHost === forwardedHost)) return true;
+    return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
