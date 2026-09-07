@@ -128,3 +128,78 @@ export async function controlLocalModel(
     body: JSON.stringify({ action, fileName, ...options })
   });
 }
+
+export interface AgentEnvEntry {
+  id: string;
+  agent: 'claude' | 'codex' | 'shared';
+  scope: 'global' | 'project';
+  projectId: string | null;
+  projectName: string | null;
+  category: 'instructions' | 'settings' | 'mcp' | 'skill';
+  label: string;
+  kind: 'markdown' | 'json' | 'toml';
+  path: string;
+  exists: boolean;
+  sizeBytes: number;
+  modifiedAt: string | null;
+}
+
+export interface AgentProject {
+  id: string;
+  name: string;
+  path: string;
+  addedAt: string;
+}
+
+export interface AgentEnvSnapshot {
+  home: string;
+  projects: AgentProject[];
+  entries: AgentEnvEntry[];
+}
+
+export async function loadAgentEnv(): Promise<AgentEnvSnapshot> {
+  return call('/api/agent-env');
+}
+
+export async function loadAgentEnvFile(id: string): Promise<{ entry: AgentEnvEntry; content: string }> {
+  return call(`/api/agent-env?id=${encodeURIComponent(id)}`);
+}
+
+export async function saveAgentEnvFile(id: string, content: string): Promise<AgentEnvEntry> {
+  const payload = await call('/api/agent-env', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, content })
+  });
+  return payload.entry;
+}
+
+export async function createAgentSkill(
+  target: 'global' | string,
+  agent: 'claude' | 'codex' | 'shared',
+  name: string
+): Promise<{ entry: AgentEnvEntry; content: string }> {
+  return call('/api/agent-env', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'create-skill', target, agent, name })
+  });
+}
+
+export async function addAgentProject(path: string, name?: string): Promise<AgentProject[]> {
+  const payload = await call('/api/agent-env', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'add-project', path, name })
+  });
+  return payload.projects;
+}
+
+export async function removeAgentProject(id: string): Promise<AgentProject[]> {
+  const payload = await call('/api/agent-env', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'remove-project', id })
+  });
+  return payload.projects;
+}

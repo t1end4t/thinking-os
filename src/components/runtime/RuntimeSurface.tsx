@@ -137,16 +137,16 @@ export function RuntimeSurface() {
           <TabHelpTip
             title="Runtime Engine"
             category="Execution Layer"
-            summary="Execution layer for services, LLM checkpoints, and agent jobs."
+            summary="Execution layer for services, LLM checkpoints, agent jobs, and agent configuration."
             tips={[
-              "Switch sub-tabs to inspect services, LLM models, or agent jobs.",
+              "Switch sub-tabs to inspect services, LLM models, agent jobs, or the Agent Environment.",
               "Drag any service or model card into the Assistant Dock to diagnose issues."
             ]}
             placement="bottom"
             variant="inline"
           />
         </div>
-        <p>Inspect services, models, and agent jobs.</p>
+        <p>Inspect services, models, agent jobs, and agent configuration.</p>
         {runtimeError && <p className="runtime-error" role="alert">{runtimeError}</p>}
       </header>
       <ExecutionEngineView

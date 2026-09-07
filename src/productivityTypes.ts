@@ -2,7 +2,7 @@ import { EntityAuthor } from './types';
 
 export type TabId = 'task-pipeline' | 'execution-engine';
 
-export type EngineSubTab = 'services' | 'runs' | 'llm-models' | 'automations' | 'targets' | 'agent-jobs';
+export type EngineSubTab = 'services' | 'runs' | 'llm-models' | 'automations' | 'targets' | 'agent-jobs' | 'agent-environment';
 
 export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done';
 

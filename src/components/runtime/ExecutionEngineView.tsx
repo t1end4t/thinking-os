@@ -26,7 +26,8 @@ import {
   Eraser,
   Bot,
   Download,
-  HardDrive
+  HardDrive,
+  Settings2
 } from 'lucide-react';
 import {
   EngineSubTab,
@@ -44,6 +45,7 @@ import {
   ServiceAction,
   ServiceProcessStatus
 } from '../../runtimeClient';
+import { AgentEnvironmentView } from './AgentEnvironmentView';
 
 interface ExecutionEngineViewProps {
   currentSubTab: EngineSubTab;
@@ -222,7 +224,8 @@ export function ExecutionEngineView({
     'llm-models': localModels.length,
     automations: automations.length,
     targets: targets.length,
-    'agent-jobs': 0
+    'agent-jobs': 0,
+    'agent-environment': 0
   };
 
   // Filtered Services
@@ -307,6 +310,17 @@ export function ExecutionEngineView({
         <div className="engine-subtabs-group" role="tablist" aria-label="Execution Engine sections">
           <button
             role="tab"
+            aria-selected={currentSubTab === 'agent-environment'}
+            className={`engine-subtab-btn ${currentSubTab === 'agent-environment' ? 'active' : ''}`}
+            onClick={() => handleTabSwitch('agent-environment')}
+            id="engine-tab-agent-environment"
+          >
+            <Settings2 size={15} />
+            <span>Agent Environment</span>
+          </button>
+
+          <button
+            role="tab"
             aria-selected={currentSubTab === 'services'}
             className={`engine-subtab-btn ${currentSubTab === 'services' ? 'active' : ''}`}
             onClick={() => handleTabSwitch('services')}
@@ -343,7 +357,7 @@ export function ExecutionEngineView({
         </div>
 
         {/* Quick Search in Sub-bar */}
-        {currentSubTab !== 'agent-jobs' && <div className="engine-filter-group">
+        {!['agent-jobs', 'agent-environment'].includes(currentSubTab) && <div className="engine-filter-group">
           {currentSubTab === 'services' && (
             <button className="engine-add-btn" onClick={openAddService}>
               <Plus size={13} />
@@ -387,7 +401,7 @@ export function ExecutionEngineView({
       </div>
 
       {/* Sub-tab description and drag affordance banner */}
-      {currentSubTab !== 'agent-jobs' && <div className="engine-view-header-strip">
+      {!['agent-jobs', 'agent-environment'].includes(currentSubTab) && <div className="engine-view-header-strip">
         <div className={`drag-hint-banner m-0 ${currentSubTab === 'llm-models' ? 'model-runtime-summary' : ''}`}>
           <span className="drag-hint-pill">Tip</span>
           {currentSubTab === 'llm-models' ? (
@@ -513,7 +527,8 @@ export function ExecutionEngineView({
       </div>}
 
       {/* Main Grid Views for Each Section */}
-      <div className="engine-content-scroll">
+      <div className={`engine-content-scroll ${currentSubTab === 'agent-environment' ? 'agent-env-scroll' : ''}`}>
+        {currentSubTab === 'agent-environment' && <AgentEnvironmentView />}
         {currentSubTab === 'agent-jobs' && (
           <div className="objects-grid" id="agent-jobs-grid">
             <div className="engine-empty-results">No agent jobs yet.</div>

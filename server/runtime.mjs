@@ -17,12 +17,12 @@ const modelDownloads = new Map();
 
 export const unitName = id => `thinking-os-${id}.service`;
 
-function isLoopback(req) {
+export function isLoopback(req) {
   const addr = req.socket?.remoteAddress ?? '';
   return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(addr);
 }
 
-function isSameOrigin(req) {
+export function isSameOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
   try {
