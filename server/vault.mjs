@@ -18,7 +18,8 @@ const MD_COLLECTIONS = {
   runs: ['runtime/runs', 'name'],
   models: ['runtime/models', 'name'],
   automations: ['runtime/automations', 'name'],
-  targets: ['runtime/targets', 'name']
+  targets: ['runtime/targets', 'name'],
+  learningUnits: ['learn/units', 'unit']
 };
 
 export function resolveVaultDir(raw) {
@@ -37,12 +38,17 @@ function splitMarkdown(text, kind) {
     const [heading = '', ...rest] = clean.split(/\r?\n/);
     return { title: heading.replace(/^#\s*/, '').trim(), markdown: rest.join('\n').trim() };
   }
+  if (kind === 'unit') {
+    const [heading = '', ...rest] = clean.split(/\r?\n/);
+    return { title: heading.replace(/^#\s*/, '').trim(), description: rest.join('\n').trim() };
+  }
   return { [kind]: clean.replace(/^#\s*/, '') };
 }
 
 function toMarkdown(item, kind) {
   if (kind === 'task') return `# ${item.title}\n\n${item.description}\n`;
   if (kind === 'paper') return `# ${item.title}\n\n${item.markdown}\n`;
+  if (kind === 'unit') return `# ${item.title}\n\n${item.description || ''}\n`;
   return `${item[kind] ?? ''}\n`;
 }
 
@@ -107,7 +113,7 @@ async function syncCollection(root, relativeDir, kind, items) {
   }
   for (const item of items) {
     if (!item?.id) throw new Error('every entity needs an id');
-    const markdownKeys = kind === 'task' ? ['title', 'description'] : kind === 'paper' ? ['title', 'markdown'] : [kind];
+    const markdownKeys = (kind === 'task' || kind === 'unit') ? ['title', 'description'] : kind === 'paper' ? ['title', 'markdown'] : [kind];
     const meta = Object.fromEntries(Object.entries(item).filter(([key]) => !markdownKeys.includes(key)));
     await writeFile(path.join(dir, `${item.id}.md`), toMarkdown(item, kind));
     await writeFile(path.join(dir, `${item.id}.json`), `${JSON.stringify(meta, null, 2)}\n`);

@@ -16,6 +16,7 @@ import {
   AutomationItem,
   TargetItem
 } from '../productivityTypes';
+import { SAMPLE_LEARNING_UNITS } from './sampleLearningUnits';
 import { VaultSnapshot } from '../vaultClient';
 
 export const SAMPLE_QUESTIONS: Question[] = [
@@ -742,5 +743,6 @@ export const SAMPLE_SNAPSHOT: VaultSnapshot = {
   runs: SAMPLE_RUNS,
   models: SAMPLE_MODELS,
   automations: SAMPLE_AUTOMATIONS,
-  targets: SAMPLE_TARGETS
+  targets: SAMPLE_TARGETS,
+  learningUnits: SAMPLE_LEARNING_UNITS
 };

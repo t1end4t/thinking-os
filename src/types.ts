@@ -132,7 +132,7 @@ export interface Experiment {
   artifacts: ExperimentArtifact[];
 }
 
-export type SurfaceId = 'map' | 'survey' | 'papers' | 'experiments' | 'manuscript' | 'tasks' | 'runtime';
+export type SurfaceId = 'map' | 'survey' | 'papers' | 'experiments' | 'manuscript' | 'tasks' | 'runtime' | 'learn';
 
 export type AssistantContextType =
   | 'graph'
@@ -149,7 +149,9 @@ export type AssistantContextType =
   | 'run'
   | 'model'
   | 'automation'
-  | 'target';
+  | 'target'
+  | 'learn'
+  | 'unit';
 
 export interface AssistantContextObject {
   type: AssistantContextType;

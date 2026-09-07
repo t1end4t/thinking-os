@@ -1,6 +1,6 @@
 {
   "name": "Thinking OS",
-  "description": "Single-user local research tool making the structure of an argument visible and checking reasoning.",
+  "description": "Single-user local research workspace designed for argument structure, falsifiable claims, intuitive mathematical learning, and research synthesis.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

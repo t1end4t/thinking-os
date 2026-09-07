@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GitFork,
   Compass,
@@ -7,10 +7,18 @@ import {
   FlaskConical,
   ScrollText,
   ListChecks,
-  Cpu
+  Cpu,
+  GraduationCap,
+  ChevronDown,
+  ChevronRight,
+  Lightbulb,
+  Sliders,
+  BookmarkCheck,
+  Share2
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { SurfaceId } from '../../types';
+import { LearnViewMode } from '../../learnTypes';
 
 interface SurfaceItem {
   id: SurfaceId;
@@ -37,7 +45,7 @@ const RESEARCH_SURFACES: SurfaceItem[] = [
       'Drag edges or nodes into the Assistant Dock to link evidence to claims.',
       'Filter link status chips (All, Holds, Weak, Missing) to detect reasoning flaws.'
     ],
-    shortcut: 'View 1',
+    shortcut: 'Research 1',
     activeColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 ring-1 ring-indigo-200/80 dark:ring-indigo-800/60 shadow-xs shadow-indigo-500/10',
     accentBar: 'bg-indigo-600 dark:bg-indigo-400'
   },
@@ -53,7 +61,7 @@ const RESEARCH_SURFACES: SurfaceItem[] = [
       'Promote qualified candidates into formal Argument Map Claims (Gate 5 check).',
       'Watch for the 15-note stop condition warning to avoid aimless reading.'
     ],
-    shortcut: 'View 2',
+    shortcut: 'Research 2',
     activeColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 ring-1 ring-amber-200/80 dark:ring-amber-800/60 shadow-xs shadow-amber-500/10',
     accentBar: 'bg-amber-500 dark:bg-amber-400'
   },
@@ -69,7 +77,7 @@ const RESEARCH_SURFACES: SurfaceItem[] = [
       'Link extracted quotes directly to a claim with your committed rationale.',
       'Send citations and quotes to the Assistant for methodological inquiry.'
     ],
-    shortcut: 'View 3',
+    shortcut: 'Research 3',
     activeColor: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 ring-1 ring-teal-200/80 dark:ring-teal-800/60 shadow-xs shadow-teal-500/10',
     accentBar: 'bg-teal-500 dark:bg-teal-400'
   },
@@ -85,7 +93,7 @@ const RESEARCH_SURFACES: SurfaceItem[] = [
       'Drag artifact cards into the Manuscript Locker to embed figures or code.',
       'Copy shell command to reproduce runs locally.'
     ],
-    shortcut: 'View 4',
+    shortcut: 'Research 4',
     activeColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 ring-1 ring-sky-200/80 dark:ring-sky-800/60 shadow-xs shadow-sky-500/10',
     accentBar: 'bg-sky-500 dark:bg-sky-400'
   },
@@ -101,9 +109,62 @@ const RESEARCH_SURFACES: SurfaceItem[] = [
       'In Synthesis Locker: drag & drop verified claims and citations directly into text.',
       'In Preprint Reader: preview publication layout and export formatted PDF.'
     ],
-    shortcut: 'View 5',
+    shortcut: 'Research 5',
     activeColor: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 ring-1 ring-purple-200/80 dark:ring-purple-800/60 shadow-xs shadow-purple-500/10',
     accentBar: 'bg-purple-600 dark:bg-purple-400'
+  }
+];
+
+interface LearnSubTabItem {
+  id: LearnViewMode;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  activeColor: string;
+}
+
+const LEARN_SUB_TABS: LearnSubTabItem[] = [
+  {
+    id: 'roadmap',
+    label: 'Roadmap',
+    icon: Compass,
+    description: 'Curriculum tracks, topic shelf & prerequisites',
+    activeColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 ring-1 ring-emerald-200/80 dark:ring-emerald-800/60 shadow-xs'
+  },
+  {
+    id: 'theory',
+    label: 'Theory',
+    icon: Lightbulb,
+    description: 'Mental models, physical intuition, formal definitions & axioms',
+    activeColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 ring-1 ring-sky-200/80 dark:ring-sky-800/60 shadow-xs'
+  },
+  {
+    id: 'labs',
+    label: 'Labs',
+    icon: Sliders,
+    description: 'Parameter sandbox simulations & step-by-step proofs',
+    activeColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 ring-1 ring-amber-200/80 dark:ring-amber-800/60 shadow-xs'
+  },
+  {
+    id: 'practice',
+    label: 'Practice',
+    icon: BookmarkCheck,
+    description: 'Spaced repetition flashcards & spot-the-flaw critique',
+    activeColor: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 ring-1 ring-teal-200/80 dark:ring-teal-800/60 shadow-xs'
+  },
+  {
+    id: 'notes',
+    label: 'Notes',
+    icon: FileText,
+    description: 'Personal study notes & falsifiable research conjectures',
+    activeColor: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 ring-1 ring-purple-200/80 dark:ring-purple-800/60 shadow-xs'
+  },
+  {
+    id: 'graph',
+    label: 'Graph',
+    icon: Share2,
+    description: 'Obsidian-style force graph of mathematical concepts',
+    activeColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 ring-1 ring-indigo-200/80 dark:ring-indigo-800/60 shadow-xs'
   }
 ];
 
@@ -144,8 +205,33 @@ const PRIMARY_SURFACES: SurfaceItem[] = [
 const RESEARCH_SURFACE_IDS = new Set<SurfaceId>(RESEARCH_SURFACES.map(surface => surface.id));
 
 export const Rail: React.FC = () => {
-  const { activeSurface, setActiveSurface, setActiveContext } = useWorkspace();
+  const {
+    activeSurface,
+    setActiveSurface,
+    setActiveContext,
+    activeLearnTab,
+    setActiveLearnTab
+  } = useWorkspace();
   const isResearchActive = RESEARCH_SURFACE_IDS.has(activeSurface);
+  const [isResearchExpanded, setIsResearchExpanded] = useState(true);
+  const [lastResearchSurface, setLastResearchSurface] = useState<SurfaceId>('map');
+
+  const isLearnActive = activeSurface === 'learn';
+  const [isLearnExpanded, setIsLearnExpanded] = useState(true);
+
+  // Track the most recently visited research surface and ensure tree is open when active
+  useEffect(() => {
+    if (RESEARCH_SURFACE_IDS.has(activeSurface)) {
+      setLastResearchSurface(activeSurface);
+      setIsResearchExpanded(true);
+    }
+  }, [activeSurface]);
+
+  useEffect(() => {
+    if (activeSurface === 'learn') {
+      setIsLearnExpanded(true);
+    }
+  }, [activeSurface]);
 
   const handleSelectSurface = (surfaceId: SurfaceId) => {
     setActiveSurface(surfaceId);
@@ -162,6 +248,20 @@ export const Rail: React.FC = () => {
         id: 'global-graph',
         label: 'Global Graph',
         secondaryLabel: 'Argument tree'
+      });
+    } else if (surfaceId === 'papers') {
+      setActiveContext({
+        type: 'passage',
+        id: 'papers-field',
+        label: 'Literature Papers',
+        secondaryLabel: 'Reading and inline evidence extraction'
+      });
+    } else if (surfaceId === 'experiments') {
+      setActiveContext({
+        type: 'artifact',
+        id: 'experiments-field',
+        label: 'Experiments Field',
+        secondaryLabel: 'Telemetry and empirical verification'
       });
     } else if (surfaceId === 'tasks') {
       setActiveContext({
@@ -184,15 +284,52 @@ export const Rail: React.FC = () => {
         label: 'Manuscript Draft',
         secondaryLabel: 'Academic paper synthesis & argumentation'
       });
+    } else if (surfaceId === 'learn') {
+      setActiveContext({
+        type: 'learn',
+        id: 'cognitive-learning',
+        label: 'Learning & Mathematics',
+        secondaryLabel: 'Curriculum tracks, theory, labs, and research synthesis'
+      });
     }
+  };
+
+  const handleToggleResearch = () => {
+    if (!isResearchActive) {
+      handleSelectSurface(lastResearchSurface);
+      setIsResearchExpanded(true);
+    } else {
+      setIsResearchExpanded(prev => !prev);
+    }
+  };
+
+  const handleToggleLearn = () => {
+    if (!isLearnActive) {
+      handleSelectSurface('learn');
+      setIsLearnExpanded(true);
+    } else {
+      setIsLearnExpanded(prev => !prev);
+    }
+  };
+
+  const handleSelectLearnSubTab = (tabId: LearnViewMode) => {
+    setActiveSurface('learn');
+    setActiveLearnTab(tabId);
+    setActiveContext({
+      type: 'learn',
+      id: `learn-${tabId}`,
+      label: `Learn / ${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`,
+      secondaryLabel: 'Mathematical research curriculum'
+    });
   };
 
   return (
     <aside
       id="instrument-rail"
-      className="w-14 border-r border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col items-center py-4 justify-between shrink-0 select-none z-10"
+      className="w-16 border-r border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col items-center py-4 justify-between shrink-0 select-none z-10"
     >
       <div className="flex flex-col items-center gap-2.5 w-full px-2">
+        {/* Primary Operational Surfaces */}
         {PRIMARY_SURFACES.map(surface => {
           const Icon = surface.icon;
           const isActive = activeSurface === surface.id;
@@ -200,6 +337,7 @@ export const Rail: React.FC = () => {
             <button
               key={surface.id}
               id={`rail-btn-${surface.id}`}
+              type="button"
               onClick={() => handleSelectSurface(surface.id)}
               title={`${surface.label} — ${surface.description}`}
               className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group ${
@@ -217,44 +355,129 @@ export const Rail: React.FC = () => {
           );
         })}
 
-        <button
-          id="rail-btn-research"
-          onClick={() => handleSelectSurface('map')}
-          title="Research Workspace"
-          className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group ${
-            isResearchActive
-              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 ring-1 ring-indigo-200/80 dark:ring-indigo-800/60 shadow-xs shadow-indigo-500/10'
-              : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-          }`}
-        >
-          {isResearchActive && <div className="absolute -left-[9px] top-2 bottom-2 w-1 rounded-r-full bg-indigo-600 dark:bg-indigo-400" />}
-          <BookOpen className="w-4 h-4" />
-          <span className="sr-only">Research</span>
-        </button>
+        {/* Research Suite Parent Group - framed box */}
+        <div className="relative flex flex-col items-center w-full p-1 rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)]/40 shadow-2xs">
+          <button
+            id="rail-btn-research"
+            type="button"
+            onClick={handleToggleResearch}
+            title={`Research Workspace — ${isResearchExpanded ? 'Click to collapse sub-tabs' : 'Click to expand sub-tabs'}`}
+            className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group ${
+              isResearchActive
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 ring-1 ring-indigo-200/80 dark:ring-indigo-800/60 shadow-xs shadow-indigo-500/10'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            {isResearchActive && (
+              <div className="absolute -left-[5px] top-2 bottom-2 w-1 rounded-r-full bg-indigo-600 dark:bg-indigo-400" />
+            )}
+            <BookOpen className="w-4 h-4" />
+            <span className="sr-only">Research</span>
 
-        <div className="relative flex flex-col items-center gap-1.5 pt-0.5 pl-2">
-          <div className="absolute left-0 top-0 bottom-4 w-px bg-[var(--color-rule)]" />
-          {RESEARCH_SURFACES.map(surface => {
-            const Icon = surface.icon;
-            const isActive = activeSurface === surface.id;
-            return (
-              <button
-                key={surface.id}
-                id={`rail-btn-${surface.id}`}
-                onClick={() => handleSelectSurface(surface.id)}
-                title={`Research / ${surface.label} — ${surface.description}`}
-                className={`relative w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 group ${
-                  isActive
-                    ? surface.activeColor
-                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <div className="absolute -left-2 w-2 h-px bg-[var(--color-rule)]" />
-                <Icon className="w-3.5 h-3.5" />
-                <span className="sr-only">Research / {surface.label}</span>
-              </button>
-            );
-          })}
+            {/* Subtle collapse / expand chevron indicator */}
+            <span
+              className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink-muted)] group-hover:text-[var(--color-ink)] shadow-2xs pointer-events-none"
+              title={isResearchExpanded ? 'Sub-tabs expanded' : 'Sub-tabs collapsed'}
+            >
+              {isResearchExpanded ? (
+                <ChevronDown className="w-2 h-2 text-slate-500" />
+              ) : (
+                <ChevronRight className="w-2 h-2 text-slate-500" />
+              )}
+            </span>
+          </button>
+
+          {/* Indented Research Sub-Surfaces */}
+          {isResearchExpanded && (
+            <div
+              id="rail-research-subsurfaces"
+              className="relative flex flex-col items-center w-full pt-1.5 pb-0.5 gap-1.5 animate-fadeIn"
+            >
+              {RESEARCH_SURFACES.map(surface => {
+                const Icon = surface.icon;
+                const isActive = activeSurface === surface.id;
+                return (
+                  <button
+                    key={surface.id}
+                    id={`rail-btn-${surface.id}`}
+                    type="button"
+                    onClick={() => handleSelectSurface(surface.id)}
+                    title={`Research / ${surface.label} — ${surface.description}`}
+                    className={`relative w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 group ${
+                      isActive
+                        ? `${surface.activeColor} scale-100 font-medium`
+                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="sr-only">Research / {surface.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Learn Suite Parent Group - framed box just like Research */}
+        <div className="relative flex flex-col items-center w-full p-1 rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)]/40 shadow-2xs">
+          <button
+            id="rail-btn-learn"
+            type="button"
+            onClick={handleToggleLearn}
+            title={`Learn & Curriculum — ${isLearnExpanded ? 'Click to collapse sub-tabs' : 'Click to expand sub-tabs'}`}
+            className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group ${
+              isLearnActive
+                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 ring-1 ring-emerald-200/80 dark:ring-emerald-800/60 shadow-xs shadow-emerald-500/10'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            {isLearnActive && (
+              <div className="absolute -left-[5px] top-2 bottom-2 w-1 rounded-r-full bg-emerald-600 dark:bg-emerald-400" />
+            )}
+            <GraduationCap className="w-4 h-4" />
+            <span className="sr-only">Learn</span>
+
+            <span
+              className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink-muted)] group-hover:text-[var(--color-ink)] shadow-2xs pointer-events-none"
+              title={isLearnExpanded ? 'Sub-tabs expanded' : 'Sub-tabs collapsed'}
+            >
+              {isLearnExpanded ? (
+                <ChevronDown className="w-2 h-2 text-slate-500" />
+              ) : (
+                <ChevronRight className="w-2 h-2 text-slate-500" />
+              )}
+            </span>
+          </button>
+
+          {/* Indented Learn Sub-Tabs */}
+          {isLearnExpanded && (
+            <div
+              id="rail-learn-subsurfaces"
+              className="relative flex flex-col items-center w-full pt-1.5 pb-0.5 gap-1.5 animate-fadeIn"
+            >
+              {LEARN_SUB_TABS.map(tab => {
+                const Icon = tab.icon;
+                const isActive = isLearnActive && activeLearnTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    id={`rail-btn-learn-${tab.id}`}
+                    type="button"
+                    onClick={() => handleSelectLearnSubTab(tab.id)}
+                    title={`Learn / ${tab.label} — ${tab.description}`}
+                    className={`relative w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 group ${
+                      isActive
+                        ? `${tab.activeColor} scale-100 font-medium`
+                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="sr-only">Learn / {tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

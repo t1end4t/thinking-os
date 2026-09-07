@@ -10,7 +10,8 @@ const snapshot = {
   questions: [{ id: 'q1', title: 'Does it round-trip?', tags: ['x'], createdAt: 1, author: 'user' }],
   tasks: [{ id: 't1', title: 'Ship it', description: 'Body text.\n\nSecond line.', status: 'todo', priority: 'low', tag: 'x', createdAt: 'now' }],
   links: [{ id: 'q1--c1', kind: 'question-claim', parentId: 'q1', childId: 'c1', status: 'weak', userReason: 'because', createdAt: 2, author: 'user' }],
-  papers: [{ id: 'p1', title: 'A paper', markdown: '### Abstract\nText.', authors: 'X', year: 2024, citation: 'X 2024', pageCount: 1, sections: [] }]
+  papers: [{ id: 'p1', title: 'A paper', markdown: '### Abstract\nText.', authors: 'X', year: 2024, citation: 'X 2024', pageCount: 1, sections: [] }],
+  learningUnits: [{ id: 'u1', title: 'Attention Math', description: 'Softmax geometry.', category: 'Attention & Architecture' }]
 };
 
 await writeVault(root, snapshot);
@@ -20,6 +21,7 @@ assert.deepEqual(roundTripped.questions, snapshot.questions);
 assert.deepEqual(roundTripped.tasks, snapshot.tasks);
 assert.deepEqual(roundTripped.links, snapshot.links);
 assert.deepEqual(roundTripped.papers, snapshot.papers);
+assert.deepEqual(roundTripped.learningUnits, snapshot.learningUnits);
 
 // prose stays plain markdown, no frontmatter noise
 assert.equal(await readFile(path.join(root, 'questions/q1.md'), 'utf8'), 'Does it round-trip?\n');

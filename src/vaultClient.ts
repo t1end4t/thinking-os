@@ -1,5 +1,6 @@
 import { Question, Claim, Evidence, Link, SurveyOpenProblem, SurveyCandidateQuestion, Paper, Experiment } from './types';
 import { AutomationItem, LLMModelItem, RunItem, ServiceItem, TargetItem, TaskItem } from './productivityTypes';
+import { LearningUnit } from './learnTypes';
 
 export interface VaultSnapshot {
   questions: Question[];
@@ -16,11 +17,13 @@ export interface VaultSnapshot {
   models: LLMModelItem[];
   automations: AutomationItem[];
   targets: TargetItem[];
+  learningUnits: LearningUnit[];
 }
 
 export const EMPTY_SNAPSHOT: VaultSnapshot = {
   questions: [], claims: [], evidence: [], links: [], openProblems: [], candidateQuestions: [],
-  papers: [], experiments: [], tasks: [], services: [], runs: [], models: [], automations: [], targets: []
+  papers: [], experiments: [], tasks: [], services: [], runs: [], models: [], automations: [], targets: [],
+  learningUnits: []
 };
 
 async function call(dir: string, init?: RequestInit) {

@@ -22,6 +22,8 @@ import {
   TaskItem,
   TaskStatus
 } from '../productivityTypes';
+import { LearningUnit, CognitiveLevelId, LearnViewMode } from '../learnTypes';
+import { SAMPLE_LEARNING_UNITS } from '../data/sampleLearningUnits';
 import { loadVault, saveVault } from '../vaultClient';
 import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import {
@@ -199,6 +201,22 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   clearThread: (contextId: string) => void;
   loadSampleData: () => Promise<void>;
 
+  // Learning System & 6 Cognitive Levels
+  activeLearnTab: LearnViewMode;
+  setActiveLearnTab: (tab: LearnViewMode) => void;
+  learningUnits: LearningUnit[];
+  setLearningUnits: React.Dispatch<React.SetStateAction<LearningUnit[]>>;
+  activeLearningUnitId: string | null;
+  setActiveLearningUnitId: (id: string | null) => void;
+  activeCognitiveLevel: CognitiveLevelId;
+  setActiveCognitiveLevel: (level: CognitiveLevelId) => void;
+  addLearningUnit: (unitData: Partial<LearningUnit> & { title: string; category: LearningUnit['category'] }) => LearningUnit;
+  updateLearningUnit: (id: string, updates: Partial<LearningUnit>) => void;
+  deleteLearningUnit: (id: string) => void;
+  updateLearningLevelProgress: (unitId: string, level: CognitiveLevelId, score: number) => void;
+  promoteConjectureToClaim: (unitId: string, conjectureText: string) => { claimId: string };
+  promoteConjectureToQuestion: (unitId: string, title: string, tags: string[]) => { questionId: string };
+  promoteConjectureToTask: (unitId: string, title: string, description: string) => { taskId: string };
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
@@ -241,6 +259,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [models, setModels] = useState<LLMModelItem[]>([]);
   const [automations, setAutomations] = useState<AutomationItem[]>([]);
   const [targets, setTargets] = useState<TargetItem[]>([]);
+  const [learningUnits, setLearningUnits] = useState<LearningUnit[]>(SAMPLE_LEARNING_UNITS);
+  const [activeLearningUnitId, setActiveLearningUnitId] = useState<string | null>(() => SAMPLE_LEARNING_UNITS[0]?.id ?? null);
+  const [activeCognitiveLevel, setActiveCognitiveLevel] = useState<CognitiveLevelId>('remembering');
+  const [activeLearnTab, setActiveLearnTab] = useState<LearnViewMode>('roadmap');
 
   const addService = useCallback((service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => {
     setServices(current => {
@@ -319,6 +341,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setModels(data.models);
       setAutomations(data.automations);
       setTargets(data.targets);
+      setLearningUnits(data.learningUnits?.length ? data.learningUnits : SAMPLE_LEARNING_UNITS);
       setVaultReady(true);
     } catch (error) {
       setWorkspaceError(String(error instanceof Error ? error.message : error));
@@ -336,13 +359,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const timer = window.setTimeout(() => {
       void saveVault(workspaceDir, {
         questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
-        tasks, services, runs, models, automations, targets
+        tasks, services, runs, models, automations, targets, learningUnits
       }).catch(error => setWorkspaceError(String(error instanceof Error ? error.message : error)));
     }, 250);
     return () => window.clearTimeout(timer);
   }, [
     vaultReady, workspaceDir, questions, claims, evidence, links, openProblems, candidateQuestions,
-    papers, experiments, tasks, services, runs, models, automations, targets
+    papers, experiments, tasks, services, runs, models, automations, targets, learningUnits
   ]);
 
   const setFontSize = useCallback((size: number) => {
@@ -396,6 +419,142 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setRightPanelView('assistant');
   }, [taskEditor, tasks]);
 
+  // Learning Unit Actions
+  const addLearningUnit = useCallback((unitData: Partial<LearningUnit> & { title: string; category: LearningUnit['category'] }): LearningUnit => {
+    const id = unitData.id || `unit-${Date.now()}`;
+    const newUnit: LearningUnit = {
+      id,
+      title: unitData.title,
+      description: unitData.description || '',
+      category: unitData.category,
+      difficulty: unitData.difficulty || 'Intermediate',
+      tags: unitData.tags || [],
+      prerequisites: unitData.prerequisites || [],
+      mathFields: unitData.mathFields || [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      author: 'user',
+      progress: unitData.progress || {
+        remembering: 0,
+        understanding: 0,
+        applying: 0,
+        analyzing: 0,
+        evaluating: 0,
+        creating: 0
+      },
+      remembering: unitData.remembering || { keyTerms: [], axiomsAndIdentities: [] },
+      understanding: unitData.understanding || {
+        formalDefinition: { statement: '', preconditions: [], notationKey: [] },
+        geometricIntuition: { visualMetaphor: '', physicalInterpretation: '', coreInsight: '' },
+        feynmanWorkspace: { guidingQuestion: '', learnerExplanation: '', rubricChecks: [] },
+        conceptDecomposition: []
+      },
+      applying: unitData.applying || { workedDerivations: [], practiceChallenges: [] },
+      analyzing: unitData.analyzing || { structuralComponents: [], assumptionStressTests: [], contrastiveAnalysis: { titleA: '', titleB: '', dimensions: [] } },
+      evaluating: unitData.evaluating || { critiqueChallenges: [], tradeoffMatrix: { approachAName: '', approachBName: '', criteria: [] } },
+      creating: unitData.creating || {
+        conjecturePrompt: 'Formulate a mathematical hypothesis or architectural variant based on this concept.',
+        conjectureDraft: '',
+        mathematicalPremises: [],
+        proposedMechanism: '',
+        falsificationCriteria: '',
+        novelIdeasInspiration: []
+      }
+    };
+    setLearningUnits(current => [newUnit, ...current]);
+    setActiveLearningUnitId(id);
+    return newUnit;
+  }, []);
+
+  const updateLearningUnit = useCallback((id: string, updates: Partial<LearningUnit>) => {
+    setLearningUnits(current => current.map(unit => (unit.id === id ? { ...unit, ...updates, updatedAt: Date.now() } : unit)));
+  }, []);
+
+  const deleteLearningUnit = useCallback((id: string) => {
+    setLearningUnits(current => {
+      const next = current.filter(item => item.id !== id);
+      if (activeLearningUnitId === id) {
+        setActiveLearningUnitId(next[0]?.id ?? null);
+      }
+      return next;
+    });
+  }, [activeLearningUnitId]);
+
+  const updateLearningLevelProgress = useCallback((unitId: string, level: CognitiveLevelId, score: number) => {
+    setLearningUnits(current => current.map(unit => {
+      if (unit.id !== unitId) return unit;
+      const progress = { ...unit.progress, [level]: Math.max(0, Math.min(100, Math.round(score))) };
+      return { ...unit, progress, updatedAt: Date.now() };
+    }));
+  }, []);
+
+  const promoteConjectureToClaim = useCallback((unitId: string, conjectureText: string) => {
+    const claimId = `c-learn-${Date.now()}`;
+    const newClaim: Claim = {
+      id: claimId,
+      text: conjectureText,
+      rejected: false,
+      createdAt: Date.now(),
+      author: 'user'
+    };
+    setClaims(prev => [newClaim, ...prev]);
+    setLearningUnits(current => current.map(unit => {
+      if (unit.id !== unitId) return unit;
+      return {
+        ...unit,
+        creating: {
+          ...unit.creating,
+          promotedClaimId: claimId
+        }
+      };
+    }));
+    return { claimId };
+  }, []);
+
+  const promoteConjectureToQuestion = useCallback((unitId: string, title: string, tags: string[]) => {
+    const questionId = `q-learn-${Date.now()}`;
+    const newQ: Question = {
+      id: questionId,
+      title,
+      tags: tags.length ? tags : ['math', 'learn', 'conjecture'],
+      createdAt: Date.now(),
+      author: 'user'
+    };
+    setQuestions(prev => [newQ, ...prev]);
+    setLearningUnits(current => current.map(unit => {
+      if (unit.id !== unitId) return unit;
+      return {
+        ...unit,
+        creating: {
+          ...unit.creating,
+          promotedQuestionId: questionId
+        }
+      };
+    }));
+    return { questionId };
+  }, []);
+
+  const promoteConjectureToTask = useCallback((unitId: string, title: string, description: string) => {
+    const newTask = createTaskDirectly({
+      title,
+      description,
+      status: 'backlog',
+      priority: 'high',
+      tag: '#learn'
+    }, false);
+    setLearningUnits(current => current.map(unit => {
+      if (unit.id !== unitId) return unit;
+      return {
+        ...unit,
+        creating: {
+          ...unit.creating,
+          linkedTaskId: newTask.id
+        }
+      };
+    }));
+    return { taskId: newTask.id };
+  }, [createTaskDirectly]);
+
   const addAttachedContext = useCallback((ctx: AssistantContextObject) => {
     setAttachedContexts(prev => {
       if (prev.some(item => item.id === ctx.id)) return prev;
@@ -444,6 +603,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setModels(SAMPLE_SNAPSHOT.models);
       setAutomations(SAMPLE_SNAPSHOT.automations);
       setTargets(SAMPLE_SNAPSHOT.targets);
+      setLearningUnits(SAMPLE_LEARNING_UNITS);
       setThreads(INITIAL_THREADS);
       await saveVault(workspaceDir, SAMPLE_SNAPSHOT);
     } catch (err) {
@@ -945,6 +1105,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         checkLinkWithAssistant,
         clearThread,
         loadSampleData,
+        learningUnits,
+        setLearningUnits,
+        activeLearningUnitId,
+        setActiveLearningUnitId,
+        activeCognitiveLevel,
+        setActiveCognitiveLevel,
+        activeLearnTab,
+        setActiveLearnTab,
+        addLearningUnit,
+        updateLearningUnit,
+        deleteLearningUnit,
+        updateLearningLevelProgress,
+        promoteConjectureToClaim,
+        promoteConjectureToQuestion,
+        promoteConjectureToTask,
         ...manuscriptWorkspace
       }}
     >
