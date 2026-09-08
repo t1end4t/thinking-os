@@ -27,6 +27,20 @@ assert.deepEqual(roundTripped.links, snapshot.links);
 assert.deepEqual(roundTripped.papers, snapshot.papers);
 assert.deepEqual(roundTripped.learningUnits, snapshot.learningUnits);
 
+const highlightedPaper = {
+  ...snapshot.papers[0],
+  markdown: '## Abstract\n\nFirst paragraph.\n\nSecond paragraph.',
+  highlights: [
+    { id: 'legacy-highlight', text: 'First paragraph.', pageNumber: 1, createdAt: 1 },
+    { id: 'anchored-highlight', text: 'Second paragraph.', pageNumber: 1, createdAt: 2,
+      rects: [{ pageNumber: 1, coordinates: [60, 720, 180, 705] }] }
+  ]
+};
+await writeVault(root, { ...snapshot, papers: [highlightedPaper] });
+assert.deepEqual((await readVault(root)).papers, [highlightedPaper]);
+await writeVault(root, { ...snapshot, papers: [{ ...highlightedPaper, highlights: [] }] });
+assert.deepEqual((await readVault(root)).papers[0].highlights, []);
+
 // prose stays plain markdown, no frontmatter noise
 assert.equal(await readFile(path.join(root, 'questions/q1.md'), 'utf8'), 'Does it round-trip?\n');
 

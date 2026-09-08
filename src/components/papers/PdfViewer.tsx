@@ -1,454 +1,261 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import {
-  ChevronLeft,
-  ChevronRight,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  Maximize2,
-  Minimize2,
-  FileText,
-  Download,
-  ExternalLink,
-  Layers,
-  Sparkles,
-  AlertCircle,
-  Loader2
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { PaperHighlight } from '../../types';
+import './reader.css';
 
-// Configure worker for PDF.js v4
-if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href;
+
+export interface PdfSelection {
+  text: string;
+  rect: { top: number; left: number; width: number; height: number };
+  pageNumber: number;
+  rects: NonNullable<PaperHighlight['rects']>;
 }
 
-interface PdfViewerProps {
+type PageRegistration = { element: HTMLDivElement; viewport: pdfjsLib.PageViewport };
+type FitMode = 'custom' | 'width' | 'page';
+
+function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlights, register, scrollRoot }: {
+  document: pdfjsLib.PDFDocumentProxy;
+  pageNumber: number;
+  scale: number;
+  rotation: number;
+  fitMode: FitMode;
+  size: { width: number; height: number };
+  highlights: PaperHighlight[];
+  register: (pageNumber: number, registration: PageRegistration | null) => void;
+  scrollRoot: React.RefObject<HTMLDivElement | null>;
+}) {
+  const elementRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState<pdfjsLib.PDFPageProxy | null>(null);
+  const [nearby, setNearby] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    document.getPage(pageNumber).then(value => {
+      if (!cancelled) setPage(value);
+    }).catch(reason => { if (!cancelled) setError(String(reason)); });
+    return () => { cancelled = true; };
+  }, [document, pageNumber]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => setNearby(entries[0].isIntersecting), {
+      root: scrollRoot.current, rootMargin: '1000px'
+    });
+    if (elementRef.current) observer.observe(elementRef.current);
+    return () => observer.disconnect();
+  }, [scrollRoot]);
+
+  const base = page?.getViewport({ scale: 1, rotation });
+  const fittedScale = base ? Math.min((size.width - 32) / base.width,
+    fitMode === 'page' ? (size.height - 32) / base.height : Infinity) : scale;
+  const actualScale = fitMode === 'custom' ? scale : Math.max(0.1, fittedScale);
+  const viewport = page?.getViewport({ scale: actualScale, rotation });
+
+  useEffect(() => {
+    if (!page || !nearby || !canvasRef.current || !textRef.current || !elementRef.current) return;
+    const canvas = canvasRef.current;
+    const container = textRef.current;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    const currentViewport = page.getViewport({ scale: actualScale, rotation });
+    const pixelRatio = window.devicePixelRatio || 1;
+    canvas.width = Math.ceil(currentViewport.width * pixelRatio);
+    canvas.height = Math.ceil(currentViewport.height * pixelRatio);
+    container.replaceChildren();
+    setReady(false);
+    setError('');
+    let cancelled = false;
+    const renderTask = page.render({ canvasContext: context, viewport: currentViewport,
+      transform: [pixelRatio, 0, 0, pixelRatio, 0, 0] });
+    const textLayer = new pdfjsLib.TextLayer({
+      textContentSource: page.streamTextContent(), container, viewport: currentViewport
+    });
+    Promise.all([renderTask.promise, textLayer.render()]).then(() => {
+      if (cancelled) return;
+      register(pageNumber, { element: elementRef.current!, viewport: currentViewport });
+      setReady(true);
+    }).catch(reason => { if (!cancelled) setError(String(reason)); });
+    return () => {
+      cancelled = true;
+      register(pageNumber, null);
+      renderTask.cancel();
+      textLayer.cancel();
+      container.replaceChildren();
+      canvas.width = 0;
+      canvas.height = 0;
+    };
+  }, [page, nearby, actualScale, rotation, pageNumber, register]);
+
+  return (
+    <div ref={elementRef} className="pdf-page" data-page-number={pageNumber} aria-label={`Page ${pageNumber}`}
+      style={{ width: viewport?.width || Math.max(100, size.width - 32), height: viewport?.height || size.height,
+        '--scale-factor': actualScale } as React.CSSProperties}>
+      <canvas ref={canvasRef} aria-hidden="true" />
+      <div ref={textRef} className="pdf-text-layer" />
+      {nearby && ready && viewport && highlights.flatMap(highlight => (highlight.rects || [])
+        .filter(rect => rect.pageNumber === pageNumber).map((rect, index) => {
+          const [left, top, right, bottom] = viewport.convertToViewportRectangle(rect.coordinates);
+          return <div key={`${highlight.id}-${index}`} className="pdf-highlight" data-highlight-id={highlight.id}
+            style={{ left: Math.min(left, right), top: Math.min(top, bottom), width: Math.abs(right - left),
+              height: Math.abs(bottom - top), background: `var(--highlight-${highlight.color || 'amber'})` }} />;
+        }))}
+      {error ? <div className="pdf-page-status" role="alert">Page {pageNumber}: {error}</div>
+        : (!nearby || !ready) && <div className="pdf-page-status">Page {pageNumber} · Loading…</div>}
+    </div>
+  );
+}
+
+export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelection, title }: {
   pdfUrl: string;
   highlights?: PaperHighlight[];
-  onTextSelect: (selection: {
-    text: string;
-    rect: { top: number; left: number; width: number; height: number };
-    pageNumber: number;
-  }) => void;
-  onClearSelection?: () => void;
+  onTextSelect: (selection: PdfSelection) => void;
+  onClearSelection: () => void;
   title?: string;
-  onSwitchToPreprint?: () => void;
-}
-
-export const PdfViewer: React.FC<PdfViewerProps> = ({
-  pdfUrl,
-  highlights = [],
-  onTextSelect,
-  onClearSelection,
-  title,
-  onSwitchToPreprint
-}) => {
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const textLayerRef = useRef<HTMLDivElement>(null);
+  const pagesRef = useRef(new Map<number, PageRegistration>());
+  const [document, setDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [scale, setScale] = useState(1.2);
+  const [rotation, setRotation] = useState(0);
+  const [fitMode, setFitMode] = useState<FitMode>('width');
+  const [error, setError] = useState('');
+  const [size, setSize] = useState({ width: 800, height: 900 });
+  const register = useCallback((pageNumber: number, registration: PageRegistration | null) => {
+    if (registration) pagesRef.current.set(pageNumber, registration);
+    else pagesRef.current.delete(pageNumber);
+  }, []);
 
-  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(0);
-  const [scale, setScale] = useState<number>(1.2);
-  const [rotation, setRotation] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [renderProgress, setRenderProgress] = useState<boolean>(false);
-  const [isContinuous, setIsContinuous] = useState<boolean>(false);
-  const [fitMode, setFitMode] = useState<'custom' | 'width' | 'page'>('width');
-
-  // Load PDF Document
   useEffect(() => {
-    let isCancelled = false;
-    setLoading(true);
-    setError(null);
+    let cancelled = false;
+    setDocument(null);
+    setError('');
     setCurrentPage(1);
-
-    const loadingTask = pdfjsLib.getDocument({
+    const task = pdfjsLib.getDocument({
       url: pdfUrl,
       cMapUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/cmaps/`,
       cMapPacked: true,
       standardFontDataUrl: `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/standard_fonts/`
     });
-
-    loadingTask.promise
-      .then(doc => {
-        if (isCancelled) return;
-        setPdfDoc(doc);
-        setTotalPages(doc.numPages);
-        setLoading(false);
-      })
-      .catch(err => {
-        if (isCancelled) return;
-        console.warn('PDF.js load error:', err);
-        setError(err.message || 'Could not render PDF directly.');
-        setLoading(false);
-      });
-
-    return () => {
-      isCancelled = true;
-      loadingTask.destroy();
-    };
+    task.promise.then(value => { if (!cancelled) setDocument(value); })
+      .catch(reason => { if (!cancelled) setError(String(reason)); });
+    return () => { cancelled = true; void task.destroy(); };
   }, [pdfUrl]);
 
-  // Render current page
-  const renderSinglePage = useCallback(async () => {
-    if (!pdfDoc || !canvasRef.current) return;
-    setRenderProgress(true);
+  useEffect(() => {
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setSize({ width, height });
+    });
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-    try {
-      const page = await pdfDoc.getPage(currentPage);
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Determine responsive scale
-      let finalScale = scale;
-      if (fitMode === 'width' && containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth - 48;
-        const unscaledViewport = page.getViewport({ scale: 1, rotation });
-        finalScale = Math.max(0.6, Math.min(2.5, containerWidth / unscaledViewport.width));
-      } else if (fitMode === 'page' && containerRef.current) {
-        const containerHeight = containerRef.current.clientHeight - 80;
-        const unscaledViewport = page.getViewport({ scale: 1, rotation });
-        finalScale = Math.max(0.6, Math.min(2.5, containerHeight / unscaledViewport.height));
+  const handleSelection = useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) return onClearSelection();
+    const range = selection.getRangeAt(0);
+    const start = range.startContainer.parentElement?.closest('.pdf-text-layer');
+    const end = range.endContainer.parentElement?.closest('.pdf-text-layer');
+    const text = selection.toString().trim();
+    if (!start || !end || !containerRef.current?.contains(start) || !containerRef.current.contains(end)
+      || !text || text.length > 5000) return onClearSelection();
+    const rects: PdfSelection['rects'] = [];
+    const seen = new Set<string>();
+    for (const [pageNumber, { element, viewport }] of pagesRef.current) {
+      const layer = element.querySelector('.pdf-text-layer');
+      if (!layer || !range.intersectsNode(layer)) continue;
+      const pageRange = range.cloneRange();
+      if (!layer.contains(range.startContainer)) pageRange.setStart(layer, 0);
+      if (!layer.contains(range.endContainer)) pageRange.setEnd(layer, layer.childNodes.length);
+      const bounds = element.getBoundingClientRect();
+      for (const rect of pageRange.getClientRects()) {
+        const left = Math.max(rect.left, bounds.left);
+        const top = Math.max(rect.top, bounds.top);
+        const right = Math.min(rect.right, bounds.right);
+        const bottom = Math.min(rect.bottom, bounds.bottom);
+        if (right - left < 1 || bottom - top < 1) continue;
+        const [startX, startY] = viewport.convertToPdfPoint(left - bounds.left, top - bounds.top);
+        const [endX, endY] = viewport.convertToPdfPoint(right - bounds.left, bottom - bounds.top);
+        const key = [pageNumber, startX, startY, endX, endY].map(value => value.toFixed(2)).join(',');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rects.push({ pageNumber, coordinates: [startX, startY, endX, endY] });
       }
-
-      const viewport = page.getViewport({ scale: finalScale, rotation });
-      const pixelRatio = window.devicePixelRatio || 1;
-
-      canvas.width = Math.floor(viewport.width * pixelRatio);
-      canvas.height = Math.floor(viewport.height * pixelRatio);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-      ctx.save();
-      ctx.scale(pixelRatio, pixelRatio);
-
-      // Render PDF page canvas
-      await page.render({
-        canvasContext: ctx,
-        viewport
-      }).promise;
-
-      ctx.restore();
-
-      // Render Text Layer for native selection
-      if (textLayerRef.current) {
-        const textContainer = textLayerRef.current;
-        textContainer.innerHTML = '';
-        textContainer.style.width = `${Math.floor(viewport.width)}px`;
-        textContainer.style.height = `${Math.floor(viewport.height)}px`;
-
-        const textContent = await page.getTextContent();
-
-        try {
-          // PDF.js v4 TextLayer class
-          const textLayer = new pdfjsLib.TextLayer({
-            textContentSource: textContent,
-            container: textContainer,
-            viewport
-          });
-          await textLayer.render();
-        } catch {
-          // Fallback manual text span generator
-          for (const item of textContent.items as any[]) {
-            if (!item.str) continue;
-            const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
-            const span = document.createElement('span');
-            span.textContent = item.str;
-            span.style.left = `${tx[4]}px`;
-            span.style.top = `${tx[5] - item.height * finalScale}px`;
-            span.style.fontSize = `${Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])}px`;
-            span.style.fontFamily = item.fontName || 'sans-serif';
-            textContainer.appendChild(span);
-          }
-        }
-      }
-    } catch (err: any) {
-      if (err?.name !== 'RenderingCancelledException') {
-        console.warn('Page render error:', err);
-      }
-    } finally {
-      setRenderProgress(false);
     }
-  }, [pdfDoc, currentPage, scale, rotation, fitMode]);
+    rects.sort((first, second) => first.pageNumber - second.pageNumber);
+    if (!rects.length) return onClearSelection();
+    onTextSelect({ text, rect: range.getBoundingClientRect(), pageNumber: rects[0].pageNumber, rects });
+  }, [onTextSelect, onClearSelection]);
 
   useEffect(() => {
-    renderSinglePage();
-  }, [renderSinglePage]);
+    let timeout: ReturnType<typeof setTimeout>;
+    const changed = () => { clearTimeout(timeout); timeout = setTimeout(handleSelection, 100); };
+    window.document.addEventListener('selectionchange', changed);
+    return () => { clearTimeout(timeout); window.document.removeEventListener('selectionchange', changed); };
+  }, [handleSelection]);
 
-  // Handle Text Selection over PDF
-  const handleSelection = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) {
-      return;
-    }
-    const selectedText = selection.toString().trim();
-    if (selectedText.length > 0 && selectedText.length < 5000) {
-      try {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          onTextSelect({
-            text: selectedText,
-            rect: {
-              top: rect.top,
-              left: rect.left,
-              width: rect.width,
-              height: rect.height
-            },
-            pageNumber: currentPage
-          });
-        }
-      } catch (e) {
-        console.warn('Selection rect error:', e);
-      }
-    }
+  const navigate = (pageNumber: number) => {
+    if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > (document?.numPages || 0)) return;
+    containerRef.current?.querySelector<HTMLElement>(`[data-page-number="${pageNumber}"]`)
+      ?.scrollIntoView({ block: 'start' });
+    setCurrentPage(pageNumber);
+    onClearSelection();
   };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage(p => p - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(p => p + 1);
-  };
-
-  const handleZoomIn = () => {
+  const zoom = (delta: number) => {
+    const actualScale = pagesRef.current.get(currentPage)?.viewport.scale || scale;
+    setScale(Math.max(0.25, Math.min(3, actualScale + delta)));
     setFitMode('custom');
-    setScale(s => Math.min(2.5, Number((s + 0.15).toFixed(2))));
-  };
-
-  const handleZoomOut = () => {
-    setFitMode('custom');
-    setScale(s => Math.max(0.5, Number((s - 0.15).toFixed(2))));
-  };
-
-  const handleRotate = () => {
-    setRotation(r => (r + 90) % 360);
+    onClearSelection();
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900/95 text-slate-100 select-none">
-      {/* Top PDF Controls Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800/90 border-b border-slate-700/80 shrink-0 text-xs gap-3">
-        {/* Page Nav */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handlePrevPage}
-            disabled={currentPage <= 1}
-            title="Previous Page"
-            className="p-1 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-200"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          <div className="flex items-center gap-1 font-mono text-slate-300">
-            <input
-              type="number"
-              min={1}
-              max={totalPages || 1}
-              value={currentPage}
-              onChange={e => {
-                const val = parseInt(e.target.value, 10);
-                if (val >= 1 && val <= totalPages) setCurrentPage(val);
-              }}
-              className="w-10 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white focus:outline-none focus:border-teal-500"
-            />
-            <span className="text-slate-500">/</span>
-            <span>{totalPages || '...'}</span>
-          </div>
-
-          <button
-            onClick={handleNextPage}
-            disabled={currentPage >= totalPages}
-            title="Next Page"
-            className="p-1 rounded hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-slate-200"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+    <div className="pdf-reader">
+      <div className="pdf-controls" aria-label="PDF controls">
+        <div>
+          <button onClick={() => navigate(currentPage - 1)} disabled={currentPage <= 1} title="Previous Page"><ChevronLeft size={16} /></button>
+          <input aria-label="Page number" type="number" min={1} max={document?.numPages || 1} value={currentPage}
+            onChange={event => navigate(Number(event.target.value))} />
+          <span className="font-mono">/ {document?.numPages || '…'}</span>
+          <button onClick={() => navigate(currentPage + 1)} disabled={!document || currentPage >= document.numPages} title="Next Page"><ChevronRight size={16} /></button>
         </div>
-
-        {/* Zoom & Display Modes */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleZoomOut}
-            title="Zoom Out"
-            className="p-1 rounded hover:bg-slate-700 text-slate-300 transition-colors"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-
-          <span className="font-mono text-xs w-12 text-center text-slate-300">
-            {Math.round(scale * 100)}%
-          </span>
-
-          <button
-            onClick={handleZoomIn}
-            title="Zoom In"
-            className="p-1 rounded hover:bg-slate-700 text-slate-300 transition-colors"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-
-          <div className="h-4 w-px bg-slate-700 mx-1" />
-
-          <button
-            onClick={() => setFitMode(m => (m === 'width' ? 'custom' : 'width'))}
-            className={`px-2 py-0.5 rounded font-sans transition-colors ${
-              fitMode === 'width' ? 'bg-teal-600/30 text-teal-300 border border-teal-500/40' : 'hover:bg-slate-700 text-slate-300'
-            }`}
-          >
-            Fit Width
-          </button>
-
-          <button
-            onClick={() => setFitMode(m => (m === 'page' ? 'custom' : 'page'))}
-            className={`px-2 py-0.5 rounded font-sans transition-colors ${
-              fitMode === 'page' ? 'bg-teal-600/30 text-teal-300 border border-teal-500/40' : 'hover:bg-slate-700 text-slate-300'
-            }`}
-          >
-            Fit Page
-          </button>
-
-          <button
-            onClick={handleRotate}
-            title="Rotate Page"
-            className="p-1 rounded hover:bg-slate-700 text-slate-300 transition-colors ml-1"
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-          </button>
+        <div>
+          <button onClick={() => zoom(-0.15)} title="Zoom Out"><ZoomOut size={16} /></button>
+          <span className="font-mono">{fitMode === 'custom' ? `${Math.round(scale * 100)}%` : fitMode === 'width' ? 'Fit width' : 'Fit page'}</span>
+          <button onClick={() => zoom(0.15)} title="Zoom In"><ZoomIn size={16} /></button>
+          <button aria-pressed={fitMode === 'width'} onClick={() => { setFitMode('width'); onClearSelection(); }}>Fit Width</button>
+          <button aria-pressed={fitMode === 'page'} onClick={() => { setFitMode('page'); onClearSelection(); }}>Fit Page</button>
+          <button title="Rotate Page" onClick={() => { setRotation(value => (value + 90) % 360); onClearSelection(); }}><RotateCw size={16} /></button>
         </div>
-
-        {/* Right actions: Pre-print reader view & Download */}
-        <div className="flex items-center gap-2">
-          {onSwitchToPreprint && (
-            <button
-              onClick={onSwitchToPreprint}
-              title="Switch to Academic Preprint Text View"
-              className="px-2.5 py-1 rounded bg-slate-700/80 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5 text-teal-400" />
-              <span>Preprint View</span>
-            </button>
-          )}
-
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open in new window"
-            className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-
-          <a
-            href={pdfUrl}
-            download={`${title || 'paper'}.pdf`}
-            title="Download PDF"
-            className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-          </a>
+        <div>
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" title="Open PDF in new tab"><ExternalLink size={16} /></a>
+          <a href={pdfUrl} download={`${title || 'paper'}.pdf`} title="Download PDF"><Download size={16} /></a>
         </div>
       </div>
-
-      {/* Main PDF Canvas & Text Layer Container */}
-      <div
-        ref={containerRef}
-        onMouseUp={handleSelection}
-        className="flex-1 overflow-auto flex justify-center items-start p-6 relative bg-slate-950/60 selection:bg-amber-300/40 select-text"
-      >
-        {loading && (
-          <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
-            <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
-            <span className="text-sm font-mono">Initializing vector PDF engine...</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="flex flex-col items-center justify-center max-w-md p-6 bg-slate-800/90 border border-slate-700 rounded-lg text-center gap-3 my-12">
-            <AlertCircle className="w-8 h-8 text-amber-400" />
-            <div className="text-sm font-medium text-slate-200">Unable to preview PDF directly</div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              This external server may restrict cross-origin iframe embedding, or the file URL requires direct access.
-            </p>
-            <div className="flex gap-2 mt-2">
-              {onSwitchToPreprint && (
-                <button
-                  onClick={onSwitchToPreprint}
-                  className="px-3 py-1.5 rounded bg-teal-600 hover:bg-teal-500 text-xs font-medium text-white transition-colors"
-                >
-                  Read in Preprint View
-                </button>
-              )}
-              <a
-                href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-xs font-medium text-slate-200 transition-colors flex items-center gap-1"
-              >
-                <span>Open in Tab</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && (
-          <div className="relative shadow-2xl bg-white rounded border border-slate-700/60 overflow-hidden mb-12">
-            {/* The rendered Canvas */}
-            <canvas ref={canvasRef} className="block select-none pointer-events-none" />
-
-            {/* The Text Selection Layer */}
-            <div
-              ref={textLayerRef}
-              className="pdf-text-layer absolute inset-0 overflow-hidden pointer-events-auto select-text text-transparent opacity-100"
-              style={{
-                lineHeight: 1,
-                userSelect: 'text',
-                WebkitUserSelect: 'text'
-              }}
-            />
-
-            {/* Visual Overlays for saved highlights on this page */}
-            {highlights
-              .filter(h => !h.pageNumber || h.pageNumber === currentPage)
-              .map(h => (
-                <div
-                  key={h.id}
-                  title={`Highlight: "${h.text.slice(0, 80)}..."`}
-                  className="absolute pointer-events-none bg-amber-400/25 border-b border-amber-500/40 rounded-sm"
-                />
-              ))}
-
-            {renderProgress && (
-              <div className="absolute top-2 right-2 bg-slate-900/80 px-2 py-1 rounded text-[10px] font-mono text-teal-300 flex items-center gap-1 backdrop-blur-sm pointer-events-none">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Rendering...</span>
-              </div>
-            )}
-          </div>
-        )}
+      <div ref={containerRef} className="pdf-scroll" onPointerUp={handleSelection} onKeyUp={handleSelection}
+        onScroll={() => {
+          onClearSelection();
+          const root = containerRef.current;
+          if (!root) return;
+          const top = root.getBoundingClientRect().top;
+          const closest = [...root.querySelectorAll<HTMLElement>('.pdf-page')]
+            .find(element => element.getBoundingClientRect().bottom > top + Math.min(100, root.clientHeight / 4));
+          if (closest) setCurrentPage(Number(closest.dataset.pageNumber));
+        }}>
+        {error ? <div className="pdf-message" role="alert"><strong>Unable to preview this PDF</strong><p>{error}</p>
+          <p>The source may block access. Open the original or upload a local copy.</p>
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer">Open original PDF</a></div>
+          : !document ? <div className="pdf-message" role="status"><Loader2 className="animate-spin" /> Loading PDF…</div>
+          : Array.from({ length: document.numPages }, (_, index) => <PdfPage key={index + 1} document={document}
+            pageNumber={index + 1} scale={scale} rotation={rotation} fitMode={fitMode} size={size}
+            highlights={highlights} register={register} scrollRoot={containerRef} />)}
       </div>
-
-      {/* Global CSS injection for PDF.js text layer */}
-      <style>{`
-        .pdf-text-layer > span, .pdf-text-layer > div {
-          color: transparent !important;
-          position: absolute;
-          white-space: pre;
-          cursor: text;
-          transform-origin: 0% 0%;
-        }
-        .pdf-text-layer ::selection {
-          background: rgba(251, 191, 36, 0.45) !important;
-        }
-      `}</style>
     </div>
   );
-};
+}

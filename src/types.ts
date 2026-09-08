@@ -105,6 +105,7 @@ export interface PaperHighlight {
   createdAt: number;
   note?: string;
   sectionId?: string;
+  rects?: { pageNumber: number; coordinates: [number, number, number, number] }[];
 }
 
 export interface Paper {

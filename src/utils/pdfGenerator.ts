@@ -214,7 +214,7 @@ export function getPaperPdfUrl(paper: Paper): string {
   // If paper has uploaded data URL
   if (paper.pdfDataUrl) return paper.pdfDataUrl;
   // If paper has an explicit remote/local PDF url
-  if (paper.pdfUrl) return paper.pdfUrl;
+  if (paper.pdfUrl) return parseArxivLink(paper.pdfUrl)?.pdfUrl || paper.pdfUrl;
 
   // Generate on the fly and cache
   const cacheKey = `${paper.id}-${paper.markdown.length}-${paper.title}`;
@@ -236,6 +236,7 @@ export async function fetchCrossrefMetadata(doiRaw: string): Promise<Partial<Pap
 
   try {
     const res = await fetch(`https://api.crossref.org/works/${encodeURIComponent(cleanDoi)}`, {
+      signal: AbortSignal.timeout(12000),
       headers: {
         'Accept': 'application/json'
       }
@@ -251,18 +252,19 @@ export async function fetchCrossrefMetadata(doiRaw: string): Promise<Partial<Pap
       return a.name || a.family || 'Author';
     });
     const authors = authorsList.join(', ') || 'Unknown Authors';
-    const year = item.created?.['date-parts']?.[0]?.[0] || item.published?.['date-parts']?.[0]?.[0] || new Date().getFullYear();
+    const year = item.published?.['date-parts']?.[0]?.[0] || item.issued?.['date-parts']?.[0]?.[0];
     const journal = Array.isArray(item['container-title']) ? item['container-title'][0] : item['container-title'] || '';
-    const citation = `${authorsList[0]?.split(' ').pop() || 'Author'} (${year}) ${journal ? `in ${journal}` : ''}`.trim();
+    const citation = `${authorsList[0]?.split(' ').pop() || 'Author'}${year ? ` (${year})` : ''} ${journal ? `in ${journal}` : ''}`.trim();
     const abstract = (item.abstract || '').replace(/<[^>]+>/g, '').trim();
 
     return {
       title,
       authors,
-      year: Number(year),
+      year: year ? Number(year) : undefined,
       citation,
       doi: cleanDoi,
       url: item.URL || `https://doi.org/${cleanDoi}`,
+      pdfUrl: item.link?.find((link: { 'content-type'?: string; URL?: string }) => link['content-type'] === 'application/pdf')?.URL,
       abstract: abstract || undefined,
       journal: journal || undefined
     };
@@ -276,122 +278,12 @@ export async function fetchCrossrefMetadata(doiRaw: string): Promise<Partial<Pap
  * Parses arXiv URL or identifier into canonical arXiv endpoints.
  */
 export function parseArxivLink(input: string): { arxivId: string; pdfUrl: string; absUrl: string } | null {
-  const match = /(?:arxiv\.org\/(?:abs|pdf)\/|arxiv:)?([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?)/i.exec(input.trim());
+  const match = /^(?:(?:https?:\/\/(?:www\.|export\.)?arxiv\.org\/(?:abs|pdf|html)\/)|(?:https?:\/\/doi\.org\/)?10\.48550\/arxiv\.|arxiv:\s*)?([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?|[a-z-]+(?:\.[a-z-]+)?\/[0-9]{7}(?:v[0-9]+)?)(?:\.pdf)?(?:[?#].*)?$/i.exec(input.trim());
   if (!match) return null;
   const arxivId = match[1];
   return {
     arxivId,
-    pdfUrl: `https://arxiv.org/pdf/${arxivId}.pdf`,
+    pdfUrl: `https://arxiv.org/pdf/${arxivId}`,
     absUrl: `https://arxiv.org/abs/${arxivId}`
   };
 }
-
-/**
- * Seminal benchmark papers available to add with a single click.
- */
-export const PRESET_PAPERS: Array<Omit<Paper, 'id'> & { presetId: string }> = [
-  {
-    presetId: 'preset-attention',
-    title: 'Attention Is All You Need',
-    authors: 'Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Lukasz Kaiser, Illia Polosukhin',
-    year: 2017,
-    citation: 'NeurIPS 2017 Oral Presentation',
-    pageCount: 15,
-    doi: '10.48550/arXiv.1706.03762',
-    url: 'https://arxiv.org/abs/1706.03762',
-    pdfUrl: 'https://arxiv.org/pdf/1706.03762.pdf',
-    abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.',
-    markdown: `# Attention Is All You Need
-
-## Abstract
-The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.
-
-## 1. Introduction
-Recurrent neural networks, long short-term memory and gated recurrent neural networks in particular, have been firmly established as state of the art approaches in sequence modeling. Recurrent models typically factor computation along the symbol positions of the input and output sequences. This sequentially generates a stream of hidden states, which precludes parallelization within training examples.
-
-## 2. Model Architecture
-The Transformer follows this overall architecture using stacked self-attention and point-wise, fully connected layers for both the encoder and decoder.
-
-### 2.1 Scaled Dot-Product Attention
-We call our particular attention "Scaled Dot-Product Attention". The input consists of queries and keys of dimension $d_k$, and values of dimension $d_v$. We compute the matrix of outputs as:
-$$\\text{Attention}(Q, K, V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right) V$$
-
-### 2.2 Multi-Head Attention
-Instead of performing a single attention function with $d_{\\text{model}}$-dimensional keys, queries and values, we found it beneficial to linearly project the queries, keys and values $h$ times with different, learned linear projections to $d_k$, $d_k$ and $d_v$ dimensions.
-
-## 3. Results & Evaluation
-On the WMT 2014 English-to-German translation task, the big transformer model outperforms the best previously reported models (including ensembles) by more than 2.0 BLEU, establishing a new state-of-the-art BLEU score of 28.4.`,
-    sections: [
-      { id: 'sec-att-1', title: 'Abstract', paragraphs: [{ id: 'par-att-1' }] },
-      { id: 'sec-att-2', title: '1. Introduction', paragraphs: [{ id: 'par-att-2' }] },
-      { id: 'sec-att-3', title: '2. Model Architecture', paragraphs: [{ id: 'par-att-3' }] },
-      { id: 'sec-att-4', title: '3. Results & Evaluation', paragraphs: [{ id: 'par-att-4' }] }
-    ],
-    highlights: []
-  },
-  {
-    presetId: 'preset-flashattention',
-    title: 'FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness',
-    authors: 'Tri Dao, Daniel Y. Fu, Stefano Ermon, Atri Rudra, Christopher Ré',
-    year: 2022,
-    citation: 'NeurIPS 2022 Proceedings',
-    pageCount: 16,
-    doi: '10.48550/arXiv.2205.14135',
-    url: 'https://arxiv.org/abs/2205.14135',
-    pdfUrl: 'https://arxiv.org/pdf/2205.14135.pdf',
-    abstract: 'Transformers are slow and memory-hungry on long sequences, since the time and memory complexity of self-attention are quadratic in sequence length. Approximate attention methods have attempted to address this, but often trade off model quality. We argue that a missing principle is making attention algorithms IO-aware: accounting for reads and writes between levels of GPU memory.',
-    markdown: `# FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness
-
-## Abstract
-Transformers are slow and memory-hungry on long sequences, since the time and memory complexity of self-attention are quadratic in sequence length. Approximate attention methods have attempted to address this, but often trade off model quality. We argue that a missing principle is making attention algorithms IO-aware: accounting for reads and writes between levels of GPU memory (SRAM vs. HBM). We propose FlashAttention, an IO-aware exact attention algorithm that uses tiling to reduce the number of memory reads/writes between GPU High Bandwidth Memory (HBM) and GPU on-chip SRAM.
-
-## 1. IO-Aware Hardware Efficiency
-On modern GPUs (e.g. A100), compute speed has dramatically outpaced memory bandwidth. Standard attention materializes $N \\times N$ attention matrices in HBM, requiring $O(N^2)$ memory accesses. FlashAttention computes exact softmax in tiled blocks residing entirely in fast SRAM (19 TB/s), avoiding intermediate HBM round-trips.
-
-## 2. Algorithmic Breakthrough: Tiling & Recomputation
-FlashAttention splits inputs $Q, K, V$ into blocks, loads them from slow HBM to fast SRAM, and computes attention output with respect to that block. By scaling softmax normalization incrementally via online softmax, it yields mathematical exactness with zero approximation loss. In the backward pass, attention matrices are recomputed on-the-fly from SRAM blocks rather than stored in HBM.
-
-## 3. Benchmarks & Speedups
-FlashAttention trains GPT-2 up to 3x faster than Megatron-LM baselines and scales Transformers to 64K sequences with no memory overflow.`,
-    sections: [
-      { id: 'sec-fa-1', title: 'Abstract', paragraphs: [{ id: 'par-fa-1' }] },
-      { id: 'sec-fa-2', title: '1. IO-Aware Hardware Efficiency', paragraphs: [{ id: 'par-fa-2' }] },
-      { id: 'sec-fa-3', title: '2. Algorithmic Breakthrough', paragraphs: [{ id: 'par-fa-3' }] }
-    ],
-    highlights: []
-  },
-  {
-    presetId: 'preset-dpo',
-    title: 'Direct Preference Optimization: Your Language Model is Secretly a Reward Model',
-    authors: 'Rafael Rafailov, Archit Sharma, Eric Mitchell, Stefano Ermon, Christopher D. Manning, Chelsea Finn',
-    year: 2023,
-    citation: 'NeurIPS 2023 Outstanding Paper',
-    pageCount: 14,
-    doi: '10.48550/arXiv.2305.18290',
-    url: 'https://arxiv.org/abs/2305.18290',
-    pdfUrl: 'https://arxiv.org/pdf/2305.18290.pdf',
-    abstract: 'While large-scale unsupervised language models learn broad world knowledge and reasoning skills, steering their behaviors precisely is challenging due to the unconstrained nature of their training. Existing techniques rely on reinforcement learning from human feedback (RLHF), which is complex and often unstable. We introduce Direct Preference Optimization (DPO), an algorithm to implicitly optimize the policy directly on preference data without fitting a separate reward model or sampling during training.',
-    markdown: `# Direct Preference Optimization: Your Language Model is Secretly a Reward Model
-
-## Abstract
-While large-scale unsupervised language models learn broad world knowledge and reasoning skills, steering their behaviors precisely is challenging due to the unconstrained nature of their training. Existing techniques rely on reinforcement learning from human feedback (RLHF), which is complex and often unstable. We introduce Direct Preference Optimization (DPO), an algorithm to implicitly optimize the policy directly on preference data without fitting a separate reward model or sampling during training.
-
-## 1. Introduction & RLHF Limitations
-Standard RLHF pipelines require three stages: (1) Supervised Fine-Tuning (SFT), (2) Fitting a Bradley-Terry reward model on pairwise preferences $y_w \\succ y_l$, and (3) Optimizing the policy via PPO with KL regularization against the reference policy $\\pi_{\\text{ref}}$. PPO is notoriously sensitive to hyperparameter choices, value function collapse, and mode dropping.
-
-## 2. Derivation of DPO
-We show that the constrained RL objective has an exact closed-form solution:
-$$r^*(x, y) = \\beta \\log \\frac{\\pi^*(y|x)}{\\pi_{\\text{ref}}(y|x)} + \\beta \\log Z(x)$$
-Substituting this analytical ground-truth reward into the Bradley-Terry preference likelihood yields the DPO loss:
-$$\\mathcal{L}_{\\text{DPO}}(\\pi_\\theta; \\pi_{\\text{ref}}) = -\\mathbb{E}_{(x, y_w, y_l)} \\left[ \\log \\sigma \\left( \\beta \\log \\frac{\\pi_\\theta(y_w|x)}{\\pi_{\\text{ref}}(y_w|x)} - \\beta \\log \\frac{\\pi_\\theta(y_l|x)}{\\pi_{\\text{ref}}(y_l|x)} \\right) \\right]$$
-
-## 3. Results
-DPO matches or outperforms PPO on summarization and dialogue while being computationally lightweight and dramatically simpler to implement.`,
-    sections: [
-      { id: 'sec-dpo-1', title: 'Abstract', paragraphs: [{ id: 'par-dpo-1' }] },
-      { id: 'sec-dpo-2', title: '1. Introduction', paragraphs: [{ id: 'par-dpo-2' }] },
-      { id: 'sec-dpo-3', title: '2. Derivation of DPO', paragraphs: [{ id: 'par-dpo-3' }] }
-    ],
-    highlights: []
-  }
-];

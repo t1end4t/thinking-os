@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Paper, EvidenceForm, PaperHighlight } from '../../types';
 import {
@@ -28,7 +28,7 @@ import {
   Hash
 } from 'lucide-react';
 import { TabHelpTip } from '../common/TabHelpTip';
-import { PdfViewer } from './PdfViewer';
+import { PdfViewer, PdfSelection } from './PdfViewer';
 import { AddPaperModal } from './AddPaperModal';
 import { getPaperPdfUrl } from '../../utils/pdfGenerator';
 
@@ -56,14 +56,11 @@ export const PapersSurface: React.FC = () => {
     return papers[0]?.id || 'vault';
   });
 
-  // Reader View Mode: 'pdf' (real PDF reader) | 'preprint' (academic styled reader)
-  const [viewMode, setViewMode] = useState<'pdf' | 'preprint'>('pdf');
-
   // Vault View Layout: 'cards' | 'list'
   const [vaultLayout, setVaultLayout] = useState<'cards' | 'list'>('cards');
 
   // Left sidebar toggle for larger reader: collapsed / expanded
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => window.innerWidth < 900);
 
   // Left sidebar tab when reading: 'toc' | 'highlights' | 'vault'
   const [leftSidebarTab, setLeftSidebarTab] = useState<'toc' | 'highlights' | 'vault'>('toc');
@@ -90,21 +87,35 @@ export const PapersSurface: React.FC = () => {
   const [userReason, setUserReason] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
 
-  const articleRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [selectedRects, setSelectedRects] = useState<PaperHighlight['rects']>([]);
+  const clearSelection = useCallback(() => setFloatingToolbarPos(null), []);
 
-  // Sync openTabIds when papers array changes
   useEffect(() => {
-    if (papers.length > 0 && openTabIds.length === 0) {
-      setOpenTabIds(papers.map(p => p.id));
-      if (activeTab !== 'vault' && !papers.some(p => p.id === activeTab)) {
-        setActiveTab(papers[0].id);
+    const dismissOutside = (event: PointerEvent | FocusEvent) => {
+      if (event.target instanceof Node && !toolbarRef.current?.contains(event.target)) clearSelection();
+    };
+    const dismissEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        clearSelection();
+        window.getSelection()?.removeAllRanges();
       }
-    }
-  }, [papers, openTabIds.length, activeTab]);
+    };
+    document.addEventListener('pointerdown', dismissOutside);
+    document.addEventListener('focusin', dismissOutside);
+    document.addEventListener('keydown', dismissEscape);
+    window.addEventListener('resize', clearSelection);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside);
+      document.removeEventListener('focusin', dismissOutside);
+      document.removeEventListener('keydown', dismissEscape);
+      window.removeEventListener('resize', clearSelection);
+    };
+  }, [clearSelection]);
 
   const activePaper = useMemo(() => {
     if (activeTab === 'vault') return null;
-    return papers.find(p => p.id === activeTab) || papers[0] || null;
+    return papers.find(p => p.id === activeTab) || null;
   }, [papers, activeTab]);
 
   // Tab switching and opening
@@ -131,43 +142,16 @@ export const PapersSurface: React.FC = () => {
     setFloatingToolbarPos(null);
   };
 
-  // Text selection in academic preprint view
-  const handlePreprintMouseUp = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) {
-      setFloatingToolbarPos(null);
-      setSelectedText('');
-      return;
-    }
-
-    const text = selection.toString().trim();
-    if (text.length > 3) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      setSelectedText(text);
-      setSelectedPage(1);
-      setFloatingToolbarPos({
-        x: rect.left + rect.width / 2,
-        y: Math.max(10, rect.top - 50)
-      });
-    } else {
-      setFloatingToolbarPos(null);
-    }
-  };
-
   // Text selection from PDF.js viewer
-  const handlePdfTextSelect = (sel: {
-    text: string;
-    rect: { top: number; left: number; width: number; height: number };
-    pageNumber: number;
-  }) => {
+  const handlePdfTextSelect = useCallback((sel: PdfSelection) => {
     setSelectedText(sel.text);
     setSelectedPage(sel.pageNumber);
+    setSelectedRects(sel.rects);
     setFloatingToolbarPos({
-      x: sel.rect.left + sel.rect.width / 2,
+      x: Math.max(160, Math.min(window.innerWidth - 160, sel.rect.left + sel.rect.width / 2)),
       y: Math.max(10, sel.rect.top - 50)
     });
-  };
+  }, []);
 
   // Action 1: Ask Assistant
   const handleAskAssistant = () => {
@@ -186,6 +170,7 @@ export const PapersSurface: React.FC = () => {
       `Examining passage from ${activePaper.title}:\n\n"${selectedText}"\n\nHow does this finding impact our existing claims?`
     );
     setFloatingToolbarPos(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   // Action 2: Open Evidence modal
@@ -195,6 +180,7 @@ export const PapersSurface: React.FC = () => {
     setFormError(null);
     setShowEvidenceModal(true);
     setFloatingToolbarPos(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   // Action 3: Highlight & KEEP highlight
@@ -203,7 +189,8 @@ export const PapersSurface: React.FC = () => {
     addPaperHighlight(activePaper.id, {
       text: selectedText,
       color: 'amber',
-      pageNumber: selectedPage
+      pageNumber: selectedPage,
+      rects: selectedRects
     });
     setFloatingToolbarPos(null);
     window.getSelection()?.removeAllRanges();
@@ -306,47 +293,6 @@ export const PapersSurface: React.FC = () => {
     ).length;
   }, [papers]);
 
-  // Render text block with highlight marks
-  const renderParagraphWithHighlights = (blockText: string, paperHighlights: PaperHighlight[]) => {
-    if (!paperHighlights || paperHighlights.length === 0) {
-      return blockText;
-    }
-
-    const matchingHighlights = paperHighlights.filter(h =>
-      blockText.toLowerCase().includes(h.text.toLowerCase())
-    );
-
-    if (matchingHighlights.length === 0) {
-      return blockText;
-    }
-
-    let remaining = blockText;
-    const elements: React.ReactNode[] = [];
-    let keyIdx = 0;
-
-    for (const hl of matchingHighlights) {
-      const idx = remaining.toLowerCase().indexOf(hl.text.toLowerCase());
-      if (idx !== -1) {
-        const before = remaining.slice(0, idx);
-        const match = remaining.slice(idx, idx + hl.text.length);
-        remaining = remaining.slice(idx + hl.text.length);
-
-        if (before) elements.push(<span key={keyIdx++}>{before}</span>);
-        elements.push(
-          <mark
-            key={keyIdx++}
-            title="Saved Highlight"
-            className="bg-amber-200/90 dark:bg-amber-800/60 text-slate-900 dark:text-amber-100 rounded px-1 py-0.5 font-medium shadow-2xs"
-          >
-            {match}
-          </mark>
-        );
-      }
-    }
-    if (remaining) elements.push(<span key={keyIdx++}>{remaining}</span>);
-    return elements;
-  };
-
   return (
     <div
       id="papers-surface"
@@ -373,7 +319,7 @@ export const PapersSurface: React.FC = () => {
                     "Use tabs to read and navigate multiple papers simultaneously.",
                     "Toggle between Card View and List View in the Vault library.",
                     "Click 'Larger Reader' (or collapse sidebar) to expand the PDF viewing canvas.",
-                    "Select any text in the PDF or preprint to trigger [ Ask | Evidence | Highlight ].",
+                    "Select any text in the PDF to trigger [ Ask | Evidence | Highlight ].",
                     "Add new research papers via DOI, URL, or local PDF upload."
                   ]}
                   placement="bottom"
@@ -410,33 +356,6 @@ export const PapersSurface: React.FC = () => {
                   <span>{isSidebarCollapsed ? 'Show Sidebar' : 'Larger Reader'}</span>
                 </button>
 
-                {/* Reader Mode Toggle: Real PDF vs Preprint */}
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 text-xs font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('pdf')}
-                    className={`px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
-                      viewMode === 'pdf'
-                        ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-2xs font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5 text-teal-500" />
-                    <span>PDF Reader</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('preprint')}
-                    className={`px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
-                      viewMode === 'preprint'
-                        ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-2xs font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-teal-500" />
-                    <span>Preprint View</span>
-                  </button>
-                </div>
               </>
             )}
 
@@ -498,7 +417,8 @@ export const PapersSurface: React.FC = () => {
               return (
                 <div
                   key={paper.id}
-                  onClick={() => handleOpenPaperTab(paper.id)}
+                  role="group"
+                  aria-label={`Reader tab: ${paper.title}`}
                   className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer select-none shrink-0 border ${
                     isActive
                       ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 border-teal-500/60 dark:border-teal-500/50 font-semibold shadow-2xs ring-1 ring-teal-500/20'
@@ -506,7 +426,7 @@ export const PapersSurface: React.FC = () => {
                   }`}
                 >
                   <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-teal-500' : 'text-slate-400'}`} />
-                  <span className="truncate max-w-[150px]">{paper.title}</span>
+                  <button type="button" onClick={() => handleOpenPaperTab(paper.id)} aria-pressed={isActive} className="truncate max-w-[150px]">{paper.title}</button>
                   <span className="text-[10px] text-slate-400">({paper.year})</span>
 
                   {hlCount > 0 && (
@@ -523,6 +443,7 @@ export const PapersSurface: React.FC = () => {
                     type="button"
                     onClick={e => handleCloseTab(e, paper.id)}
                     title="Close tab"
+                    aria-label={`Close tab: ${paper.title}`}
                     className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ml-1"
                   >
                     <X className="w-3 h-3" />
@@ -891,12 +812,12 @@ export const PapersSurface: React.FC = () => {
         </div>
       ) : (
         /* ========================================================================= */
-        /* READER WORKSPACE: SIDEBAR + REAL PDF VIEWER / PREPRINT VIEW               */
+        /* READER WORKSPACE: SIDEBAR + PDF VIEWER               */
         /* ========================================================================= */
-        <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
           {/* Collapsible Left Sidebar: Outline, Highlights, Vault (Can toggle left to larger reader) */}
           {!isSidebarCollapsed && (
-            <aside className="w-72 md:w-80 border-r border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 overflow-hidden transition-all duration-200 z-10">
+            <aside className="absolute inset-y-0 left-0 max-w-full md:static w-72 md:w-80 border-r border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 overflow-hidden transition-all duration-200 z-10">
               {/* Sidebar Header with subtabs and collapse button */}
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-1.5 gap-1 shrink-0">
                 <div className="flex items-center gap-1 text-xs font-medium flex-1">
@@ -1028,7 +949,7 @@ export const PapersSurface: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => removePaperHighlight(activePaper.id, hl.id)}
-                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity"
+                              className="text-slate-400 hover:text-red-500 focus-visible:text-red-500"
                               title="Delete highlight"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1086,84 +1007,16 @@ export const PapersSurface: React.FC = () => {
             </aside>
           )}
 
-          {/* Collapsed sidebar restore handle / floating trigger */}
-          {isSidebarCollapsed && (
-            <button
-              type="button"
-              onClick={() => setIsSidebarCollapsed(false)}
-              title="Show sidebar (Outline, Notes, Vault)"
-              className="absolute left-0 top-4 z-30 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-l-0 border-slate-300 dark:border-slate-700 px-2 py-1.5 rounded-r-lg shadow-md flex items-center gap-1.5 text-xs font-medium backdrop-blur-xs transition-all hover:pl-3"
-            >
-              <PanelLeftOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              <span>Sidebar</span>
-            </button>
-          )}
 
-          {/* Reader Main Content: Real PDF Reader or Academic Preprint (Takes full width when sidebar is collapsed) */}
-          <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-[var(--color-surface)]">
-            {viewMode === 'pdf' ? (
-              <PdfViewer
-                pdfUrl={getPaperPdfUrl(activePaper)}
-                highlights={activePaper.highlights}
-                title={activePaper.title}
-                onTextSelect={handlePdfTextSelect}
-                onSwitchToPreprint={() => setViewMode('preprint')}
-              />
-            ) : (
-              <div
-                ref={articleRef}
-                onMouseUp={handlePreprintMouseUp}
-                className="flex-1 h-full overflow-y-auto p-8 lg:p-12 flex justify-center bg-[var(--color-paper)] select-text"
-              >
-                <div className="max-w-[72ch] w-full flex flex-col gap-6">
-                  <header className="border-b border-slate-200 dark:border-slate-800 pb-5">
-                    <h1 className="font-serif text-[2.0625rem] font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                      {activePaper.title}
-                    </h1>
-                    <div className="flex items-center justify-between text-xs text-slate-500 mt-3">
-                      <span>{activePaper.authors}</span>
-                      <span className="font-mono text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/50 px-2.5 py-0.5 rounded-full border border-teal-200/50 font-medium">
-                        {activePaper.citation}
-                      </span>
-                    </div>
-                  </header>
-
-                  {/* Render paper text with saved highlights visually rendered */}
-                  <div className="font-serif text-[1.1875rem] text-slate-800 dark:text-slate-200 leading-relaxed space-y-5 select-text">
-                    {activePaper.markdown.split(/\n\n+/).map((block, idx) => {
-                      if (block.startsWith('### ') || block.startsWith('## ') || block.startsWith('# ')) {
-                        return (
-                          <h3
-                            key={idx}
-                            className="font-sans font-bold text-[1.3125rem] text-slate-900 dark:text-slate-100 pt-5 border-t border-slate-200/60 dark:border-slate-800"
-                          >
-                            {block.replace(/^#+\s*/, '')}
-                          </h3>
-                        );
-                      }
-
-                      // Check if this paragraph is linked to an argument node
-                      const isLinked = activePaper.sections?.some(s =>
-                        s.paragraphs?.some(p => p.linkedClaimId && block.includes('sparse'))
-                      );
-
-                      return (
-                        <p
-                          key={idx}
-                          className={`relative transition-colors ${
-                            isLinked
-                              ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-l-4 border-emerald-500 pl-4 py-2 rounded-r-xl'
-                              : ''
-                          }`}
-                        >
-                          {renderParagraphWithHighlights(block, activePaper.highlights || [])}
-                        </p>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
+          <main className="flex-1 min-w-0 min-h-0 h-full overflow-hidden flex flex-col relative bg-[var(--color-surface)]">
+            <PdfViewer
+              key={activePaper.id}
+              pdfUrl={getPaperPdfUrl(activePaper)}
+              highlights={activePaper.highlights}
+              title={activePaper.title}
+              onTextSelect={handlePdfTextSelect}
+              onClearSelection={clearSelection}
+            />
           </main>
         </div>
       )}
@@ -1172,6 +1025,10 @@ export const PapersSurface: React.FC = () => {
       {floatingToolbarPos && (
         <div
           id="paper-selection-toolbar"
+          ref={toolbarRef}
+          role="toolbar"
+          aria-label="Selected passage actions"
+          onPointerDown={event => event.preventDefault()}
           style={{
             left: `${floatingToolbarPos.x}px`,
             top: `${floatingToolbarPos.y}px`

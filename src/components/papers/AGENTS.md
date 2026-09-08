@@ -1,0 +1,8 @@
+# Papers
+
+- `PapersSurface.tsx` owns reader tabs, selection actions, and the vault UI. Closing the last tab must leave the library visible; never repopulate closed tabs automatically.
+- `PdfViewer.tsx` renders a continuous page stack, with canvases/text layers only near the viewport. `reader.css` includes the PDF.js scale and rotation rules required for aligned text selection.
+- Highlight `rects` store page numbers and PDF-coordinate rectangles, not screen pixels. Existing text-only highlights remain available in the sidebar. Mutations go through `WorkspaceContext`; paper metadata and highlights persist in vault JSON sidecars.
+- `AddPaperModal.tsx` offers title search, DOI, URL/arXiv, and PDF upload imports with editable review fields; no presets or separate manual-entry mode. Title search queries Crossref/DataCite and requires selecting a match before resolving metadata; never silently choose or add a paper. `paperMetadata.ts` resolves DOI/arXiv identifiers and extracts identifiers from PDF metadata/opening pages. Uploads stay local; only identifiers or explicit search titles are sent to registries. Publisher landing URLs must never be used as PDF URLs.
+- Metadata lookup can fail or omit fields. Keep manual editing available, discard stale results after cancellation, and release PDF.js loading tasks.
+- Checks: `npm run lint`, `node src/components/papers/reader.test.mjs` (requires dev server on `BASE_URL`, default `http://localhost:3000`), `node --test server/vault.test.mjs`, `npm run build`. Set `BROWSER_EXECUTABLE` if the Playwright browser is unavailable. Browser checks use a temporary vault.

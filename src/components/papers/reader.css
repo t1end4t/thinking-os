@@ -1,0 +1,95 @@
+.pdf-reader {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  color: var(--color-ink);
+  background: var(--color-paper);
+}
+
+.pdf-controls, .pdf-controls > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.pdf-controls {
+  flex-shrink: 0;
+  justify-content: space-between;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-surface);
+}
+
+.pdf-controls button, .pdf-controls a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.pdf-controls button:hover, .pdf-controls a:hover, .pdf-controls [aria-pressed="true"] {
+  background: var(--color-rule);
+}
+
+.pdf-controls button:disabled { opacity: 0.35; }
+.pdf-controls :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+.pdf-controls input { width: 3rem; text-align: center; border: 1px solid var(--color-rule); border-radius: 0.25rem; }
+
+.pdf-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+
+.pdf-page {
+  position: relative;
+  margin: 0 auto 16px;
+  background: white;
+  box-shadow: 0 1px 6px #0003;
+  flex-shrink: 0;
+  --highlight-amber: #fbbf2466;
+  --highlight-emerald: #34d39966;
+  --highlight-sky: #38bdf866;
+  --highlight-rose: #fb718566;
+  --highlight-purple: #c084fc66;
+}
+
+.pdf-page canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+.pdf-highlight { position: absolute; pointer-events: none; mix-blend-mode: multiply; }
+.pdf-page-status { position: absolute; inset: 1rem; color: #64748b; font: 0.75rem monospace; pointer-events: none; }
+.pdf-message { padding: 2rem; display: grid; gap: 0.75rem; overflow-wrap: anywhere; }
+.pdf-message a { text-decoration: underline; }
+
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.pdf-text-layer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+
+.pdf-text-layer span.markedContent { top: 0; height: 0; }
+.pdf-text-layer[data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
+.pdf-text-layer[data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
+.pdf-text-layer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
+.pdf-text-layer ::selection { background: #fbbf2473; }
+.pdf-text-layer br::selection { background: transparent; }

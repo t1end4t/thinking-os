@@ -1,20 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Plus,
   Link,
   Upload,
   BookOpen,
-  Sparkles,
-  FileText,
   Search,
   Check,
   AlertCircle,
   Loader2
 } from 'lucide-react';
 import { Paper } from '../../types';
-import { fetchCrossrefMetadata, parseArxivLink, PRESET_PAPERS } from '../../utils/pdfGenerator';
-import * as pdfjsLib from 'pdfjs-dist';
+import { parseArxivLink } from '../../utils/pdfGenerator';
+import { fetchPaperMetadata, readPdfMetadata, paperIdentifier, searchPaperTitles, PaperTitleMatch } from './paperMetadata';
 
 interface AddPaperModalProps {
   isOpen: boolean;
@@ -23,7 +21,7 @@ interface AddPaperModalProps {
   onSelectPaper: (paperId: string) => void;
 }
 
-type ModeTab = 'doi' | 'url' | 'upload' | 'preset' | 'manual';
+type ModeTab = 'title' | 'doi' | 'url' | 'upload';
 
 export const AddPaperModal: React.FC<AddPaperModalProps> = ({
   isOpen,
@@ -34,6 +32,8 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
   const [activeTab, setActiveTab] = useState<ModeTab>('doi');
   const [doiInput, setDoiInput] = useState<string>('');
   const [urlInput, setUrlInput] = useState<string>('');
+  const [titleQuery, setTitleQuery] = useState('');
+  const [titleMatches, setTitleMatches] = useState<PaperTitleMatch[] | null>(null);
   const [fetching, setFetching] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +47,15 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
   const [pdfDataUrl, setPdfDataUrl] = useState<string>('');
   const [markdown, setMarkdown] = useState<string>('');
   const [pageCount, setPageCount] = useState<number>(1);
+  const [doi, setDoi] = useState<string>('');
+  const [sourceUrl, setSourceUrl] = useState<string>('');
+  const [resolved, setResolved] = useState<string>('');
+
+  const requestId = useRef(0);
+  useEffect(() => {
+    if (!isOpen) setFetching(false);
+    return () => { requestId.current++; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -60,130 +69,142 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
     setPdfDataUrl('');
     setMarkdown('');
     setPageCount(1);
+    setDoi('');
+    setSourceUrl('');
+    setResolved('');
     setError(null);
+    setDoiInput('');
+    setUrlInput('');
+    setTitleQuery('');
+    setTitleMatches(null);
   };
 
-  // Handle DOI fetch
-  const handleFetchDoi = async () => {
-    if (!doiInput.trim()) {
-      setError('Please enter a DOI (e.g. 10.48550/arXiv.2309.17453).');
-      return;
-    }
-    setFetching(true);
-    setError(null);
-
-    // Check if it's an arXiv DOI or ID
-    const arxivInfo = parseArxivLink(doiInput);
-    if (arxivInfo) {
-      setPdfUrl(arxivInfo.pdfUrl);
-    }
-
-    const meta = await fetchCrossrefMetadata(doiInput);
+  const closeModal = () => {
+    requestId.current++;
+    resetForm();
     setFetching(false);
+    onClose();
+  };
 
-    if (meta) {
-      if (meta.title) setTitle(meta.title);
-      if (meta.authors) setAuthors(meta.authors);
-      if (meta.year) setYear(meta.year);
-      if (meta.citation) setCitation(meta.citation);
-      if (meta.abstract) setAbstract(meta.abstract);
-      if (meta.url) {
-        if (!pdfUrl) setPdfUrl(meta.url);
-      }
-      if (meta.title && !markdown) {
-        setMarkdown(`# ${meta.title}\n\n## Abstract\n${meta.abstract || 'No abstract retrieved.'}\n\n## Notes\nAdded via CrossRef DOI ${doiInput}.`);
-      }
-    } else {
-      setError('Could not automatically resolve metadata for this DOI. You can enter details manually below.');
+  const applyMetadata = (meta: Awaited<ReturnType<typeof fetchPaperMetadata>>, fallbackUrl?: string) => {
+    if (meta.title) setTitle(meta.title);
+    if (meta.authors) setAuthors(meta.authors);
+    if (meta.year) setYear(meta.year);
+    if (meta.citation) setCitation(meta.citation);
+    if (meta.abstract) setAbstract(meta.abstract);
+    if (meta.doi) setDoi(meta.doi);
+    setSourceUrl(meta.url || fallbackUrl || '');
+    if (meta.pdfUrl) setPdfUrl(meta.pdfUrl);
+    if (meta.pageCount) setPageCount(meta.pageCount);
+    if (meta.markdown) setMarkdown(meta.markdown);
+    else if (meta.title) {
+      setMarkdown(`# ${meta.title}\n\n## Abstract\n${meta.abstract || 'No abstract available.'}`);
+    }
+    setResolved(meta.doi ? `Metadata resolved for ${meta.doi}. Review the fields below before saving.` : 'PDF information loaded. No DOI found; review the fields below.');
+  };
+
+  const handleTitleSearch = async () => {
+    if (fetching) return;
+    const query = titleQuery.trim();
+    const request = ++requestId.current;
+    resetForm();
+    setTitleQuery(query);
+    setFetching(true);
+    try {
+      const matches = await searchPaperTitles(query);
+      if (request === requestId.current) setTitleMatches(matches);
+    } catch (reason) {
+      if (request === requestId.current) setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      if (request === requestId.current) setFetching(false);
     }
   };
 
-  // Handle URL fetch / parse
-  const handleParseUrl = () => {
-    if (!urlInput.trim()) {
-      setError('Please enter a paper URL or arXiv link.');
+  const lookupMetadata = async (input: string, tab: ModeTab) => {
+    if (!input.trim()) {
+      setError(tab === 'doi' ? 'Enter a DOI (e.g. 10.1145/3639478).' : 'Enter a paper URL or arXiv link.');
       return;
     }
-    setError(null);
-    const arxiv = parseArxivLink(urlInput);
-    if (arxiv) {
-      setPdfUrl(arxiv.pdfUrl);
-      if (!title) setTitle(`arXiv:${arxiv.arxivId}`);
-      if (!citation) setCitation(`arXiv preprint arXiv:${arxiv.arxivId}`);
-      if (!markdown) {
-        setMarkdown(`# arXiv:${arxiv.arxivId}\n\nPaper retrieved from ${urlInput}.\n\nView PDF directly in the reader above.`);
+    if (fetching) return;
+    const request = ++requestId.current;
+    resetForm();
+    if (tab === 'doi') setDoiInput(input);
+    else if (tab === 'url') setUrlInput(input);
+    else setTitleQuery(titleQuery);
+    setFetching(true);
+    const arxiv = parseArxivLink(input);
+    if (arxiv) setPdfUrl(arxiv.pdfUrl);
+    else if (/^https?:\/\/.+\.pdf(\?|#|$)/i.test(input.trim())) setPdfUrl(input.trim());
+    try {
+      const metadata = await fetchPaperMetadata(input);
+      if (request !== requestId.current) return;
+      applyMetadata(metadata, /^https?:\/\//i.test(input.trim()) ? input.trim() : undefined);
+    } catch (reason) {
+      if (request !== requestId.current) return;
+      setDoi(paperIdentifier(input) || '');
+      setError(reason instanceof Error ? reason.message : String(reason));
+      if (!title && arxiv) {
+        setTitle(`arXiv:${arxiv.arxivId}`);
+        setSourceUrl(arxiv.absUrl);
       }
-    } else if (urlInput.toLowerCase().endsWith('.pdf')) {
-      setPdfUrl(urlInput);
-      const filename = urlInput.split('/').pop()?.replace('.pdf', '') || 'Document';
-      if (!title) setTitle(decodeURIComponent(filename));
-      if (!citation) setCitation(`Online PDF (${urlInput})`);
-    } else {
-      setPdfUrl(urlInput);
+    } finally {
+      if (request === requestId.current) setFetching(false);
     }
   };
 
-  // Handle Local PDF file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || fetching) return;
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       setError('Please select a valid .pdf document.');
       return;
     }
-
-    setError(null);
+    const request = ++requestId.current;
+    resetForm();
     setFetching(true);
-
-    const reader = new FileReader();
-    reader.onload = async event => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read the file.'));
+        reader.onerror = () => reject(new Error('Could not read the file. Try selecting it again.'));
+        reader.readAsDataURL(file);
+      });
+      const metadata = await readPdfMetadata(await file.arrayBuffer());
+      if (request !== requestId.current) return;
       setPdfDataUrl(dataUrl);
-
-      const fileName = file.name.replace(/\.[^/.]+$/, '');
-      setTitle(fileName);
-      setCitation(`Local PDF (${file.name})`);
-
-      try {
-        // Try reading with pdfjs to get page count and title
-        const arrayBuf = await file.arrayBuffer();
-        const doc = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-        setPageCount(doc.numPages);
-
-        const meta = await doc.getMetadata().catch(() => null);
-        if (meta?.info) {
-          const info = meta.info as any;
-          if (info.Title) setTitle(info.Title);
-          if (info.Author) setAuthors(info.Author);
-        }
-
-        // Try extracting first page text for initial markdown
-        const p1 = await doc.getPage(1);
-        const textContent = await p1.getTextContent();
-        const extracted = textContent.items
-          .map((i: any) => i.str)
-          .join(' ')
-          .slice(0, 1500);
-
-        setMarkdown(`# ${fileName}\n\n## Abstract & First Page Extraction\n${extracted || 'PDF loaded successfully.'}`);
-      } catch (err) {
-        console.warn('PDF metadata read error:', err);
-      } finally {
-        setFetching(false);
+      setTitle(file.name.replace(/\.pdf$/i, ''));
+      applyMetadata(metadata);
+      if (metadata.doi) {
+        const resolvedMetadata = await fetchPaperMetadata(metadata.doi);
+        if (request === requestId.current) applyMetadata({ ...metadata, ...resolvedMetadata });
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (reason) {
+      if (request === requestId.current) setError(
+        `Import or metadata lookup failed: ${reason instanceof Error ? reason.message : String(reason)}. If the PDF loaded, you can review its details and save it manually.`
+      );
+    } finally {
+      if (request === requestId.current) setFetching(false);
+    }
   };
 
   // Submit and create paper
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (fetching) return;
     if (!title.trim()) {
       setError('Paper Title is required.');
       return;
     }
 
+    if (doi.trim() && !paperIdentifier(doi)) {
+      setError('Enter a valid DOI or clear the DOI field.');
+      return;
+    }
+    if ([sourceUrl, pdfUrl].some(value => value.trim() && !/^https?:\/\//i.test(value.trim()))) {
+      setError('Source and PDF links must use http:// or https://.');
+      return;
+    }
     const cleanYear = Number(year) || new Date().getFullYear();
     const cleanCitation = citation.trim() || `${authors.split(',')[0] || 'Paper'} (${cleanYear})`;
 
@@ -192,8 +213,8 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
       authors: authors.trim() || 'Unknown Authors',
       year: cleanYear,
       citation: cleanCitation,
-      doi: doiInput.trim() || undefined,
-      url: urlInput.trim() || undefined,
+      doi: paperIdentifier(doi) || undefined,
+      url: sourceUrl.trim() || undefined,
       pdfUrl: pdfUrl.trim() || undefined,
       pdfDataUrl: pdfDataUrl || undefined,
       abstract: abstract.trim() || undefined,
@@ -218,22 +239,9 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
     }
   };
 
-  // Quick add preset
-  const handleAddPreset = (preset: typeof PRESET_PAPERS[0]) => {
-    const { presetId, ...paperData } = preset;
-    const result = onAddPaper({
-      ...paperData,
-      id: `p-${presetId}`
-    });
-    if (result.success && result.paper) {
-      onSelectPaper(result.paper.id);
-      onClose();
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label="Add Paper to Vault" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -242,11 +250,12 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add Paper to Vault</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Import academic research via DOI, URL, or local PDF</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Import academic research by title, DOI, URL, or local PDF</p>
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={closeModal}
+            aria-label="Close add paper"
             className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -256,17 +265,17 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
         {/* Import Mode Tabs */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 px-6 pt-2 bg-slate-50/50 dark:bg-slate-900/50 shrink-0 gap-1 overflow-x-auto">
           {[
+            { id: 'title', label: 'Title Search', icon: Search },
             { id: 'doi', label: 'DOI Lookup', icon: Search },
             { id: 'url', label: 'URL / arXiv', icon: Link },
-            { id: 'upload', label: 'Upload PDF', icon: Upload },
-            { id: 'preset', label: 'Benchmark Presets', icon: Sparkles },
-            { id: 'manual', label: 'Manual Entry', icon: FileText }
+            { id: 'upload', label: 'Upload PDF', icon: Upload }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                disabled={fetching}
                 onClick={() => {
                   setActiveTab(tab.id as ModeTab);
                   setError(null);
@@ -285,11 +294,56 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
         </div>
 
         {/* Body Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <fieldset disabled={fetching} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
           {error && (
             <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {resolved && !error && (
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-800 dark:text-teal-300 text-xs" role="status">
+              <Check className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{resolved}</span>
+            </div>
+          )}
+
+          {activeTab === 'title' && (
+            <div className="space-y-3">
+              <label htmlFor="paper-title-search" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Paper title</label>
+              <div className="flex gap-2">
+                <input
+                  id="paper-title-search"
+                  value={titleQuery}
+                  maxLength={300}
+                  placeholder="e.g. AgentArk: Distilling Multi-Agent Intelligence into a Single LLM Agent"
+                  onChange={event => { setTitleQuery(event.target.value); setTitleMatches(null); }}
+                  onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void handleTitleSearch(); } }}
+                  className="min-w-0 flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                />
+                <button type="button" onClick={() => void handleTitleSearch()} disabled={fetching}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 disabled:opacity-50">
+                  {fetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  Search papers
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Search Crossref and DataCite, including arXiv papers. Choose a match, then review its details before adding.</p>
+              {titleMatches && (
+                <div className="space-y-2" aria-label="Paper title matches">
+                  <p role="status" className="text-xs text-slate-500">
+                    {titleMatches.length ? `${titleMatches.length} matches. Select the paper you want.` : 'No matching papers found. Try a shorter title, DOI, or PDF upload.'}
+                  </p>
+                  {titleMatches.map(match => (
+                    <button key={match.doi} type="button" onClick={() => void lookupMetadata(match.doi, 'title')}
+                      className="block w-full text-left p-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-teal-500 focus-visible:outline-2 focus-visible:outline-teal-500 space-y-1">
+                      <span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">{match.title}</span>
+                      <span className="block text-xs text-slate-500">{match.authors || 'Authors unavailable'}{match.year ? ` (${match.year})` : ''}</span>
+                      <span className="block text-[11px] font-mono text-teal-600 dark:text-teal-400">{match.doi}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -305,12 +359,12 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
                   placeholder="e.g. 10.48550/arXiv.2309.17453 or 10.1145/3639478"
                   value={doiInput}
                   onChange={e => setDoiInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleFetchDoi())}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), void lookupMetadata(doiInput, 'doi'))}
                   className="flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
                 <button
                   type="button"
-                  onClick={handleFetchDoi}
+                  onClick={() => void lookupMetadata(doiInput, 'doi')}
                   disabled={fetching}
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
@@ -319,7 +373,7 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
                 </button>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Retrieves official citation, author list, abstract, and publication year directly from CrossRef.
+                Retrieves title, authors, year, venue, and abstract from CrossRef, falling back to DataCite for arXiv DOIs.
               </p>
             </div>
           )}
@@ -336,20 +390,21 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
                   placeholder="e.g. https://arxiv.org/abs/2309.17453 or direct .pdf link"
                   value={urlInput}
                   onChange={e => setUrlInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleParseUrl())}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), void lookupMetadata(urlInput, 'url'))}
                   className="flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
                 <button
                   type="button"
-                  onClick={handleParseUrl}
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  onClick={() => void lookupMetadata(urlInput, 'url')}
+                  disabled={fetching}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50"
                 >
-                  <Link className="w-3.5 h-3.5" />
-                  <span>Parse Link</span>
+                  {fetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link className="w-3.5 h-3.5" />}
+                  <span>Fetch Details</span>
                 </button>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Automatically resolves arXiv preprints into PDF viewing links and canonical metadata.
+                Accepts arXiv links, DOI links, and public PDF links. If a site blocks access, upload the PDF instead.
               </p>
             </div>
           )}
@@ -357,6 +412,7 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
           {/* Mode 3: Upload PDF */}
           {activeTab === 'upload' && (
             <div className="space-y-3">
+              <p className="text-xs text-slate-500">The PDF stays local. Detected DOI or arXiv identifiers are looked up online to fill in authors and publication details.</p>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Upload Local PDF Document
               </label>
@@ -383,43 +439,6 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
                   <span>Document parsed ({pageCount} pages). Form fields below have been pre-filled.</span>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Mode 4: Presets */}
-          {activeTab === 'preset' && (
-            <div className="space-y-3">
-              <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                Click any seminal benchmark paper to instantly add it to your research vault:
-              </div>
-              <div className="grid grid-cols-1 gap-2.5">
-                {PRESET_PAPERS.map(preset => (
-                  <div
-                    key={preset.presetId}
-                    className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-teal-500/50 transition-all flex items-start justify-between gap-3"
-                  >
-                    <div className="space-y-1">
-                      <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                        {preset.title}
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {preset.authors} ({preset.year})
-                      </div>
-                      <div className="text-[11px] text-slate-400 line-clamp-2">
-                        {preset.abstract}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddPreset(preset)}
-                      className="px-3 py-1.5 rounded bg-teal-600 hover:bg-teal-500 text-white text-xs font-medium shrink-0 flex items-center gap-1 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
@@ -487,6 +506,32 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-500 dark:text-slate-400" htmlFor="paper-doi">DOI</label>
+                <input
+                  id="paper-doi"
+                  type="text"
+                  placeholder="e.g. 10.1145/3639478"
+                  value={doi}
+                  onChange={e => setDoi(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-500 dark:text-slate-400" htmlFor="paper-url">Source URL</label>
+                <input
+                  id="paper-url"
+                  type="text"
+                  placeholder="https://doi.org/... or https://arxiv.org/abs/..."
+                  value={sourceUrl}
+                  onChange={e => setSourceUrl(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                />
+              </div>
+            </div>
+
             <div className="space-y-1">
               <label className="text-[11px] text-slate-500 dark:text-slate-400">PDF Document Link (Optional)</label>
               <input
@@ -498,13 +543,13 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
               />
             </div>
           </div>
-        </div>
+        </fieldset>
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-2.5 px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 shrink-0">
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeModal}
             className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
@@ -512,6 +557,7 @@ export const AddPaperModal: React.FC<AddPaperModalProps> = ({
           <button
             type="button"
             onClick={handleSubmit}
+            disabled={fetching}
             className="px-5 py-2 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white flex items-center gap-1.5 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
