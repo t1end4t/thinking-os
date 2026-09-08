@@ -167,6 +167,8 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   connectNodes: (kind: LinkKind, parentId: string, childId: string, userReason: string) => { success: boolean; error?: string };
   setLinkStatus: (linkId: string, status: LinkStatus) => void;
   deleteLink: (linkId: string) => void;
+  removeGraphNode: (id: string) => { success: boolean; error?: string };
+  moveGraphNode: (childId: string, newParentId: string, userReason: string, previousParentId?: string) => { success: boolean; error?: string };
   updateLinkUserReason: (linkId: string, userReason: string) => void;
   weakenClaim: (claimId: string, note: string) => void;
   rejectClaim: (claimId: string, reason: string) => void;
@@ -739,10 +741,46 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setLinks(prev => prev.map(l => (l.id === linkId ? { ...l, status } : l)));
   }, []);
 
+  // Attach or re-parent an existing claim/evidence node; the new link still needs a committed reason
+  const moveGraphNode = useCallback((childId: string, newParentId: string, userReason: string, previousParentId?: string) => {
+    const kind: LinkKind = claims.some(item => item.id === childId) ? 'question-claim' : 'claim-evidence';
+    const result = connectNodes(kind, newParentId, childId, userReason);
+    if (!result.success) return result;
+    if (previousParentId && previousParentId !== newParentId) {
+      setLinks(prev => prev.filter(link => !(link.parentId === previousParentId && link.childId === childId)));
+    }
+    return { success: true };
+  }, [claims, connectNodes]);
+
   const deleteLink = useCallback((linkId: string) => {
     setLinks(prev => prev.filter(l => l.id !== linkId));
     setSelectedLinkId(current => (current === linkId ? null : current));
   }, []);
+
+  const removeGraphNode = useCallback((id: string) => {
+    if (![...questions, ...claims, ...evidence].some(item => item.id === id)) {
+      return { success: false, error: 'This item no longer exists.' };
+    }
+    const manuscript = manuscriptWorkspace.manuscript;
+    if (experiments.some(item => item.questionId === id || item.claimId === id)
+      || candidateQuestions.some(item => item.promotedQuestionId === id)
+      || papers.some(paper => paper.sections.some(section => section.paragraphs.some(item => item.linkedClaimId === id)))
+      || manuscript.sections.some(section => section.attachedClaimIds.includes(id))
+      || manuscript.artifacts.some(item => item.claimId === id)
+      || manuscript.citations.some(item => item.claimIds?.includes(id))) {
+      return { success: false, error: 'This item is referenced outside the argument graph. Remove those references before deleting it.' };
+    }
+    const removedLinkIds = new Set(links.filter(link => link.parentId === id || link.childId === id).map(link => link.id));
+    setQuestions(current => current.filter(item => item.id !== id));
+    setClaims(current => current.filter(item => item.id !== id));
+    setEvidence(current => current.filter(item => item.id !== id));
+    setLinks(current => current.filter(link => link.parentId !== id && link.childId !== id));
+    setSelectedNodeId(current => current === id ? null : current);
+    setSelectedLinkId(current => current && removedLinkIds.has(current) ? null : current);
+    setActiveContext(current => current && (current.id === id || removedLinkIds.has(current.id)) ? null : current);
+    setAttachedContexts(current => current.filter(item => item.id !== id && !removedLinkIds.has(item.id)));
+    return { success: true };
+  }, [questions, claims, evidence, links, experiments, candidateQuestions, papers, manuscriptWorkspace.manuscript]);
 
   // Update a link's user reason
   const updateLinkUserReason = useCallback((linkId: string, userReason: string) => {
@@ -1179,6 +1217,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         connectNodes,
         setLinkStatus,
         deleteLink,
+        removeGraphNode,
+        moveGraphNode,
         updateLinkUserReason,
         weakenClaim,
         rejectClaim,

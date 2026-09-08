@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Claim, Evidence, EvidenceForm, EvidenceOrigin, Link, LinkStatus, Question } from '../../types';
-import { Ban, Link2, Trash2, TriangleAlert } from 'lucide-react';
+import { Ban, Link2, PanelRight, Trash2, TriangleAlert, X } from 'lucide-react';
+import { ArgumentTree } from './ArgumentTree';
+import './argument.css';
 
 type Selection =
   | { kind: 'question'; entity: Question }
@@ -63,6 +65,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
   const [weakenNote, setWeakenNote] = useState<string>('');
   const [rejectReason, setRejectReason] = useState<string>('');
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState(false);
 
   const selection: Selection | null = useMemo(() => {
     const question = questions.find(item => item.id === selectedNodeId);
@@ -265,49 +268,8 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
     );
   }
 
-  if (!selection) {
-    const orderedNodes = [
-      ...questions.map(item => ({ id: item.id, type: 'question', label: item.title })),
-      ...claims.map(item => ({ id: item.id, type: 'claim', label: item.text })),
-      ...evidence.map(item => ({ id: item.id, type: 'evidence', label: item.title }))
-    ];
-
-    return (
-      <div className="flex-1 overflow-y-auto p-6">
-        <p className="text-sm text-[var(--color-ink-muted)] mb-4">
-          Select a question, claim, or evidence item to edit its content, connections, and weakness record.
-        </p>
-        <ul className="flex flex-col gap-1.5 max-w-2xl">
-          {orderedNodes.map(node => (
-            <li key={node.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedNodeId(node.id);
-                  setSelectedLinkId(null);
-                }}
-                className="w-full text-left rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] px-3 py-2 hover:border-slate-400"
-              >
-                <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)]">
-                  {node.type}
-                </span>
-                <span className="block text-sm text-[var(--color-ink)]">{node.label}</span>
-              </button>
-            </li>
-          ))}
-          {orderedNodes.length === 0 && (
-            <li className="text-sm text-[var(--color-ink-muted)]">Nothing in this vault yet. Use New to add a question.</li>
-          )}
-        </ul>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 max-w-4xl">
-      {message && (
-        <p role="status" className="text-xs font-mono text-[var(--color-ink-muted)]">{message}</p>
-      )}
+  const editor = editing && selection ? (
+    <div key={selection.entity.id} className="argument-editor-fields flex flex-col gap-6">
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
@@ -325,6 +287,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
               <textarea
                 value={selection.entity.title}
                 onChange={event => updateQuestion(selection.entity.id, { title: event.target.value })}
+                autoFocus
                 rows={2}
                 className={fieldClass}
               />
@@ -349,6 +312,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
               <textarea
                 value={selection.entity.text}
                 onChange={event => updateClaim(selection.entity.id, { text: event.target.value })}
+                autoFocus
                 rows={3}
                 className={fieldClass}
               />
@@ -368,6 +332,7 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
               <textarea
                 value={selection.entity.title}
                 onChange={event => updateEvidence(selection.entity.id, { title: event.target.value })}
+                autoFocus
                 rows={2}
                 className={fieldClass}
               />
@@ -551,6 +516,37 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
           </article>
         ))}
       </section>
+    </div>
+  ) : null;
+
+  return (
+    <div className="argument-detail" data-editing={Boolean(editor)}>
+      {message && <p role="status" className="argument-feedback">{message}</p>}
+      <div className="argument-split">
+        <div className="argument-tree-pane">
+          <ArgumentTree selectedId={editor ? selectedNodeId : null} onMessage={setMessage} onEdit={id => {
+            setSelectedNodeId(id);
+            setSelectedLinkId(null);
+            setLinkTargetId('');
+            setLinkReason('');
+            setWeakenNote('');
+            setRejectReason('');
+            setReasonDrafts({});
+            setMessage(null);
+            setEditing(true);
+          }} />
+        </div>
+        <aside className="argument-inspector" aria-label="Object editor">
+          <header className="argument-inspector-header">
+            <div><span className="argument-eyebrow">Object inspector</span><h2>{editor ? `Edit ${selection?.kind}` : 'Details & connections'}</h2></div>
+            {editor && <button type="button" className="argument-icon-button" aria-label="Close editor" onClick={() => {
+              setEditing(false);
+              document.querySelector<HTMLButtonElement>(`[data-node-id="${CSS.escape(selectedNodeId ?? '')}"] .argument-title`)?.focus();
+            }}><X /></button>}
+          </header>
+          {editor ?? <div className="argument-empty"><PanelRight /><h3>Keep the argument in view</h3><p>Select an object or choose Edit.<br />Its content and connections open here.</p><span className="argument-eyebrow">One record · every connection</span></div>}
+        </aside>
+      </div>
     </div>
   );
 };

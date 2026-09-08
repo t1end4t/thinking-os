@@ -1,0 +1,15 @@
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright-core');
+const dir = process.argv[2] || '/home/tiendat/test';
+const browser = await chromium.launch({ headless: true, executablePath: '/home/tiendat/.nix-profile/bin/google-chrome-stable' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+await page.addInitScript(d => localStorage.setItem('thinking_os_workspace_dir', d), dir);
+await page.goto('http://localhost:3000');
+await page.waitForLoadState('networkidle');
+const detail = page.getByRole('button', { name: 'Detail', exact: true });
+if (await detail.count()) await detail.first().click();
+await page.waitForTimeout(600);
+await page.screenshot({ path: '/tmp/detail.png', fullPage: false });
+console.log((await page.locator('body').innerText()).slice(0, 2500));
+await browser.close();
