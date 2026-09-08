@@ -7,6 +7,7 @@ import {
   SurveyOpenProblem,
   SurveyCandidateQuestion,
   Paper,
+  PaperHighlight,
   Experiment,
   SurfaceId,
   AssistantContextObject,
@@ -191,6 +192,13 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
 
   // Actions on Experiments
   updateArtifactObservation: (experimentId: string, artifactId: string, observation: string) => void;
+
+  // Actions on Papers & Real PDF Reader
+  addPaper: (paperData: Omit<Paper, 'id'> & { id?: string }) => { success: boolean; paper: Paper; error?: string };
+  removePaper: (paperId: string) => { success: boolean; error?: string };
+  updatePaper: (paperId: string, updates: Partial<Paper>) => void;
+  addPaperHighlight: (paperId: string, highlight: Omit<PaperHighlight, 'id' | 'createdAt'>) => PaperHighlight;
+  removePaperHighlight: (paperId: string, highlightId: string) => void;
 
   // Assistant Dock
   isDockOpen: boolean;
@@ -887,6 +895,76 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return { success: true, evidenceId };
   }, [claims]);
 
+  // Actions on Papers & Real PDF Reader
+  const addPaper = useCallback((paperData: Omit<Paper, 'id'> & { id?: string }) => {
+    if (!paperData.title?.trim()) {
+      return { success: false, error: 'A paper title is required.', paper: null as unknown as Paper };
+    }
+    const cleanId = paperData.id?.trim() || `p-${Date.now()}`;
+    const newPaper: Paper = {
+      ...paperData,
+      id: cleanId,
+      title: paperData.title.trim(),
+      authors: paperData.authors?.trim() || 'Unknown Authors',
+      year: paperData.year || new Date().getFullYear(),
+      citation: paperData.citation?.trim() || `${paperData.authors?.split(',')[0] || 'Paper'} (${paperData.year || new Date().getFullYear()})`,
+      pageCount: paperData.pageCount || 1,
+      markdown: paperData.markdown || '',
+      sections: paperData.sections || [
+        {
+          id: `sec-${cleanId}-1`,
+          title: 'Abstract',
+          paragraphs: [{ id: `par-${cleanId}-1` }]
+        }
+      ],
+      highlights: paperData.highlights || [],
+      createdAt: paperData.createdAt || Date.now()
+    };
+    setPapers(prev => {
+      if (prev.some(p => p.id === cleanId)) {
+        return prev.map(p => (p.id === cleanId ? newPaper : p));
+      }
+      return [newPaper, ...prev];
+    });
+    return { success: true, paper: newPaper };
+  }, []);
+
+  const removePaper = useCallback((paperId: string) => {
+    setPapers(prev => prev.filter(p => p.id !== paperId));
+    return { success: true };
+  }, []);
+
+  const updatePaper = useCallback((paperId: string, updates: Partial<Paper>) => {
+    setPapers(prev => prev.map(p => (p.id === paperId ? { ...p, ...updates } : p)));
+  }, []);
+
+  const addPaperHighlight = useCallback((paperId: string, highlight: Omit<PaperHighlight, 'id' | 'createdAt'>) => {
+    const newHl: PaperHighlight = {
+      ...highlight,
+      id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: Date.now()
+    };
+    setPapers(prev => prev.map(p => {
+      if (p.id !== paperId) return p;
+      const existing = p.highlights || [];
+      return {
+        ...p,
+        highlights: [...existing, newHl]
+      };
+    }));
+    return newHl;
+  }, []);
+
+  const removePaperHighlight = useCallback((paperId: string, highlightId: string) => {
+    setPapers(prev => prev.map(p => {
+      if (p.id !== paperId) return p;
+      return {
+        ...p,
+        highlights: (p.highlights || []).filter(h => h.id !== highlightId)
+      };
+    }));
+  }, []);
+
   // Add survey note (Gate 2: 15-note stop gate!)
   const addSurveyOpenProblem = useCallback((text: string, citation: string) => {
     const unclustered = openProblems.filter(op => !op.candidateId).length;
@@ -1224,6 +1302,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         rejectClaim,
         addExperiment,
         addEvidence,
+        addPaper,
+        removePaper,
+        updatePaper,
+        addPaperHighlight,
+        removePaperHighlight,
         addSurveyOpenProblem,
         promoteCandidateQuestion,
         unclusteredOpenProblemsCount,

@@ -119,6 +119,7 @@ export interface Paper {
   doi?: string;
   url?: string;
   pdfUrl?: string;
+  pdfDataUrl?: string;
   abstract?: string;
   journal?: string;
   highlights?: PaperHighlight[];
