@@ -1,7 +1,41 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { Claim, Evidence, EvidenceForm, EvidenceOrigin, Link, LinkStatus, Question } from '../../types';
-import { Ban, Link2, PanelRight, Trash2, TriangleAlert, X } from 'lucide-react';
+import {
+  Claim,
+  Evidence,
+  EvidenceForm,
+  EvidenceOrigin,
+  Link,
+  LinkStatus,
+  Question
+} from '../../types';
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  ArrowUpRight,
+  Ban,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ExternalLink,
+  FileCheck2,
+  GitBranch,
+  HelpCircle,
+  Layers,
+  Link2,
+  MessageSquare,
+  Pencil,
+  Plus,
+  Save,
+  ShieldAlert,
+  Sparkles,
+  Tag,
+  Trash2,
+  TriangleAlert,
+  X
+} from 'lucide-react';
 import { ArgumentTree } from './ArgumentTree';
 import './argument.css';
 
@@ -10,25 +44,34 @@ type Selection =
   | { kind: 'claim'; entity: Claim }
   | { kind: 'evidence'; entity: Evidence };
 
-const fieldClass =
-  'w-full rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-1 focus:ring-slate-400';
-const labelClass = 'font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold';
-const buttonClass =
-  'px-3 py-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-xs font-mono font-semibold text-[var(--color-ink)] hover:bg-[var(--color-paper)] disabled:opacity-40 disabled:pointer-events-none';
-
 const statusPill = (status: LinkStatus) =>
   status === 'holds'
-    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-300/70 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80'
     : status === 'weak'
-      ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300'
-      : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300';
+      ? 'bg-amber-50 text-amber-900 border-amber-300/70 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/80'
+      : 'bg-rose-50 text-rose-900 border-rose-300/70 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/80';
 
 interface DetailViewProps {
   creating: boolean;
   onCreatingChange: (creating: boolean) => void;
+  targetKind?: 'question' | 'claim' | 'evidence';
+  targetParentId?: string;
+  onTargetKindChange?: (kind: 'question' | 'claim' | 'evidence') => void;
+  onTargetParentIdChange?: (id: string) => void;
+  initialEditMode?: boolean;
+  onBackToMap?: () => void;
 }
 
-export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChange }) => {
+export const DetailView: React.FC<DetailViewProps> = ({
+  creating,
+  onCreatingChange,
+  targetKind,
+  targetParentId,
+  onTargetKindChange,
+  onTargetParentIdChange,
+  initialEditMode,
+  onBackToMap
+}) => {
   const {
     questions,
     claims,
@@ -48,13 +91,26 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
     setLinkStatus,
     deleteLink,
     weakenClaim,
-    rejectClaim
+    rejectClaim,
+    addAttachedContext
   } = useWorkspace();
 
-  const [newKind, setNewKind] = useState<'question' | 'claim' | 'evidence'>('question');
+  const [newKind, setNewKind] = useState<'question' | 'claim' | 'evidence'>(targetKind || 'question');
   const [newTitle, setNewTitle] = useState('');
   const [newTags, setNewTags] = useState('');
-  const [newParentId, setNewParentId] = useState('');
+  const [newParentId, setNewParentId] = useState(targetParentId || '');
+
+  useEffect(() => {
+    if (targetKind) {
+      setNewKind(targetKind);
+    }
+  }, [targetKind]);
+
+  useEffect(() => {
+    if (targetParentId !== undefined) {
+      setNewParentId(targetParentId);
+    }
+  }, [targetParentId]);
   const [newReason, setNewReason] = useState('');
   const [newOrigin, setNewOrigin] = useState<EvidenceOrigin>('literature');
   const [newForm, setNewForm] = useState<EvidenceForm>('measurement');
@@ -65,9 +121,17 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
   const [weakenNote, setWeakenNote] = useState<string>('');
   const [rejectReason, setRejectReason] = useState<string>('');
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(Boolean(initialEditMode));
 
+  useEffect(() => {
+    if (initialEditMode !== undefined) {
+      setEditing(initialEditMode);
+    }
+  }, [initialEditMode, selectedNodeId]);
+
+  // Active selected entity
   const selection: Selection | null = useMemo(() => {
+    if (!selectedNodeId) return null;
     const question = questions.find(item => item.id === selectedNodeId);
     if (question) return { kind: 'question', entity: question };
     const claim = claims.find(item => item.id === selectedNodeId);
@@ -77,28 +141,34 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
     return null;
   }, [claims, evidence, questions, selectedNodeId]);
 
+  // Related links for selected entity
   const relatedLinks = useMemo(
     () => links.filter(link => link.parentId === selectedNodeId || link.childId === selectedNodeId),
     [links, selectedNodeId]
   );
 
   const entityLabel = (id: string) =>
-    questions.find(item => item.id === id)?.title
-    ?? claims.find(item => item.id === id)?.text
-    ?? evidence.find(item => item.id === id)?.title
-    ?? id;
+    questions.find(item => item.id === id)?.title ??
+    claims.find(item => item.id === id)?.text ??
+    evidence.find(item => item.id === id)?.title ??
+    id;
 
-  const connectOptions = selection?.kind === 'question'
-    ? claims.filter(claim => !links.some(link => link.parentId === selection.entity.id && link.childId === claim.id))
-    : selection?.kind === 'claim'
-      ? evidence.filter(item => !links.some(link => link.parentId === selection.entity.id && link.childId === item.id))
-      : [];
+  const connectOptions =
+    selection?.kind === 'question'
+      ? claims.filter(claim => !links.some(link => link.parentId === selection.entity.id && link.childId === claim.id))
+      : selection?.kind === 'claim'
+        ? evidence.filter(item => !links.some(link => link.parentId === selection.entity.id && link.childId === item.id))
+        : [];
 
   const handleConnect = () => {
     if (!selection || selection.kind === 'evidence') return;
+    if (!linkReason.trim()) {
+      setMessage('A link reason is strictly required.');
+      return;
+    }
     const kind = selection.kind === 'question' ? 'question-claim' : 'claim-evidence';
-    const result = connectNodes(kind, selection.entity.id, linkTargetId, linkReason);
-    setMessage(result.success ? 'Link created.' : result.error ?? 'Could not create link.');
+    const result = connectNodes(kind, selection.entity.id, linkTargetId, linkReason.trim());
+    setMessage(result.success ? 'Relationship link created.' : result.error ?? 'Could not create link.');
     if (result.success) {
       setLinkTargetId('');
       setLinkReason('');
@@ -111,37 +181,70 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
       setMessage('A link reason cannot be empty.');
       return;
     }
-    updateLinkUserReason(link.id, draft);
+    updateLinkUserReason(link.id, draft.trim());
     setReasonDrafts(current => {
       const next = { ...current };
       delete next[link.id];
       return next;
     });
-    setMessage('Link reason saved.');
+    setMessage('Link rationale saved.');
   };
 
   const handleCreate = () => {
+    if (!newTitle.trim()) {
+      setMessage('Title or text cannot be empty.');
+      return;
+    }
+
     if (newKind === 'question') {
-      const result = addQuestion(newTitle, newTags.split(',').map(tag => tag.trim()).filter(Boolean));
+      const result = addQuestion(
+        newTitle.trim(),
+        newTags
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(Boolean)
+      );
       setMessage(result.success ? 'Question created.' : result.error ?? 'Could not create question.');
-      if (result.questionId) setSelectedNodeId(result.questionId);
+      if (result.questionId) {
+        setSelectedNodeId(result.questionId);
+        setEditing(false);
+      }
       if (!result.success) return;
     } else if (newKind === 'claim') {
-      const result = addClaim(newTitle, newParentId, newReason);
+      if (!newParentId || !newReason.trim()) {
+        setMessage('Parent question and link reason are both required.');
+        return;
+      }
+      const result = addClaim(newTitle.trim(), newParentId, newReason.trim());
       setMessage(result.success ? 'Claim created and connected.' : result.error ?? 'Could not create claim.');
-      if (result.claimId) setSelectedNodeId(result.claimId);
+      if (result.claimId) {
+        setSelectedNodeId(result.claimId);
+        setEditing(false);
+      }
       if (!result.success) return;
     } else {
-      const result = addEvidence({
-        title: newTitle.trim(),
-        origin: newOrigin,
-        form: newForm,
-        citation: newCitation.trim()
-      }, newParentId, newReason);
+      if (!newParentId || !newReason.trim()) {
+        setMessage('Parent claim and link reason are both required.');
+        return;
+      }
+      const result = addEvidence(
+        {
+          title: newTitle.trim(),
+          origin: newOrigin,
+          form: newForm,
+          citation: newCitation.trim()
+        },
+        newParentId,
+        newReason.trim()
+      );
       setMessage(result.success ? 'Evidence created and connected.' : result.error ?? 'Could not create evidence.');
-      if (result.evidenceId) setSelectedNodeId(result.evidenceId);
+      if (result.evidenceId) {
+        setSelectedNodeId(result.evidenceId);
+        setEditing(false);
+      }
       if (!result.success) return;
     }
+
     setNewTitle('');
     setNewTags('');
     setNewParentId('');
@@ -150,401 +253,1152 @@ export const DetailView: React.FC<DetailViewProps> = ({ creating, onCreatingChan
     onCreatingChange(false);
   };
 
-  if (creating) {
-    return (
-      <div className="flex-1 overflow-y-auto p-6 max-w-3xl">
-        <div className="flex items-center justify-between gap-3 mb-5">
-          <div>
-            <h2 className="font-serif text-lg font-semibold text-[var(--color-ink)]">Add to argument</h2>
-            <p className="text-xs text-[var(--color-ink-muted)] mt-1">Create one entity and its required parent link.</p>
-          </div>
-          <button type="button" onClick={() => onCreatingChange(false)} className={buttonClass}>Cancel</button>
-        </div>
+  const handleSendToDock = (sel: Selection) => {
+    addAttachedContext({
+      type: 'node',
+      id: sel.entity.id,
+      label: `[${sel.kind.toUpperCase()}] ${sel.kind === 'claim' ? sel.entity.text : sel.entity.title}`,
+      secondaryLabel: sel.kind === 'evidence' ? sel.entity.citation : `Author: ${sel.entity.author}`,
+      metadata: {
+        nodeType: sel.kind,
+        nodeId: sel.entity.id
+      }
+    });
+    setMessage(`Sent ${sel.kind} ${sel.entity.id} to Assistant Dock.`);
+  };
 
-        <div className="flex items-center gap-1 p-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] w-fit mb-5">
-          {(['question', 'claim', 'evidence'] as const).map(kind => (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => {
-                setNewKind(kind);
-                setNewParentId('');
-                setMessage(null);
-              }}
-              className={`px-3 py-1.5 rounded-md text-xs font-mono capitalize ${newKind === kind ? 'bg-[var(--color-ink)] text-[var(--color-surface)]' : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'}`}
-            >
-              {kind}
-            </button>
-          ))}
-        </div>
+  // Metrics for overview when no node is selected
+  const linkStats = useMemo(() => {
+    let holds = 0;
+    let weak = 0;
+    let missing = 0;
+    for (const l of links) {
+      if (l.status === 'holds') holds++;
+      else if (l.status === 'weak') weak++;
+      else if (l.status === 'missing') missing++;
+    }
+    const rejectedClaims = claims.filter(c => c.rejected).length;
+    return {
+      holds,
+      weak,
+      missing,
+      total: links.length,
+      rejectedClaims
+    };
+  }, [links, claims]);
 
-        <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className={labelClass}>{newKind === 'claim' ? 'Claim text' : `${newKind} title`}</span>
-            <textarea
-              value={newTitle}
-              onChange={event => setNewTitle(event.target.value)}
-              rows={3}
-              autoFocus
-              className={fieldClass}
-            />
-          </label>
+  // Computed argument gaps across the entire graph
+  const argumentGaps = useMemo(() => {
+    const gaps: Array<{
+      id: string;
+      title: string;
+      kind: 'question' | 'claim' | 'link';
+      gapDescription: string;
+      actionKind: 'claim' | 'evidence' | 'inspect';
+      targetId: string;
+    }> = [];
 
-          {newKind === 'question' && (
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Tags (comma separated)</span>
-              <input value={newTags} onChange={event => setNewTags(event.target.value)} className={fieldClass} />
-            </label>
-          )}
+    // Questions with no answering claims
+    for (const q of questions) {
+      const hasClaims = links.some(l => l.kind === 'question-claim' && l.parentId === q.id);
+      if (!hasClaims) {
+        gaps.push({
+          id: `gap-${q.id}`,
+          title: q.title,
+          kind: 'question',
+          gapDescription: 'Missing answering claims (ungrounded question)',
+          actionKind: 'claim',
+          targetId: q.id
+        });
+      }
+    }
 
-          {newKind === 'claim' && (
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Parent question</span>
-              <select value={newParentId} onChange={event => setNewParentId(event.target.value)} className={fieldClass}>
-                <option value="">Select question…</option>
-                {questions.map(question => <option key={question.id} value={question.id}>{question.title}</option>)}
-              </select>
-            </label>
-          )}
+    // Claims with no grounding evidence
+    for (const c of claims) {
+      const hasEvidence = links.some(l => l.kind === 'claim-evidence' && l.parentId === c.id);
+      if (!hasEvidence) {
+        gaps.push({
+          id: `gap-${c.id}`,
+          title: c.text,
+          kind: 'claim',
+          gapDescription: 'Missing grounding evidence (unsupported claim)',
+          actionKind: 'evidence',
+          targetId: c.id
+        });
+      }
+    }
 
-          {newKind === 'evidence' && (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Parent claim</span>
-                <select value={newParentId} onChange={event => setNewParentId(event.target.value)} className={fieldClass}>
-                  <option value="">Select claim…</option>
-                  {claims.map(claim => <option key={claim.id} value={claim.id}>{claim.text}</option>)}
-                </select>
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>Origin</span>
-                  <select value={newOrigin} onChange={event => setNewOrigin(event.target.value as EvidenceOrigin)} className={fieldClass}>
-                    <option value="literature">literature</option>
-                    <option value="experiment">experiment</option>
-                    <option value="own_reasoning">own_reasoning</option>
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>Form</span>
-                  <select value={newForm} onChange={event => setNewForm(event.target.value as EvidenceForm)} className={fieldClass}>
-                    <option value="measurement">measurement</option>
-                    <option value="derivation">derivation</option>
-                    <option value="counterexample">counterexample</option>
-                  </select>
-                </label>
-              </div>
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Citation</span>
-                <input value={newCitation} onChange={event => setNewCitation(event.target.value)} className={fieldClass} />
-              </label>
-            </>
-          )}
+    // Missing links
+    for (const l of links) {
+      if (l.status === 'missing') {
+        const parentTitle = questions.find(q => q.id === l.parentId)?.title ?? claims.find(c => c.id === l.parentId)?.text ?? l.parentId;
+        const childTitle = claims.find(c => c.id === l.childId)?.text ?? evidence.find(e => e.id === l.childId)?.title ?? l.childId;
+        gaps.push({
+          id: `gap-link-${l.id}`,
+          title: `${parentTitle} → ${childTitle}`,
+          kind: 'link',
+          gapDescription: `Status marked as missing: ${l.userReason.slice(0, 35)}...`,
+          actionKind: 'inspect',
+          targetId: l.parentId
+        });
+      }
+    }
 
-          {newKind !== 'question' && (
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Link reason (required)</span>
-              <textarea
-                value={newReason}
-                onChange={event => setNewReason(event.target.value)}
-                rows={2}
-                placeholder="Why does this child answer or support its parent?"
-                className={fieldClass}
-              />
-            </label>
-          )}
-
-          {message && <p role="alert" className="text-xs font-mono text-rose-700 dark:text-rose-300">{message}</p>}
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={!newTitle.trim() || (newKind !== 'question' && (!newParentId || !newReason.trim()))}
-            className={`${buttonClass} self-start bg-slate-900 text-white dark:bg-white dark:text-slate-900`}
-          >
-            Add {newKind}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const editor = editing && selection ? (
-    <div key={selection.entity.id} className="argument-editor-fields flex flex-col gap-6">
-
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[0.6875rem] uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-[var(--color-rule)] text-[var(--color-ink-muted)]">
-            {selection.kind}
-          </span>
-          <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">{selection.entity.id}</span>
-          <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">author: {selection.entity.author}</span>
-        </div>
-
-        {selection.kind === 'question' && (
-          <>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Question title</span>
-              <textarea
-                value={selection.entity.title}
-                onChange={event => updateQuestion(selection.entity.id, { title: event.target.value })}
-                autoFocus
-                rows={2}
-                className={fieldClass}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Tags (comma separated)</span>
-              <input
-                value={selection.entity.tags.join(', ')}
-                onChange={event => updateQuestion(selection.entity.id, {
-                  tags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean)
-                })}
-                className={fieldClass}
-              />
-            </label>
-          </>
-        )}
-
-        {selection.kind === 'claim' && (
-          <>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Claim text</span>
-              <textarea
-                value={selection.entity.text}
-                onChange={event => updateClaim(selection.entity.id, { text: event.target.value })}
-                autoFocus
-                rows={3}
-                className={fieldClass}
-              />
-            </label>
-            {selection.entity.rejected && (
-              <p className="text-xs text-rose-700 dark:text-rose-300 font-mono">
-                Rejected: {selection.entity.rejectionReason || 'no reason recorded'}
-              </p>
-            )}
-          </>
-        )}
-
-        {selection.kind === 'evidence' && (
-          <>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Evidence title</span>
-              <textarea
-                value={selection.entity.title}
-                onChange={event => updateEvidence(selection.entity.id, { title: event.target.value })}
-                autoFocus
-                rows={2}
-                className={fieldClass}
-              />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Origin</span>
-                <select
-                  value={selection.entity.origin}
-                  onChange={event => updateEvidence(selection.entity.id, { origin: event.target.value as EvidenceOrigin })}
-                  className={fieldClass}
-                >
-                  <option value="literature">literature</option>
-                  <option value="experiment">experiment</option>
-                  <option value="own_reasoning">own_reasoning</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Form</span>
-                <select
-                  value={selection.entity.form}
-                  onChange={event => updateEvidence(selection.entity.id, { form: event.target.value as EvidenceForm })}
-                  className={fieldClass}
-                >
-                  <option value="measurement">measurement</option>
-                  <option value="derivation">derivation</option>
-                  <option value="counterexample">counterexample</option>
-                </select>
-              </label>
-            </div>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Citation</span>
-              <input
-                value={selection.entity.citation}
-                onChange={event => updateEvidence(selection.entity.id, { citation: event.target.value })}
-                className={fieldClass}
-              />
-            </label>
-          </>
-        )}
-      </section>
-
-      {selection.kind === 'claim' && (
-        <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">
-          <h2 className={labelClass}>Weakness record</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <input
-                value={weakenNote}
-                onChange={event => setWeakenNote(event.target.value)}
-                placeholder="Scope limit that weakens this claim"
-                className={fieldClass}
-              />
-              <button
-                type="button"
-                disabled={!weakenNote.trim()}
-                onClick={() => {
-                  weakenClaim(selection.entity.id, weakenNote.trim());
-                  setWeakenNote('');
-                  setMessage('Claim weakened; its links are now marked weak.');
-                }}
-                className={`${buttonClass} flex items-center gap-1.5`}
-              >
-                <TriangleAlert className="w-3.5 h-3.5" />
-                Weaken claim
-              </button>
-            </div>
-            <div className="flex flex-col gap-2">
-              <input
-                value={rejectReason}
-                onChange={event => setRejectReason(event.target.value)}
-                placeholder="Reason this claim is rejected"
-                className={fieldClass}
-              />
-              <button
-                type="button"
-                disabled={!rejectReason.trim() || selection.entity.rejected}
-                onClick={() => {
-                  rejectClaim(selection.entity.id, rejectReason.trim());
-                  setRejectReason('');
-                  setMessage('Claim rejected; the record is preserved.');
-                }}
-                className={`${buttonClass} flex items-center gap-1.5`}
-              >
-                <Ban className="w-3.5 h-3.5" />
-                Reject claim
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {selection.kind !== 'evidence' && (
-        <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">
-          <h2 className={labelClass}>
-            Connect {selection.kind === 'question' ? 'an existing claim' : 'existing evidence'}
-          </h2>
-          <select
-            value={linkTargetId}
-            onChange={event => setLinkTargetId(event.target.value)}
-            aria-label="Link target"
-            className={fieldClass}
-          >
-            <option value="">Select target…</option>
-            {connectOptions.map(option => (
-              <option key={option.id} value={option.id}>
-                {'text' in option ? option.text : option.title}
-              </option>
-            ))}
-          </select>
-          <textarea
-            value={linkReason}
-            onChange={event => setLinkReason(event.target.value)}
-            rows={2}
-            placeholder="Why does the child support the parent? (required)"
-            className={fieldClass}
-          />
-          <button
-            type="button"
-            disabled={!linkTargetId || !linkReason.trim()}
-            onClick={handleConnect}
-            className={`${buttonClass} self-start flex items-center gap-1.5`}
-          >
-            <Link2 className="w-3.5 h-3.5" />
-            Create link
-          </button>
-        </section>
-      )}
-
-      <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-5">
-        <h2 className={labelClass}>Links ({relatedLinks.length})</h2>
-        {relatedLinks.length === 0 && (
-          <p className="text-sm text-[var(--color-ink-muted)]">No links yet.</p>
-        )}
-        {relatedLinks.map(link => (
-          <article key={link.id} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] p-3 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`font-mono text-[0.6875rem] uppercase px-2 py-0.5 rounded ${statusPill(link.status)}`}>
-                {link.status}
-              </span>
-              <span className="text-xs text-[var(--color-ink)]">
-                {entityLabel(link.parentId)} → {entityLabel(link.childId)}
-              </span>
-            </div>
-            <textarea
-              value={reasonDrafts[link.id] ?? link.userReason}
-              onChange={event => setReasonDrafts(current => ({ ...current, [link.id]: event.target.value }))}
-              rows={2}
-              aria-label={`User reason for ${link.id}`}
-              className={fieldClass}
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => handleSaveReason(link)} className={buttonClass}>
-                Save reason
-              </button>
-              <label className="flex items-center gap-1.5">
-                <span className={labelClass}>Status</span>
-                <select
-                  value={link.status}
-                  onChange={event => setLinkStatus(link.id, event.target.value as LinkStatus)}
-                  aria-label={`Status for ${link.id}`}
-                  className={`${fieldClass} py-1 w-32`}
-                >
-                  <option value="holds">holds</option>
-                  <option value="weak">weak</option>
-                  <option value="missing">missing</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  deleteLink(link.id);
-                  setMessage(`Link ${link.id} deleted.`);
-                }}
-                className={`${buttonClass} flex items-center gap-1.5 text-rose-700 dark:text-rose-300`}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete link
-              </button>
-            </div>
-          </article>
-        ))}
-      </section>
-    </div>
-  ) : null;
+    return gaps;
+  }, [questions, claims, evidence, links]);
 
   return (
-    <div className="argument-detail" data-editing={Boolean(editor)}>
-      {message && <p role="status" className="argument-feedback">{message}</p>}
-      <div className="argument-split">
-        <div className="argument-tree-pane">
-          <ArgumentTree selectedId={editor ? selectedNodeId : null} onMessage={setMessage} onEdit={id => {
-            setSelectedNodeId(id);
-            setSelectedLinkId(null);
-            setLinkTargetId('');
-            setLinkReason('');
-            setWeakenNote('');
-            setRejectReason('');
-            setReasonDrafts({});
-            setMessage(null);
-            setEditing(true);
-          }} />
+    <div className="argument-detail" data-editing={Boolean(selection || creating)}>
+      {message && (
+        <div role="status" className="argument-feedback">
+          <span>{message}</span>
+          <button
+            type="button"
+            onClick={() => setMessage(null)}
+            className="p-1 hover:opacity-75 transition-opacity"
+            aria-label="Dismiss feedback"
+          >
+            <X size={13} />
+          </button>
         </div>
-        <aside className="argument-inspector" aria-label="Object editor">
-          <header className="argument-inspector-header">
-            <div><span className="argument-eyebrow">Object inspector</span><h2>{editor ? `Edit ${selection?.kind}` : 'Details & connections'}</h2></div>
-            {editor && <button type="button" className="argument-icon-button" aria-label="Close editor" onClick={() => {
+      )}
+
+      <div className="argument-split" data-has-panel={Boolean(selection || creating)}>
+        {/* Left Pane: Argument Tree Explorer */}
+        <div className="argument-tree-pane">
+          <ArgumentTree
+            selectedId={selectedNodeId}
+            onMessage={setMessage}
+            onSelect={id => {
+              setSelectedNodeId(id);
+              setSelectedLinkId(null);
+              setLinkTargetId('');
+              setLinkReason('');
+              setWeakenNote('');
+              setRejectReason('');
+              setReasonDrafts({});
+              setMessage(null);
               setEditing(false);
-              document.querySelector<HTMLButtonElement>(`[data-node-id="${CSS.escape(selectedNodeId ?? '')}"] .argument-title`)?.focus();
-            }}><X /></button>}
-          </header>
-          {editor ?? <div className="argument-empty"><PanelRight /><h3>Keep the argument in view</h3><p>Select an object or choose Edit.<br />Its content and connections open here.</p><span className="argument-eyebrow">One record · every connection</span></div>}
+              onCreatingChange(false);
+            }}
+            onEdit={id => {
+              setSelectedNodeId(id);
+              setSelectedLinkId(null);
+              setLinkTargetId('');
+              setLinkReason('');
+              setWeakenNote('');
+              setRejectReason('');
+              setReasonDrafts({});
+              setMessage(null);
+              setEditing(true);
+              onCreatingChange(false);
+            }}
+            onNewChild={(parentId, parentKind) => {
+              setNewKind(parentKind === 'question' ? 'claim' : 'evidence');
+              setNewParentId(parentId);
+              setNewTitle('');
+              setNewReason('');
+              onCreatingChange(true);
+            }}
+            onStartCreate={kind => {
+              setNewKind(kind);
+              setNewTitle('');
+              setNewReason('');
+              setNewParentId('');
+              onCreatingChange(true);
+            }}
+          />
+        </div>
+
+        {/* Right Pane: Object Inspector / Creator / Graph Overview */}
+        <aside className="argument-inspector" aria-label="Object editor and inspector">
+          {/* Mode 1: Entity Creator */}
+          {creating ? (
+            <div className="flex flex-col h-full overflow-y-auto">
+              {/* Creator Header */}
+              <header className="argument-inspector-header">
+                <div>
+                  <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold block">
+                    Argument Synthesis
+                  </span>
+                  <h2 className="text-sm font-bold text-[var(--color-ink)] mt-0.5">
+                    Add to Argument Tree
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onCreatingChange(false)}
+                  className="argument-micro-btn"
+                  aria-label="Cancel creation"
+                >
+                  <X size={14} />
+                  Cancel
+                </button>
+              </header>
+
+              <div className="argument-inspector-content">
+                {/* Kind Selector Tabs */}
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] w-fit">
+                  {(['question', 'claim', 'evidence'] as const).map(kind => (
+                    <button
+                      key={kind}
+                      type="button"
+                      onClick={() => {
+                        setNewKind(kind);
+                        setNewParentId('');
+                        setMessage(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 transition-all ${
+                        newKind === kind
+                          ? 'bg-[var(--color-ink)] text-[var(--color-surface)] shadow-xs'
+                          : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                      }`}
+                    >
+                      {kind === 'question' && <HelpCircle size={12} />}
+                      {kind === 'claim' && <GitBranch size={12} />}
+                      {kind === 'evidence' && <FileCheck2 size={12} />}
+                      <span className="capitalize">{kind}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Helper hint */}
+                <p className="text-xs text-[var(--color-ink-muted)] leading-relaxed">
+                  {newKind === 'question' &&
+                    'Root inquiry. Serves as the epistemological anchor for multiple candidate claims.'}
+                  {newKind === 'claim' &&
+                    'Falsifiable assertion answering a parent question. Requires an explicit link rationale.'}
+                  {newKind === 'evidence' &&
+                    'Empirical measurement, derivation, or citation supporting or refuting a parent claim.'}
+                </p>
+
+                {/* Title / Text Input */}
+                <label className="argument-field-label">
+                  <span>{newKind === 'claim' ? 'Claim Proposition' : `${newKind.toUpperCase()} Title`}</span>
+                  <textarea
+                    value={newTitle}
+                    onChange={e => setNewTitle(e.target.value)}
+                    rows={newKind === 'claim' ? 3 : 2}
+                    autoFocus
+                    placeholder={
+                      newKind === 'question'
+                        ? 'e.g., Does speculative decoding preserve output distribution across reasoning tasks?'
+                        : newKind === 'claim'
+                          ? 'e.g., Attention-sink preservation maintains 98% perplexity stability up to 128k context.'
+                          : 'e.g., Benchmark measurement on LLaMA-3 70B under 4-bit KV cache quantization'
+                    }
+                    className="argument-textarea"
+                  />
+                </label>
+
+                {/* Question Tags */}
+                {newKind === 'question' && (
+                  <label className="argument-field-label">
+                    <span>Domain Tags (comma-separated)</span>
+                    <input
+                      value={newTags}
+                      onChange={e => setNewTags(e.target.value)}
+                      placeholder="e.g. attention, quantization, memory"
+                      className="argument-input"
+                    />
+                  </label>
+                )}
+
+                {/* Parent Question for Claim */}
+                {newKind === 'claim' && (
+                  <label className="argument-field-label">
+                    <span>Parent Question (Required)</span>
+                    <select
+                      value={newParentId}
+                      onChange={e => setNewParentId(e.target.value)}
+                      className="argument-select"
+                      required
+                    >
+                      <option value="">Select question to anchor this claim...</option>
+                      {questions.map(q => (
+                        <option key={q.id} value={q.id}>
+                          {q.id}: {q.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {/* Evidence Specific Fields */}
+                {newKind === 'evidence' && (
+                  <>
+                    <label className="argument-field-label">
+                      <span>Parent Claim (Required)</span>
+                      <select
+                        value={newParentId}
+                        onChange={e => setNewParentId(e.target.value)}
+                        className="argument-select"
+                        required
+                      >
+                        <option value="">Select claim this evidence supports...</option>
+                        {claims.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.id}: {c.text}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="argument-field-label">
+                        <span>Origin</span>
+                        <select
+                          value={newOrigin}
+                          onChange={e => setNewOrigin(e.target.value as EvidenceOrigin)}
+                          className="argument-select"
+                        >
+                          <option value="literature">Literature</option>
+                          <option value="experiment">Experiment</option>
+                          <option value="own_reasoning">Own Reasoning</option>
+                        </select>
+                      </label>
+                      <label className="argument-field-label">
+                        <span>Form</span>
+                        <select
+                          value={newForm}
+                          onChange={e => setNewForm(e.target.value as EvidenceForm)}
+                          className="argument-select"
+                        >
+                          <option value="measurement">Measurement</option>
+                          <option value="derivation">Derivation</option>
+                          <option value="counterexample">Counterexample</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <label className="argument-field-label">
+                      <span>Citation Reference</span>
+                      <input
+                        value={newCitation}
+                        onChange={e => setNewCitation(e.target.value)}
+                        placeholder="e.g. Xiao et al., 2023, NeurIPS, Sec 4.2"
+                        className="argument-input"
+                      />
+                    </label>
+                  </>
+                )}
+
+                {/* Mandatory Link Reason for non-questions */}
+                {newKind !== 'question' && (
+                  <label className="argument-field-label">
+                    <span>Link Rationale (Required)</span>
+                    <textarea
+                      value={newReason}
+                      onChange={e => setNewReason(e.target.value)}
+                      rows={3}
+                      placeholder={
+                        newKind === 'claim'
+                          ? 'Why does this claim answer the chosen question?'
+                          : 'Why does this evidence support or test the chosen claim?'
+                      }
+                      className="argument-textarea"
+                    />
+                  </label>
+                )}
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCreate}
+                    disabled={
+                      !newTitle.trim() ||
+                      (newKind !== 'question' && (!newParentId || !newReason.trim()))
+                    }
+                    className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none text-white text-xs font-mono font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
+                  >
+                    <Plus size={14} />
+                    Add {newKind} to Argument
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCreatingChange(false)}
+                    className="px-3.5 py-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-xs font-mono text-[var(--color-ink)] hover:bg-[var(--color-paper)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : selection ? (
+            /* Mode 2: Node Inspector & Editor */
+            <div key={selection.entity.id} className="flex flex-col h-full overflow-y-auto">
+              {/* Header */}
+              <header className="argument-inspector-header">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.6875rem] font-mono font-bold uppercase tracking-wider ${
+                      selection.kind === 'question'
+                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                        : selection.kind === 'claim'
+                          ? 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800'
+                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                    }`}
+                  >
+                    {selection.kind}
+                  </span>
+                  <span className="font-mono text-xs text-[var(--color-ink-muted)]">
+                    {selection.entity.id}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSendToDock(selection)}
+                    className="argument-micro-btn"
+                    title="Send this object to Assistant Dock chat"
+                  >
+                    <MessageSquare size={13} />
+                    <span className="hidden sm:inline">Ask AI</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(prev => !prev)}
+                    className={`argument-micro-btn ${editing ? 'primary' : ''}`}
+                    title={editing ? 'Exit edit mode' : 'Edit this record'}
+                  >
+                    <Pencil size={13} />
+                    <span>{editing ? 'Done' : 'Edit'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedNodeId(null);
+                      setEditing(false);
+                    }}
+                    className="argument-micro-btn"
+                    title="Back to hierarchy tree"
+                    aria-label="Back to tree"
+                  >
+                    <ChevronLeft size={13} />
+                    <span className="hidden sm:inline">Tree</span>
+                  </button>
+                  {onBackToMap && (
+                    <button
+                      type="button"
+                      onClick={onBackToMap}
+                      className="argument-micro-btn"
+                      title="Back to Argument Map canvas"
+                      aria-label="Back to Map"
+                    >
+                      <GitBranch size={13} />
+                      <span className="hidden sm:inline">Map</span>
+                    </button>
+                  )}
+                </div>
+              </header>
+
+              <div className="argument-inspector-content">
+                {/* Rejection / Weakness Banners */}
+                {selection.kind === 'claim' && selection.entity.rejected && (
+                  <div className="argument-status-banner rejected">
+                    <Ban size={16} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                    <div>
+                      <strong className="font-mono uppercase text-[0.6875rem] tracking-wider block font-bold">
+                        Claim Falsified / Rejected
+                      </strong>
+                      <p className="mt-0.5 text-xs">
+                        {selection.entity.rejectionReason || 'No rejection reason recorded.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Primary Content View / Edit Form */}
+                <section className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-[0.6875rem] font-mono text-[var(--color-ink-muted)] border-b border-[var(--color-rule)] pb-2">
+                    <span>Author: {selection.entity.author}</span>
+                    <span>Created: {new Date(selection.entity.createdAt).toLocaleDateString()}</span>
+                  </div>
+
+                  {/* Question Fields */}
+                  {selection.kind === 'question' &&
+                    (editing ? (
+                      <>
+                        <label className="argument-field-label">
+                          <span>Question Title</span>
+                          <textarea
+                            value={selection.entity.title}
+                            onChange={e =>
+                              updateQuestion(selection.entity.id, { title: e.target.value })
+                            }
+                            autoFocus
+                            rows={3}
+                            className="argument-textarea font-serif text-[0.9375rem]"
+                          />
+                        </label>
+                        <label className="argument-field-label">
+                          <span>Tags (comma-separated)</span>
+                          <input
+                            value={selection.entity.tags.join(', ')}
+                            onChange={e =>
+                              updateQuestion(selection.entity.id, {
+                                tags: e.target.value
+                                  .split(',')
+                                  .map(t => t.trim())
+                                  .filter(Boolean)
+                              })
+                            }
+                            className="argument-input"
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-2.5">
+                        <h2 className="font-serif text-lg font-bold text-[var(--color-ink)] leading-snug">
+                          {selection.entity.title}
+                        </h2>
+                        {selection.entity.tags.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                            {selection.entity.tags.map(tag => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-mono text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800"
+                              >
+                                <Tag size={10} />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                  {/* Claim Fields */}
+                  {selection.kind === 'claim' &&
+                    (editing ? (
+                      <label className="argument-field-label">
+                        <span>Claim Text</span>
+                        <textarea
+                          value={selection.entity.text}
+                          onChange={e =>
+                            updateClaim(selection.entity.id, { text: e.target.value })
+                          }
+                          autoFocus
+                          rows={4}
+                          className="argument-textarea font-sans text-sm"
+                        />
+                      </label>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <p className="font-sans text-sm text-[var(--color-ink)] leading-relaxed font-medium">
+                          {selection.entity.text}
+                        </p>
+                      </div>
+                    ))}
+
+                  {/* Evidence Fields */}
+                  {selection.kind === 'evidence' &&
+                    (editing ? (
+                      <>
+                        <label className="argument-field-label">
+                          <span>Evidence Title</span>
+                          <textarea
+                            value={selection.entity.title}
+                            onChange={e =>
+                              updateEvidence(selection.entity.id, { title: e.target.value })
+                            }
+                            autoFocus
+                            rows={3}
+                            className="argument-textarea font-sans text-sm"
+                          />
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="argument-field-label">
+                            <span>Origin</span>
+                            <select
+                              value={selection.entity.origin}
+                              onChange={e =>
+                                updateEvidence(selection.entity.id, {
+                                  origin: e.target.value as EvidenceOrigin
+                                })
+                              }
+                              className="argument-select"
+                            >
+                              <option value="literature">Literature</option>
+                              <option value="experiment">Experiment</option>
+                              <option value="own_reasoning">Own Reasoning</option>
+                            </select>
+                          </label>
+                          <label className="argument-field-label">
+                            <span>Form</span>
+                            <select
+                              value={selection.entity.form}
+                              onChange={e =>
+                                updateEvidence(selection.entity.id, {
+                                  form: e.target.value as EvidenceForm
+                                })
+                              }
+                              className="argument-select"
+                            >
+                              <option value="measurement">Measurement</option>
+                              <option value="derivation">Derivation</option>
+                              <option value="counterexample">Counterexample</option>
+                            </select>
+                          </label>
+                        </div>
+                        <label className="argument-field-label">
+                          <span>Citation</span>
+                          <input
+                            value={selection.entity.citation}
+                            onChange={e =>
+                              updateEvidence(selection.entity.id, { citation: e.target.value })
+                            }
+                            className="argument-input"
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-2.5">
+                        <h3 className="font-sans text-sm font-semibold text-[var(--color-ink)] leading-snug">
+                          {selection.entity.title}
+                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap text-xs font-mono text-[var(--color-ink-muted)]">
+                          <span className="px-2 py-0.5 rounded bg-[var(--color-paper)] border border-[var(--color-rule)]">
+                            Origin: {selection.entity.origin}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-[var(--color-paper)] border border-[var(--color-rule)]">
+                            Form: {selection.entity.form}
+                          </span>
+                        </div>
+                        {selection.entity.citation && (
+                          <div className="p-2.5 rounded-lg bg-[var(--color-paper)] border border-[var(--color-rule)] flex items-start gap-2">
+                            <BookOpen size={14} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                            <span className="text-xs font-sans italic text-[var(--color-ink)]">
+                              {selection.entity.citation}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </section>
+
+                {/* Epistemic Controls for Claims: Weaken and Reject */}
+                {selection.kind === 'claim' && (
+                  <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-4">
+                    <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold block">
+                      Falsifiability & Scope Boundaries
+                    </span>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {/* Weaken Claim */}
+                      <div className="p-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-amber-700 dark:text-amber-400">
+                          <TriangleAlert size={13} />
+                          Weaken Claim Scope
+                        </div>
+                        <input
+                          value={weakenNote}
+                          onChange={e => setWeakenNote(e.target.value)}
+                          placeholder="Scope limit (e.g. valid only for context < 32k tokens)"
+                          className="argument-input"
+                        />
+                        <button
+                          type="button"
+                          disabled={!weakenNote.trim()}
+                          onClick={() => {
+                            weakenClaim(selection.entity.id, weakenNote.trim());
+                            setWeakenNote('');
+                            setMessage('Claim weakened; incident links are now flagged weak.');
+                          }}
+                          className="argument-micro-btn self-start"
+                        >
+                          <TriangleAlert size={12} className="text-amber-600" />
+                          Record Weakness
+                        </button>
+                      </div>
+
+                      {/* Reject Claim */}
+                      <div className="p-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2">
+                        <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-rose-700 dark:text-rose-400">
+                          <Ban size={13} />
+                          Reject / Falsify Claim
+                        </div>
+                        <input
+                          value={rejectReason}
+                          onChange={e => setRejectReason(e.target.value)}
+                          placeholder="Falsification proof (e.g. refuted by run 4 attention loss)"
+                          className="argument-input"
+                        />
+                        <button
+                          type="button"
+                          disabled={!rejectReason.trim() || selection.entity.rejected}
+                          onClick={() => {
+                            rejectClaim(selection.entity.id, rejectReason.trim());
+                            setRejectReason('');
+                            setMessage('Claim rejected; the record and rejection reason are preserved.');
+                          }}
+                          className="argument-micro-btn danger self-start"
+                        >
+                          <Ban size={12} />
+                          Reject Claim (Preserve Record)
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* Connect Existing Child Section */}
+                {selection.kind !== 'evidence' && (
+                  <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-4">
+                    <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold block">
+                      Connect Existing {selection.kind === 'question' ? 'Claim' : 'Evidence'}
+                    </span>
+
+                    <div className="p-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2.5">
+                      <select
+                        value={linkTargetId}
+                        onChange={e => setLinkTargetId(e.target.value)}
+                        className="argument-select"
+                      >
+                        <option value="">
+                          Select {selection.kind === 'question' ? 'claim' : 'evidence'} to connect...
+                        </option>
+                        {connectOptions.map(option => (
+                          <option key={option.id} value={option.id}>
+                            [{option.id}] {'text' in option ? option.text : option.title}
+                          </option>
+                        ))}
+                      </select>
+
+                      <textarea
+                        value={linkReason}
+                        onChange={e => setLinkReason(e.target.value)}
+                        rows={2}
+                        placeholder="Link rationale: Why does this child answer or support the parent? (Required)"
+                        className="argument-textarea"
+                      />
+
+                      <button
+                        type="button"
+                        disabled={!linkTargetId || !linkReason.trim()}
+                        onClick={handleConnect}
+                        className="argument-micro-btn primary self-start"
+                      >
+                        <Link2 size={12} />
+                        Establish Connection
+                      </button>
+                    </div>
+                  </section>
+                )}
+
+                {/* Connected Incident Links */}
+                <section className="flex flex-col gap-3 border-t border-[var(--color-rule)] pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
+                      Connected Relationships ({relatedLinks.length})
+                    </span>
+                  </div>
+
+                  {relatedLinks.length === 0 ? (
+                    <p className="text-xs text-[var(--color-ink-muted)] italic">
+                      No connected relationships yet.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {relatedLinks.map(link => {
+                        const isOutgoing = link.parentId === selection.entity.id;
+                        const targetId = isOutgoing ? link.childId : link.parentId;
+                        const targetTitle = entityLabel(targetId);
+                        const isDraftDirty = reasonDrafts[link.id] !== undefined && reasonDrafts[link.id] !== link.userReason;
+
+                        return (
+                          <article
+                            key={link.id}
+                            className={`rounded-xl border border-[var(--color-rule)] border-l-[3px] bg-[var(--color-surface)] p-3.5 flex flex-col gap-2.5 shadow-2xs transition-all ${
+                              link.status === 'holds'
+                                ? 'border-l-emerald-500'
+                                : link.status === 'weak'
+                                  ? 'border-l-amber-500'
+                                  : 'border-l-rose-500'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span
+                                className={`font-mono text-[0.6875rem] uppercase px-2 py-0.5 rounded font-semibold inline-flex items-center gap-1.5 border ${statusPill(
+                                  link.status
+                                )}`}
+                              >
+                                {link.status === 'holds' ? (
+                                  <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
+                                ) : link.status === 'weak' ? (
+                                  <AlertTriangle size={11} className="text-amber-600 dark:text-amber-400" />
+                                ) : (
+                                  <AlertCircle size={11} className="text-rose-600 dark:text-rose-400" />
+                                )}
+                                {link.status}
+                              </span>
+
+                              <div className="flex items-center gap-1.5 min-w-0 max-w-[70%]">
+                                <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] shrink-0">
+                                  {isOutgoing ? 'supports child:' : 'anchored by parent:'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedNodeId(targetId)}
+                                  className="font-sans font-semibold text-xs text-[var(--color-ink)] hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline inline-flex items-center gap-1 truncate text-left group cursor-pointer"
+                                  title={`Inspect ${targetTitle}`}
+                                >
+                                  <span className="truncate">{targetTitle}</span>
+                                  <ArrowUpRight size={11} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <label className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[0.6875rem] font-mono uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
+                                  Epistemic Rationale
+                                </span>
+                                {isDraftDirty && (
+                                  <span className="inline-flex items-center gap-1 text-[0.6875rem] font-mono text-amber-600 dark:text-amber-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    Unsaved edits
+                                  </span>
+                                )}
+                              </div>
+                              <textarea
+                                value={reasonDrafts[link.id] ?? link.userReason}
+                                onChange={e =>
+                                  setReasonDrafts(curr => ({ ...curr, [link.id]: e.target.value }))
+                                }
+                                rows={3}
+                                placeholder="Explain why this connection holds, is weak, or represents an empirical gap..."
+                                className="argument-textarea font-mono text-xs leading-relaxed min-h-[68px] resize-y"
+                              />
+                            </label>
+
+                            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--color-rule)]/60">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveReason(link)}
+                                  disabled={!isDraftDirty}
+                                  className={`h-7 px-3 rounded-md font-mono text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all select-none ${
+                                    isDraftDirty
+                                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs cursor-pointer active:scale-95'
+                                      : 'bg-[var(--color-paper)] border border-[var(--color-rule)] text-[var(--color-ink-muted)] opacity-60 cursor-default'
+                                  }`}
+                                  title={isDraftDirty ? 'Save updated rationale' : 'Rationale is already saved'}
+                                >
+                                  {isDraftDirty ? (
+                                    <>
+                                      <Save size={12} />
+                                      <span>Save Rationale</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check size={12} className="text-emerald-500" />
+                                      <span>Saved</span>
+                                    </>
+                                  )}
+                                </button>
+                                <select
+                                  value={link.status}
+                                  onChange={e =>
+                                    setLinkStatus(link.id, e.target.value as LinkStatus)
+                                  }
+                                  aria-label={`Status for ${link.id}`}
+                                  className="argument-select h-7 py-0 px-2 text-xs font-mono w-32 shrink-0 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-md"
+                                >
+                                  <option value="holds">holds</option>
+                                  <option value="weak">weak</option>
+                                  <option value="missing">missing</option>
+                                </select>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteLink(link.id);
+                                  setMessage(`Link ${link.id} deleted.`);
+                                }}
+                                className="h-7 w-7 rounded-md border border-[var(--color-rule)] bg-[var(--color-surface)] hover:bg-rose-50 dark:hover:bg-rose-950/60 text-[var(--color-ink-muted)] hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-800 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                                title="Delete this connection"
+                                aria-label="Delete this connection"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+              </div>
+            </div>
+          ) : (
+            /* Mode 3: Epistemic Overview & Graph Health (when nothing selected) */
+            <div className="flex flex-col h-full overflow-y-auto p-6 gap-6">
+              <div>
+                <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold block">
+                  Epistemic Graph Overview
+                </span>
+                <h2 className="text-base font-bold text-[var(--color-ink)] mt-1">
+                  Argument Structure & Validity
+                </h2>
+                <p className="text-xs text-[var(--color-ink-muted)] mt-1 leading-relaxed">
+                  Thinking OS structures knowledge into a strict, falsifiable chain: Questions lead to Claims, and Claims are backed by Evidence.
+                </p>
+              </div>
+
+              {/* Counts Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                    <HelpCircle size={15} />
+                    <span className="font-mono text-[0.6875rem] uppercase font-bold tracking-wider">
+                      Questions
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-[var(--color-ink)] mt-1">
+                    {questions.length}
+                  </div>
+                  <span className="text-[0.6875rem] text-[var(--color-ink-muted)]">
+                    Root inquiries
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400">
+                    <GitBranch size={15} />
+                    <span className="font-mono text-[0.6875rem] uppercase font-bold tracking-wider">
+                      Claims
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-[var(--color-ink)] mt-1">
+                    {claims.length}
+                  </div>
+                  <span className="text-[0.6875rem] text-[var(--color-ink-muted)]">
+                    Propositions
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                    <FileCheck2 size={15} />
+                    <span className="font-mono text-[0.6875rem] uppercase font-bold tracking-wider">
+                      Evidence
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-[var(--color-ink)] mt-1">
+                    {evidence.length}
+                  </div>
+                  <span className="text-[0.6875rem] text-[var(--color-ink-muted)]">
+                    Empirical grounding
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-[var(--color-ink-muted)]">
+                    <Link2 size={15} />
+                    <span className="font-mono text-[0.6875rem] uppercase font-bold tracking-wider">
+                      Links
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold font-mono text-[var(--color-ink)] mt-1">
+                    {links.length}
+                  </div>
+                  <span className="text-[0.6875rem] text-[var(--color-ink-muted)]">
+                    Active relationships
+                  </span>
+                </div>
+              </div>
+
+              {/* Link Health Stacked Bar */}
+              <div className="p-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] shadow-2xs flex flex-col gap-3">
+                <span className="font-mono text-xs font-bold text-[var(--color-ink)] uppercase tracking-wider">
+                  Link Health Audit
+                </span>
+
+                {linkStats.total > 0 ? (
+                  <>
+                    <div className="w-full h-3 rounded-full bg-[var(--color-paper)] overflow-hidden flex">
+                      <div
+                        style={{ width: `${(linkStats.holds / linkStats.total) * 100}%` }}
+                        className="bg-emerald-500 h-full transition-all"
+                        title={`Holds: ${linkStats.holds}`}
+                      />
+                      <div
+                        style={{ width: `${(linkStats.weak / linkStats.total) * 100}%` }}
+                        className="bg-amber-500 h-full transition-all"
+                        title={`Weak: ${linkStats.weak}`}
+                      />
+                      <div
+                        style={{ width: `${(linkStats.missing / linkStats.total) * 100}%` }}
+                        className="bg-rose-500 h-full transition-all"
+                        title={`Missing: ${linkStats.missing}`}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-mono text-[var(--color-ink-muted)] pt-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Holds ({linkStats.holds})
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        Weak ({linkStats.weak})
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-rose-500" />
+                        Missing ({linkStats.missing})
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-[var(--color-ink-muted)]">No links created yet.</p>
+                )}
+              </div>
+
+              {/* Argument Gaps Section */}
+              {argumentGaps.length > 0 && (
+                <div className="p-4 rounded-xl border border-amber-300/80 dark:border-amber-700/80 bg-amber-50/40 dark:bg-amber-950/20 shadow-2xs flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold text-amber-900 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertCircle size={14} className="text-amber-600 dark:text-amber-400" />
+                      Open Argument Gaps ({argumentGaps.length})
+                    </span>
+                    <span className="text-[0.6875rem] font-mono text-[var(--color-ink-muted)]">
+                      Requires resolution
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-[var(--color-ink-muted)] leading-relaxed">
+                    These items currently lack answering claims or grounding evidence in your argument tree.
+                  </p>
+
+                  <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+                    {argumentGaps.map(gap => (
+                      <div
+                        key={gap.id}
+                        className="p-2.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between gap-3 shadow-2xs hover:border-amber-400 transition-colors"
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-semibold text-[var(--color-ink)] truncate" title={gap.title}>
+                            {gap.title}
+                          </span>
+                          <span className="text-[0.6875rem] font-mono text-amber-700 dark:text-amber-400">
+                            {gap.gapDescription}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {gap.actionKind === 'claim' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedNodeId(gap.targetId);
+                                setNewKind('claim');
+                                setNewParentId(gap.targetId);
+                                onCreatingChange(true);
+                              }}
+                              className="argument-micro-btn primary"
+                            >
+                              <Plus size={11} /> + Add Claim
+                            </button>
+                          )}
+                          {gap.actionKind === 'evidence' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedNodeId(gap.targetId);
+                                setNewKind('evidence');
+                                setNewParentId(gap.targetId);
+                                onCreatingChange(true);
+                              }}
+                              className="argument-micro-btn primary"
+                            >
+                              <Plus size={11} /> + Add Evidence
+                            </button>
+                          )}
+                          {gap.actionKind === 'inspect' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedNodeId(gap.targetId);
+                              }}
+                              className="argument-micro-btn"
+                            >
+                              Inspect
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Falsifiability & Negative Results */}
+              <div className="p-4 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] shadow-2xs flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-mono text-xs font-bold uppercase tracking-wider">
+                  <ShieldAlert size={14} />
+                  Falsifiability Invariants
+                </div>
+                <p className="text-xs text-[var(--color-ink-muted)] leading-relaxed">
+                  Per research invariants, rejected claims are never erased. They remain in the vault with explicit rejection reasoning to preserve negative results.
+                </p>
+                <div className="flex items-center gap-2 pt-1 font-mono text-xs">
+                  <span className="px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300">
+                    Preserved rejected claims: {linkStats.rejectedClaims}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex flex-col gap-2 pt-2">
+                <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
+                  Quick Actions
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewKind('question');
+                      onCreatingChange(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-mono text-xs font-semibold flex items-center gap-1.5 hover:bg-indigo-100 transition-colors"
+                  >
+                    <Plus size={12} />
+                    New Question
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewKind('claim');
+                      onCreatingChange(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-mono text-xs font-semibold flex items-center gap-1.5 hover:bg-teal-100 transition-colors"
+                  >
+                    <Plus size={12} />
+                    New Claim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewKind('evidence');
+                      onCreatingChange(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-mono text-xs font-semibold flex items-center gap-1.5 hover:bg-amber-100 transition-colors"
+                  >
+                    <Plus size={12} />
+                    New Evidence
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-4 border-t border-[var(--color-rule)] text-center text-xs text-[var(--color-ink-muted)]">
+                Click any node in the hierarchy tree to inspect details, manage links, or edit.
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </div>

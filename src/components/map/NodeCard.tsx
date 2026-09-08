@@ -1,6 +1,6 @@
 import React from 'react';
 import { LayoutNode } from './computeLayout';
-import { Ban, GripVertical, Plus } from 'lucide-react';
+import { AlertCircle, ArrowRight, Ban, GripVertical, Pencil, Plus } from 'lucide-react';
 
 interface NodeCardProps {
   node: LayoutNode;
@@ -27,23 +27,73 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   onMouseLeave,
   onAddToContext
 }) => {
-  // GHOST node: soft unfilled dashed absence, not a normal card
+  // GHOST node: interactive argument gap card leading to Detail view
   if (node.isGhost) {
     return (
       <div
+        id={`node-${node.id}`}
         style={{
           left: node.x,
           top: node.y,
           width: node.width,
           height: node.height
         }}
-        className={`absolute border border-dashed border-[var(--color-rule)] bg-[var(--color-paper)]/40 rounded-lg p-3 flex items-center justify-center select-none transition-opacity duration-150 ${
-          isDimmed ? 'opacity-20' : 'opacity-85'
+        onMouseDown={e => {
+          e.stopPropagation();
+        }}
+        onPointerDown={e => {
+          e.stopPropagation();
+        }}
+        onClick={e => {
+          e.stopPropagation();
+          onClick();
+        }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        title="Argument Gap: Click to resolve and edit in Detail tab"
+        className={`absolute border-2 border-dashed border-amber-400/80 dark:border-amber-500/70 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/40 hover:border-amber-500 rounded-xl p-3.5 flex flex-col justify-between cursor-pointer select-none transition-all duration-150 group shadow-2xs hover:shadow-md hover:scale-[1.01] pointer-events-auto z-10 ${
+          isDimmed ? 'opacity-25' : 'opacity-90 hover:opacity-100'
         }`}
       >
-        <span className="font-mono text-[0.8125rem] text-[var(--color-ink-muted)] italic tracking-wide">
-          [Absence: {node.title}]
-        </span>
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="inline-flex items-center gap-1 font-mono text-[0.6875rem] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-100/90 dark:bg-amber-900/60 px-2 py-0.5 rounded border border-amber-300/40 dark:border-amber-800/60">
+            <AlertCircle size={11} className="shrink-0 text-amber-600 dark:text-amber-400" />
+            Argument Gap
+          </span>
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="font-mono text-[0.6875rem] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline inline-flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
+          >
+            Resolve in Detail <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-0.5 my-auto">
+          <p className="font-mono text-xs text-[var(--color-ink)] font-semibold leading-tight line-clamp-2">
+            {node.title}
+          </p>
+          <span className="text-[0.7188rem] text-[var(--color-ink-muted)]">
+            Needs {node.ghostType === 'claim' ? 'answering claim' : 'grounding evidence'}
+          </span>
+        </div>
+
+        <div className="pt-1.5 border-t border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between text-[0.6875rem] font-mono text-[var(--color-ink-muted)]">
+          <span>Click to fill gap</span>
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer bg-transparent border-none p-0"
+          >
+            + Add {node.ghostType === 'claim' ? 'Claim' : 'Evidence'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -88,6 +138,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         // Prevent background canvas drag from conflicting with node click/drag
         e.stopPropagation();
       }}
+      onPointerDown={e => {
+        e.stopPropagation();
+      }}
       style={{
         left: node.x,
         top: node.y,
@@ -98,12 +151,24 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         e.stopPropagation();
         onClick();
       }}
-      title={`[${node.type.toUpperCase()}] ${node.title}\nDrag to Assistant Dock to attach context`}
-      className={`absolute pointer-events-auto cursor-grab active:cursor-grabbing border rounded-lg transition-all duration-150 select-none overflow-hidden bg-[var(--color-surface)] group ${stateClasses} ${opacityClass}`}
+      title={`[${node.type.toUpperCase()}] ${node.title}\nClick to edit in Detail view | Drag to Assistant Dock`}
+      className={`absolute pointer-events-auto cursor-pointer border rounded-lg transition-all duration-150 select-none overflow-hidden bg-[var(--color-surface)] group ${stateClasses} ${opacityClass}`}
     >
       <div className="p-3 flex flex-col justify-between h-full relative">
-        {/* Quick Add to Chat Button on Hover (Top Right) */}
+        {/* Quick Action Buttons on Hover (Top Right) */}
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-30">
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onClick();
+            }}
+            title="Edit in Detail view"
+            className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[0.7188rem] font-mono font-semibold cursor-pointer"
+          >
+            <Pencil className="w-2.5 h-2.5" />
+            <span>Edit</span>
+          </button>
           {onAddToContext && (
             <button
               onClick={e => {
@@ -111,7 +176,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
                 onAddToContext(e);
               }}
               title="Attach to Assistant context (+ Context)"
-              className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[0.7188rem] font-mono font-semibold"
+              className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[0.7188rem] font-mono font-semibold cursor-pointer"
             >
               <Plus className="w-2.5 h-2.5" />
               <span>Chat</span>

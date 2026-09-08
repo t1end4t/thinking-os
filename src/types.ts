@@ -95,6 +95,18 @@ export interface PaperSection {
   paragraphs: PaperParagraph[];
 }
 
+export type HighlightColor = 'amber' | 'emerald' | 'sky' | 'rose' | 'purple';
+
+export interface PaperHighlight {
+  id: string;
+  text: string;
+  color?: HighlightColor;
+  pageNumber?: number;
+  createdAt: number;
+  note?: string;
+  sectionId?: string;
+}
+
 export interface Paper {
   id: string;
   title: string;
@@ -104,6 +116,13 @@ export interface Paper {
   pageCount: number;
   markdown: string;
   sections: PaperSection[];
+  doi?: string;
+  url?: string;
+  pdfUrl?: string;
+  abstract?: string;
+  journal?: string;
+  highlights?: PaperHighlight[];
+  createdAt?: number;
 }
 
 export type ExperimentStatus = 'planned' | 'running' | 'done';

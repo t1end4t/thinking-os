@@ -13,7 +13,8 @@ import {
   HelpCircle,
   Sparkles,
   Plus,
-  GitFork
+  GitFork,
+  AlertCircle
 } from 'lucide-react';
 
 export const MapSurface: React.FC = () => {
@@ -37,6 +38,9 @@ export const MapSurface: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeView, setActiveView] = useState<'map' | 'detail'>('map');
   const [creating, setCreating] = useState(false);
+  const [targetKind, setTargetKind] = useState<'question' | 'claim' | 'evidence'>('question');
+  const [targetParentId, setTargetParentId] = useState<string>('');
+  const [initialEditMode, setInitialEditMode] = useState(false);
 
   // Pan & Zoom state
   const [scale, setScale] = useState<number>(1);
@@ -241,8 +245,13 @@ export const MapSurface: React.FC = () => {
   const handleEdgeClick = (edge: LayoutEdge) => {
     if (edge.linkId) {
       setSelectedLinkId(edge.linkId);
-      setSelectedNodeId(null);
     }
+    if (edge.sourceId) {
+      setSelectedNodeId(edge.sourceId);
+    }
+    setCreating(false);
+    setInitialEditMode(false);
+    setActiveView('detail');
   };
 
   // Drag edge into chat dock
@@ -284,8 +293,28 @@ export const MapSurface: React.FC = () => {
 
   // Handle Node Click
   const handleNodeClick = (node: LayoutNode) => {
+    // If clicking an argument gap ghost node: navigate directly to Detail creator
+    if (node.isGhost) {
+      if (node.parentId) {
+        setSelectedNodeId(node.parentId);
+      }
+      if (node.ghostType) {
+        setTargetKind(node.ghostType);
+        setTargetParentId(node.parentId || '');
+        setCreating(true);
+      }
+      setInitialEditMode(false);
+      setActiveView('detail');
+      return;
+    }
+
+    // Standard node: navigate to Detail view with this entity selected and ready to edit
     setSelectedNodeId(node.id);
     setSelectedLinkId(null);
+    setCreating(false);
+    setInitialEditMode(true);
+    setActiveView('detail');
+
     const nodeObj = {
       type: 'node' as const,
       id: node.id,
@@ -436,12 +465,35 @@ export const MapSurface: React.FC = () => {
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
             Missing <span className="opacity-70 text-[0.6875rem]">({linkCounts.missing})</span>
           </button>
+          {linkCounts.missing > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView('detail');
+                setSelectedNodeId(null);
+              }}
+              title="Open Detail view to inspect and resolve argument gaps"
+              className="px-2 py-0.5 rounded-lg text-xs font-mono font-semibold flex items-center gap-1 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors ml-1 cursor-pointer"
+            >
+              <AlertCircle size={11} className="text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>Gaps → Detail</span>
+            </button>
+          )}
         </nav>}
         </div>
       </header>
 
       {activeView === 'detail' ? (
-        <DetailView creating={creating} onCreatingChange={setCreating} />
+        <DetailView
+          creating={creating}
+          onCreatingChange={setCreating}
+          targetKind={targetKind}
+          targetParentId={targetParentId}
+          onTargetKindChange={setTargetKind}
+          onTargetParentIdChange={setTargetParentId}
+          initialEditMode={initialEditMode}
+          onBackToMap={() => setActiveView('map')}
+        />
       ) : (
       <div
         id="map-canvas-container"
