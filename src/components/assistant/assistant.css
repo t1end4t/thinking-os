@@ -1,0 +1,27 @@
+.assistant-dock { font-size: var(--assistant-font-size, 14px); }
+.assistant-user-message { background: var(--accent-indigo-soft); color: var(--color-ink); border: 1px solid color-mix(in srgb, var(--accent-indigo) 35%, var(--color-rule)); }
+.assistant-dock .text-xs { font-size: var(--assistant-font-size); }
+.assistant-dock [class~="text-[0.8125rem]"] { font-size: var(--assistant-font-size); }
+.assistant-dock [class~="text-[0.75rem]"] { font-size: calc(var(--assistant-font-size) * .86); }
+.assistant-dock [class~="text-[0.6875rem]"] { font-size: calc(var(--assistant-font-size) * .78); }
+.assistant-dock [class~="text-[0.625rem]"] { font-size: calc(var(--assistant-font-size) * .72); }
+.assistant-dock button:disabled { opacity: .5; cursor: default; }
+.assistant-dock button:focus-visible,
+.assistant-dock select:focus-visible { outline: 2px solid var(--accent-indigo); outline-offset: 2px; }
+.assistant-activity-state { font-size: .8em; opacity: .8; white-space: nowrap; }
+.assistant-markdown { font-size: var(--assistant-font-size); line-height: 1.65; }
+.assistant-markdown > :first-child { margin-top: 0; padding-top: 0; }
+.assistant-markdown > :last-child { margin-bottom: 0; }
+.assistant-markdown :is(p, ul, ol, blockquote) { font-size: 1em; line-height: inherit; }
+.assistant-markdown h1 { font-size: 1.4em; }
+.assistant-markdown h2 { font-size: 1.2em; }
+.assistant-markdown :is(h3, h4) { font-size: 1.05em; }
+.assistant-markdown :is(h1, h2, h3, h4) { font-family: inherit; letter-spacing: normal; text-transform: none; }
+.assistant-markdown :is(pre, code, table) { font-size: .9em; }
+.assistant-markdown pre { white-space: pre; overflow-wrap: normal; }
+.assistant-markdown pre code { font-size: inherit; }
+.assistant-markdown a { display: inline; }
+.assistant-dock textarea { font: inherit; line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-dock .animate-spin { animation: none; }
+}

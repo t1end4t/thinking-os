@@ -202,6 +202,9 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
       // Link
       const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch) {
+        try {
+          if (!['http:', 'https:', 'mailto:'].includes(new URL(linkMatch[2], 'http://localhost').protocol)) return <span key={idx}>{linkMatch[1]}</span>;
+        } catch { return <span key={idx}>{linkMatch[1]}</span>; }
         return (
           <a
             key={idx}

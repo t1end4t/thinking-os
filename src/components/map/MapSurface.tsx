@@ -23,6 +23,7 @@ export const MapSurface: React.FC = () => {
     claims,
     evidence,
     links,
+    fontSize,
     activeTag,
     linkStatusFilter,
     setLinkStatusFilter,
@@ -60,9 +61,10 @@ export const MapSurface: React.FC = () => {
       evidence,
       links,
       activeTag,
-      linkStatusFilter
+      linkStatusFilter,
+      fontSize
     );
-  }, [questions, claims, evidence, links, activeTag, linkStatusFilter]);
+  }, [questions, claims, evidence, links, activeTag, linkStatusFilter, fontSize]);
 
   // Aggregate link counts by status
   const linkCounts = useMemo(() => {

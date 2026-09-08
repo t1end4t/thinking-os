@@ -47,14 +47,10 @@ export const PapersSurface: React.FC = () => {
   } = useWorkspace();
 
   // Multi-tab state: open paper IDs
-  const [openTabIds, setOpenTabIds] = useState<string[]>(() => {
-    return papers.length > 0 ? papers.map(p => p.id) : [];
-  });
+  const [openTabIds, setOpenTabIds] = useState<string[]>([]);
 
   // Active view: 'vault' (full Vault card/list view) OR a paperId (reader tab)
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    return papers[0]?.id || 'vault';
-  });
+  const [activeTab, setActiveTab] = useState<string>('vault');
 
   // Vault View Layout: 'cards' | 'list'
   const [vaultLayout, setVaultLayout] = useState<'cards' | 'list'>('cards');

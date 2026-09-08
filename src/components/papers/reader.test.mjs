@@ -29,6 +29,10 @@ const openReader = async () => {
   await page.goto(baseUrl);
   await page.waitForLoadState('networkidle');
   await page.getByRole('button', { name: 'Research / Papers' }).click();
+  await page.getByText('No reader tabs open. Select a paper from the vault.').waitFor();
+  assert.equal(await page.locator('[aria-label^="Reader tab"]').count(), 0);
+  assert.equal(await page.locator('.pdf-reader').count(), 0, 'entering Papers must show the library without opening PDFs');
+  await page.getByText('Continuous Reading Test Paper', { exact: true }).click();
   await page.waitForSelector('.pdf-page canvas');
   await page.waitForFunction(() => document.querySelectorAll('.pdf-text-layer span').length > 10);
 };
@@ -64,6 +68,9 @@ try {
   assert.ok(await page.locator('.pdf-highlight').count() > 0, 'highlights must survive a reload');
 
   const tabs = page.locator('[aria-label^="Reader tab"]');
+  assert.equal(await tabs.count(), 1, 'only the selected paper must open');
+  await page.getByRole('button', { name: 'Vault Library (2)', exact: true }).click();
+  await page.getByText('Second Tab Paper', { exact: true }).click();
   const before = await tabs.count();
   await page.locator('[aria-label^="Close tab"]').first().click();
   await page.waitForFunction(count => document.querySelectorAll('[aria-label^="Reader tab"]').length === count,

@@ -30,7 +30,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   // GHOST node: interactive argument gap card leading to Detail view
   if (node.isGhost) {
     return (
-      <div
+      <button
+        type="button"
         id={`node-${node.id}`}
         style={{
           left: node.x,
@@ -51,50 +52,33 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         title="Argument Gap: Click to resolve and edit in Detail tab"
-        className={`absolute border-2 border-dashed border-amber-400/80 dark:border-amber-500/70 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/60 dark:hover:bg-amber-950/40 hover:border-amber-500 rounded-xl p-3.5 flex flex-col justify-between cursor-pointer select-none transition-all duration-150 group shadow-2xs hover:shadow-md hover:scale-[1.01] pointer-events-auto z-10 ${
-          isDimmed ? 'opacity-25' : 'opacity-90 hover:opacity-100'
+        className={`absolute border-2 border-dashed border-[var(--color-missing)] bg-[var(--accent-rose-soft)] rounded-xl p-3 flex flex-col justify-between gap-2 text-left cursor-pointer select-none transition-shadow duration-150 group shadow-2xs hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-missing)] pointer-events-auto z-10 ${
+          isDimmed ? 'opacity-25' : ''
         }`}
       >
-        <div className="flex items-center justify-between gap-1.5">
-          <span className="inline-flex items-center gap-1 font-mono text-[0.6875rem] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-100/90 dark:bg-amber-900/60 px-2 py-0.5 rounded border border-amber-300/40 dark:border-amber-800/60">
-            <AlertCircle size={11} className="shrink-0 text-amber-600 dark:text-amber-400" />
-            Argument Gap
-          </span>
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation();
-              onClick();
-            }}
-            className="font-mono text-[0.6875rem] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline inline-flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
-          >
-            Resolve in Detail <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5" />
-          </button>
-        </div>
+        <span className="inline-flex items-center gap-1 font-mono text-[0.6875rem] font-bold uppercase tracking-wider text-[var(--color-missing)] shrink-0">
+          <AlertCircle size={12} className="shrink-0" />
+          Argument Gap
+        </span>
 
-        <div className="flex flex-col gap-0.5 my-auto">
-          <p className="font-mono text-xs text-[var(--color-ink)] font-semibold leading-tight line-clamp-2">
+        <span className="flex flex-col gap-0.5">
+          <span className="font-mono text-xs text-[var(--color-ink)] font-semibold leading-tight">
             {node.title}
-          </p>
+          </span>
           <span className="text-[0.7188rem] text-[var(--color-ink-muted)]">
             Needs {node.ghostType === 'claim' ? 'answering claim' : 'grounding evidence'}
           </span>
-        </div>
+        </span>
 
-        <div className="pt-1.5 border-t border-amber-200/60 dark:border-amber-900/40 flex items-center justify-between text-[0.6875rem] font-mono text-[var(--color-ink-muted)]">
-          <span>Click to fill gap</span>
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation();
-              onClick();
-            }}
-            className="text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer bg-transparent border-none p-0"
-          >
-            + Add {node.ghostType === 'claim' ? 'Claim' : 'Evidence'}
-          </button>
-        </div>
-      </div>
+        <span className="w-full pt-1.5 border-t border-[var(--color-missing)]/25 flex items-center justify-between gap-2 shrink-0 text-[0.6875rem] font-mono">
+          <span className="inline-flex items-center gap-1 text-[var(--color-missing)] font-semibold group-hover:underline">
+            <Plus size={12} className="shrink-0" /> Add {node.ghostType === 'claim' ? 'Claim' : 'Evidence'}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[var(--color-ink-muted)]">
+            Open Detail <ArrowRight size={11} className="shrink-0" />
+          </span>
+        </span>
+      </button>
     );
   }
 

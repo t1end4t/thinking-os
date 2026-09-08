@@ -351,8 +351,8 @@
   gap: 8px;
   padding: 7px 12px;
   border-radius: 8px;
-  border: 1px dashed color-mix(in srgb, var(--color-weak) 60%, var(--color-rule));
-  background: color-mix(in srgb, var(--color-weak) 8%, var(--color-surface));
+  border: 1px dashed color-mix(in srgb, var(--color-missing) 60%, var(--color-rule));
+  background: color-mix(in srgb, var(--color-missing) 8%, var(--color-surface));
   color: var(--color-ink);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.7188rem;
@@ -362,8 +362,8 @@
 }
 
 .argument-gap-btn:hover {
-  border-color: var(--color-weak);
-  background: color-mix(in srgb, var(--color-weak) 14%, var(--color-surface));
+  border-color: var(--color-missing);
+  background: color-mix(in srgb, var(--color-missing) 14%, var(--color-surface));
   transform: translateX(2px);
 }
 

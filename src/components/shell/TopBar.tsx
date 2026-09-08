@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Search,
   PanelRight,
@@ -7,11 +7,12 @@ import {
   Type,
   X,
   Moon,
-  Sun,
   Folder,
   FolderOpen,
   Home,
-  ChevronLeft
+  ChevronLeft,
+  Bot,
+  Cpu
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, WorkspaceDirListing } from '../../vaultClient';
@@ -35,13 +36,21 @@ export const TopBar: React.FC = () => {
     setWorkspaceDir,
     loadSampleData,
     theme,
-    toggleTheme
+    toggleTheme,
+    darkVariant,
+    setDarkVariant,
+    codexAssistant
   } = useWorkspace();
 
   const [folderPicker, setFolderPicker] = useState<WorkspaceDirListing | null>(null);
   const [folderPickerLoading, setFolderPickerLoading] = useState(false);
   const [folderPickerError, setFolderPickerError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const settingsDialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (showSettings && !settingsDialog.current?.open) settingsDialog.current?.showModal();
+  }, [showSettings]);
 
   const browseFolder = async (dir: string) => {
     setFolderPickerLoading(true);
@@ -182,22 +191,13 @@ export const TopBar: React.FC = () => {
 
       {/* Right: Settings, Theme and Dock Toggle */}
       <div className="topbar-actions relative flex items-center gap-2.5 shrink-0">
-        <button
-          id="theme-toggle-btn"
-          type="button"
-          onClick={toggleTheme}
-          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          className="px-2.5 py-1.5 rounded-full border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)] hover:border-slate-400/60 font-mono text-[0.75rem] flex items-center gap-1.5 transition-all shadow-2xs"
-        >
-          {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          <span className="topbar-control-label">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-        </button>
 
         <button
           id="app-settings-btn"
           onClick={() => setShowSettings(current => !current)}
-          title="Display settings"
+          title="Settings"
+          aria-label="Settings"
+          aria-haspopup="dialog"
           aria-expanded={showSettings}
           className={`px-2.5 py-1.5 rounded-full border font-mono text-[0.75rem] flex items-center gap-1.5 transition-all shadow-2xs ${
             showSettings
@@ -206,31 +206,32 @@ export const TopBar: React.FC = () => {
           }`}
         >
           <Settings className="w-3.5 h-3.5" />
-          <span className="topbar-control-label">{fontSize}px</span>
+          <span className="topbar-control-label">Settings</span>
         </button>
 
         {showSettings && (
-          <div
-            className="kanban-modal-backdrop"
-            onMouseDown={event => {
-              if (event.target === event.currentTarget) setShowSettings(false);
-            }}
-          >
-            <div
+            <dialog
+              ref={settingsDialog}
               id="app-settings-popover"
               role="dialog"
               aria-modal="true"
               aria-labelledby="app-settings-title"
-              className="kanban-modal-panel"
+              className="kanban-modal-panel app-settings-dialog"
+              onClose={() => setShowSettings(false)}
+              onClick={event => {
+                if (event.target !== event.currentTarget) return;
+                const bounds = event.currentTarget.getBoundingClientRect();
+                if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.currentTarget.close();
+              }}
             >
               <div className="kanban-modal-header">
                 <h2 id="app-settings-title" className="kanban-modal-heading flex items-center gap-2">
                   <Settings className="w-3.5 h-3.5 text-indigo-500" />
-                  Display settings
+                  Settings
                 </h2>
                 <button
                   type="button"
-                  onClick={() => setShowSettings(false)}
+                  onClick={() => settingsDialog.current?.close()}
                   aria-label="Close settings"
                   className="p-1 rounded text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)]"
                 >
@@ -238,10 +239,10 @@ export const TopBar: React.FC = () => {
                 </button>
               </div>
 
-              <div className="p-5">
+              <div className="p-5 overflow-y-auto">
                 <div className="flex items-center gap-2 mb-3 font-mono text-xs font-semibold text-[var(--color-ink)]">
                   <Type className="w-3.5 h-3.5 text-indigo-500" />
-                  Font size
+                  Interface font size · {fontSize}px
                 </div>
 
                 <div className="grid grid-cols-5 gap-1.5">
@@ -273,6 +274,100 @@ export const TopBar: React.FC = () => {
                 />
 
                 <div className="mt-5 pt-4 border-t border-[var(--color-rule)]">
+                  <div className="flex items-center gap-2 mb-3 font-mono text-xs font-semibold text-[var(--color-ink)]">
+                    <Bot className="w-3.5 h-3.5 text-indigo-500" />
+                    Assistant panel font size
+                  </div>
+                  <input
+                    aria-label="Assistant panel font size"
+                    type="range"
+                    min="11"
+                    max="24"
+                    step="1"
+                    value={codexAssistant.preferences.fontSize}
+                    onChange={event => codexAssistant.setPreferences(current => ({ ...current, fontSize: Number(event.target.value) }))}
+                    className="h-1.5 w-full cursor-pointer accent-indigo-600"
+                  />
+                  <p className="mt-1 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">{codexAssistant.preferences.fontSize}px</p>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-[var(--color-rule)]">
+                  <div className="flex items-center gap-2 mb-1 font-mono text-xs font-semibold text-[var(--color-ink)]">
+                    <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                    Appearance
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="rounded-md border border-[var(--color-rule)] px-2.5 py-1 font-mono text-[0.75rem] text-[var(--color-ink)] hover:border-indigo-400"
+                    >
+                      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                    </button>
+                    {theme === 'dark' && (['claude', 'mocha'] as const).map(variant => (
+                      <button
+                        key={variant}
+                        type="button"
+                        onClick={() => setDarkVariant(variant)}
+                        aria-pressed={darkVariant === variant}
+                        className={`rounded-md border px-2.5 py-1 font-mono text-[0.75rem] capitalize transition-colors ${
+                          darkVariant === variant
+                            ? 'border-indigo-500 bg-indigo-600 text-white'
+                            : 'border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:border-indigo-300 hover:text-[var(--color-ink)]'
+                        }`}
+                      >
+                        {variant}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-[var(--color-rule)]">
+                  <div className="flex items-center gap-2 mb-1 font-mono text-xs font-semibold text-[var(--color-ink)]">
+                    <Cpu className="w-3.5 h-3.5 text-indigo-500" />
+                    Assistant model
+                  </div>
+                  <p className="mb-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
+                    Providers and credentials come from your local Codex configuration; this only chooses which to use.
+                  </p>
+                  <label className="form-field mb-2">
+                    <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Provider</span>
+                    <select
+                      aria-label="Provider"
+                      value={codexAssistant.preferences.provider}
+                      onChange={event => codexAssistant.setPreferences(current => ({ ...current, provider: event.target.value }))}
+                    >
+                      <option value="">
+                        Codex default{codexAssistant.configuration.provider ? ` (${codexAssistant.configuration.provider})` : ''}
+                      </option>
+                      {codexAssistant.configuration.providers.map(provider => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.label}{provider.baseUrl ? ` — ${provider.baseUrl}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Model</span>
+                    <input
+                      aria-label="Model"
+                      value={codexAssistant.preferences.model}
+                      maxLength={120}
+                      onChange={event => codexAssistant.setPreferences(current => ({ ...current, model: event.target.value }))}
+                      placeholder={codexAssistant.configuration.model || 'Codex default'}
+                      spellCheck={false}
+                    />
+                  </label>
+                  {codexAssistant.configurationError && (
+                    <p role="alert" className="mt-2 text-[0.6875rem] text-[var(--color-missing)]">{codexAssistant.configurationError}</p>
+                  )}
+                  <div className="mt-2 flex items-center justify-between gap-2 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
+                    <span>Applies to new conversations.</span>
+                    <button type="button" className="underline" onClick={() => void codexAssistant.reloadConfiguration()}>Reload local config</button>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-[var(--color-rule)]">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-xs font-semibold text-[var(--color-ink)]">
@@ -286,7 +381,7 @@ export const TopBar: React.FC = () => {
                       type="button"
                       onClick={async () => {
                         await loadSampleData();
-                        setShowSettings(false);
+                        settingsDialog.current?.close();
                       }}
                       className="shrink-0 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-[var(--color-rule)] text-[var(--color-ink)] font-mono text-[0.75rem] hover:border-indigo-400 hover:text-indigo-600 transition-colors"
                     >
@@ -295,8 +390,7 @@ export const TopBar: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </dialog>
         )}
 
         <button

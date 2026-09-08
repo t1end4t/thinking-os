@@ -1,0 +1,154 @@
+import { Codex } from '@openai/codex-sdk';
+import { parse } from 'smol-toml';
+import { readFile, realpath, stat } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import path from 'node:path';
+import { resolveVaultDir } from './vault.mjs';
+
+const BODY_LIMIT = 64 * 1024;
+const TURN_TIMEOUT_MS = 10 * 60 * 1000;
+
+export function parseCodexConfig(toml = '') {
+  const config = parse(toml);
+  const provider = typeof config.model_provider === 'string' ? config.model_provider : '';
+  const providers = Object.entries(config.model_providers ?? {}).map(([id, entry]) => {
+    let baseUrl = '';
+    try {
+      const url = new URL(entry.base_url);
+      if (['http:', 'https:'].includes(url.protocol)) baseUrl = `${url.origin}${url.pathname}`;
+    } catch {}
+    return { id, label: typeof entry.name === 'string' ? entry.name : id, baseUrl };
+  });
+  if (provider && !providers.some(entry => entry.id === provider)) providers.unshift({ id: provider, label: provider, baseUrl: '' });
+  return { model: typeof config.model === 'string' ? config.model : '', provider, providers };
+}
+
+export function isLocalRequest(req) {
+  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress)) return false;
+  try {
+    const url = new URL(`http://${req.headers.host}`);
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return false;
+    const origin = req.headers.origin;
+    return (!origin || origin === url.origin) && req.headers['sec-fetch-site'] !== 'cross-site';
+  } catch {
+    return false;
+  }
+}
+
+const OPTIONAL_ID = /^[\w./:-]{1,120}$/;
+
+async function readTurnRequest(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > BODY_LIMIT) throw new Error('Message exceeds 64 KiB.');
+    chunks.push(chunk);
+  }
+  const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  const optional = value => value === undefined || (typeof value === 'string' && OPTIONAL_ID.test(value));
+  if (!body || typeof body !== 'object' ||
+      body.agent !== 'codex' ||
+      typeof body.message !== 'string' || !body.message.trim() ||
+      typeof body.dir !== 'string' || !body.dir.trim() || body.dir.includes('\0') ||
+      typeof body.conversationId !== 'string' || !/^[\da-f-]{36}$/i.test(body.conversationId) ||
+      !optional(body.threadId) || !optional(body.model) || !optional(body.provider)) {
+    throw new Error('Invalid assistant request.');
+  }
+  return body;
+}
+
+export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options })) {
+  const threads = new Map();
+  const controllers = new Set();
+  const clients = new Map();
+
+  function clientFor(provider) {
+    const key = provider ?? '';
+    if (!clients.has(key)) clients.set(key, createCodex(provider ? { config: { model_provider: provider } } : {}));
+    return clients.get(key);
+  }
+
+  function shutdown() {
+    for (const controller of controllers) controller.abort();
+    threads.clear();
+  }
+
+  function attach(server) {
+    server.httpServer?.once('close', shutdown);
+    server.middlewares.use('/api/assistant', async (req, res) => {
+      const send = (code, payload) => {
+        res.statusCode = code;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify(payload));
+      };
+      if (!isLocalRequest(req)) return send(403, { error: 'The assistant requires a same-origin localhost connection. Open http://localhost:3000.' });
+
+      if (req.method === 'GET') {
+        let config = { model: '', provider: '', providers: [] };
+        try {
+          const home = process.env.CODEX_HOME || path.join(homedir(), '.codex');
+          config = parseCodexConfig(await readFile(path.join(home, 'config.toml'), 'utf8'));
+        } catch (error) {
+          if (error.code !== 'ENOENT') return send(500, { error: 'Could not read local Codex configuration.' });
+        }
+        return send(200, { agents: [{ id: 'codex', label: 'Codex' }], ...config });
+      }
+      if (req.method !== 'POST') return send(405, { error: 'Only GET and POST are supported.' });
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') return send(415, { error: 'Expected application/json.' });
+      if (Number(req.headers['content-length']) > BODY_LIMIT) return send(413, { error: 'Message exceeds 64 KiB.' });
+
+      let body;
+      let dir;
+      try {
+        body = await readTurnRequest(req);
+        dir = await realpath(resolveVaultDir(body.dir));
+        if (!(await stat(dir)).isDirectory()) throw new Error('Workspace folder must be a directory.');
+      } catch (error) {
+        return send(400, { error: String(error.message) });
+      }
+      if (res.destroyed) return;
+      if (controllers.size) return send(409, { error: 'The assistant is already running. Stop it or wait for completion.' });
+
+      const controller = new AbortController();
+      controllers.add(controller);
+      const abort = () => controller.abort();
+      res.once('close', abort);
+      const timeout = setTimeout(abort, TURN_TIMEOUT_MS);
+      const emit = event => {
+        if (!res.destroyed) res.write(`${JSON.stringify(event)}\n`);
+      };
+      res.setHeader('content-type', 'application/x-ndjson');
+      res.setHeader('cache-control', 'no-store');
+      res.setHeader('x-accel-buffering', 'no');
+      res.flushHeaders();
+      try {
+        const key = [dir, body.conversationId, body.model ?? '', body.provider ?? ''].join('\0');
+        let thread = threads.get(key);
+        if (!thread) {
+          const options = {
+            workingDirectory: dir,
+            sandboxMode: 'read-only',
+            approvalPolicy: 'never',
+            skipGitRepoCheck: true,
+            ...(body.model ? { model: body.model } : {})
+          };
+          const codex = clientFor(body.provider);
+          thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
+          threads.set(key, thread);
+        }
+        const { events } = await thread.runStreamed(body.message, { signal: controller.signal });
+        for await (const event of events) emit(event);
+      } catch (error) {
+        emit({ type: 'error', message: controller.signal.aborted ? 'The assistant stopped or timed out.' : String(error.message) });
+      } finally {
+        clearTimeout(timeout);
+        res.off('close', abort);
+        controllers.delete(controller);
+        res.end();
+      }
+    });
+  }
+
+  return { name: 'thinking-os-assistant', configureServer: attach, configurePreviewServer: attach, closeBundle: shutdown };
+}

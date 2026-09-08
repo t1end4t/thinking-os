@@ -535,7 +535,7 @@ export const ArgumentTree: React.FC<ArgumentTreeProps> = ({
                 title={`Argument Gap: Click to add ${node.kind === 'question' ? 'claim' : 'evidence'} to ground this ${node.kind}`}
               >
                 <span className="flex items-center gap-1.5 min-w-0">
-                  <AlertCircle size={12} className="text-amber-500 shrink-0" />
+                  <AlertCircle size={12} className="text-[var(--color-missing)] shrink-0" />
                   <span className="truncate">
                     Argument Gap: No {node.kind === 'question' ? 'answering claims' : 'grounding evidence'} attached
                   </span>

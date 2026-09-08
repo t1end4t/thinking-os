@@ -10,13 +10,15 @@
     "preview": "THINKING_OS_RUNTIME_EXEC=1 vite preview --host 0.0.0.0 --port 3000"
   },
   "dependencies": {
+    "@openai/codex-sdk": "^0.153.4",
     "@types/katex": "^0.16.8",
     "katex": "^0.18.7",
     "lucide-react": "^1.16.0",
     "motion": "^12.4.7",
     "pdfjs-dist": "4.4.168",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "smol-toml": "^1.8.0"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",

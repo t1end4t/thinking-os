@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { vaultPlugin } from './server/vault.mjs';
 import { runtimePlugin } from './server/runtime.mjs';
 import { agentEnvPlugin } from './server/agentEnv.mjs';
+import { agentPlugin } from './server/agent.mjs';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,7 +13,8 @@ export default defineConfig({
     tailwindcss(),
     vaultPlugin(),
     runtimePlugin(),
-    agentEnvPlugin()
+    agentEnvPlugin(),
+    agentPlugin()
   ],
   server: {
     port: 3000,

@@ -29,6 +29,7 @@ import {
 import { LearningUnit, LearnBlock, LearnSource, LearnViewMode } from '../learnTypes';
 import { normalizeLearningUnit, scheduleCard } from '../utils/learnBlocks';
 import { loadVault, saveVault } from '../vaultClient';
+import { useCodexAssistant } from './useCodexAssistant';
 import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import {
   ManuscriptWorkspaceValue,
@@ -105,6 +106,7 @@ const INITIAL_THREADS: Record<string, AssistantMessage[]> = {
 };
 
 interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
+  codexAssistant: ReturnType<typeof useCodexAssistant>;
   workspaceDir: string;
   workspaceLoading: boolean;
   workspaceError: string | null;
@@ -115,6 +117,8 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   setActiveSurface: (surface: SurfaceId) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  darkVariant: 'claude' | 'mocha';
+  setDarkVariant: (variant: 'claude' | 'mocha') => void;
   fontSize: number;
   setFontSize: (size: number) => void;
   
@@ -254,12 +258,16 @@ const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefi
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [workspaceDir, setWorkspaceDirState] = useState(() => localStorage.getItem('thinking_os_workspace_dir') || '~/second-brain');
+  const codexAssistant = useCodexAssistant(workspaceDir);
   const [workspaceLoading, setWorkspaceLoading] = useState(true);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
   const [activeSurface, setActiveSurface] = useState<SurfaceId>('tasks');
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  );
+  const [darkVariant, setDarkVariantState] = useState<'claude' | 'mocha'>(() =>
+    localStorage.getItem('thinking_os_dark_variant') === 'mocha' ? 'mocha' : 'claude'
   );
   const [fontSize, setFontSizeState] = useState<number>(() => {
     const stored = localStorage.getItem('thinking_os_font_size_px');
@@ -626,8 +634,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     const query = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = (isDark: boolean) => {
-      setTheme(isDark ? 'dark' : 'light');
-      document.documentElement.classList.toggle('dark', isDark);
+      const saved = localStorage.getItem('thinking_os_theme');
+      const next = saved === 'dark' || saved === 'light' ? saved : isDark ? 'dark' : 'light';
+      setTheme(next);
+      document.documentElement.classList.toggle('dark', next === 'dark');
     };
     apply(query.matches);
     const onChange = (event: MediaQueryListEvent) => apply(event.matches);
@@ -638,9 +648,19 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const toggleTheme = useCallback(() => {
     setTheme(current => {
       const next = current === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('thinking_os_theme', next);
       document.documentElement.classList.toggle('dark', next === 'dark');
       return next;
     });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('mocha', darkVariant === 'mocha');
+  }, [darkVariant]);
+
+  const setDarkVariant = useCallback((variant: 'claude' | 'mocha') => {
+    localStorage.setItem('thinking_os_dark_variant', variant);
+    setDarkVariantState(variant);
   }, []);
 
   const toggleDock = useCallback(() => {
@@ -1242,6 +1262,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <WorkspaceContext.Provider
       value={{
+        codexAssistant,
         workspaceDir,
         workspaceLoading,
         workspaceError,
@@ -1249,6 +1270,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activeSurface,
         setActiveSurface,
         theme,
+        darkVariant,
+        setDarkVariant,
         toggleTheme,
         fontSize,
         setFontSize,

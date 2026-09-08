@@ -55,7 +55,7 @@ const NODE_HEIGHT = {
   question: 140,
   claim: 125,
   evidence: 140,
-  ghost: 58
+  ghost: 140
 };
 
 export function computeMapLayout(
@@ -64,10 +64,12 @@ export function computeMapLayout(
   evidence: Evidence[],
   links: Link[],
   activeTag: string,
-  linkStatusFilter: string
+  linkStatusFilter: string,
+  fontSize = 16
 ): ComputedLayout {
   const nodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
+  const ghostHeight = NODE_HEIGHT.ghost * Math.max(1, fontSize / 16);
 
   // Filter questions by active tag if needed
   const filteredQuestions = activeTag === 'all'
@@ -100,7 +102,7 @@ export function computeMapLayout(
         x: COL_X.claim,
         y: ghostY,
         width: NODE_WIDTH.ghost,
-        height: NODE_HEIGHT.ghost,
+        height: ghostHeight,
         parentId: question.id,
         isGhost: true,
         ghostType: 'claim'
@@ -114,12 +116,12 @@ export function computeMapLayout(
         COL_X.question + NODE_WIDTH.question,
         ghostY + NODE_HEIGHT.question / 2, // will be adjusted
         COL_X.claim,
-        ghostY + NODE_HEIGHT.ghost / 2,
+        ghostY + ghostHeight / 2,
         'missing',
         true
       ));
 
-      currentGlobalY += NODE_HEIGHT.ghost + 30;
+      currentGlobalY += ghostHeight + 30;
     } else {
       qClaims.forEach(claim => {
         const cLinks = links.filter(l => l.kind === 'claim-evidence' && l.parentId === claim.id);
@@ -142,13 +144,13 @@ export function computeMapLayout(
             x: COL_X.evidence,
             y: ghostEvY,
             width: NODE_WIDTH.ghost,
-            height: NODE_HEIGHT.ghost,
+            height: ghostHeight,
             parentId: claim.id,
             isGhost: true,
             ghostType: 'evidence'
           });
-          evidenceYPositions.push(ghostEvY + NODE_HEIGHT.ghost / 2);
-          currentGlobalY += NODE_HEIGHT.ghost + Y_GAP_BETWEEN_EVIDENCE;
+          evidenceYPositions.push(ghostEvY + ghostHeight / 2);
+          currentGlobalY += ghostHeight + Y_GAP_BETWEEN_EVIDENCE;
         } else {
           cEvidence.forEach(ev => {
             const evLink = cLinks.find(l => l.childId === ev.id);

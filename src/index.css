@@ -2,54 +2,84 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+.app-settings-dialog { margin: auto; padding: 0; max-height: calc(100dvh - 32px); color: var(--color-ink); }
+.app-settings-dialog::backdrop { background: rgb(0 0 0 / .5); backdrop-filter: blur(3px); }
+
 @layer base {
+  /* Catppuccin Latte */
   :root {
-    --color-paper: #F8F9FA;
-    --color-surface: #FFFFFF;
-    --color-ink: #0F172A;
-    --color-ink-muted: #64748B;
-    --color-rule: #E2E8F0;
-    --color-holds: #059669;
-    --color-weak: #D97706;
-    --color-missing: #E11D48;
-    
+    --color-paper: #E6E9EF;
+    --color-surface: #EFF1F5;
+    --color-ink: #4C4F69;
+    --color-ink-muted: #6C6F85;
+    --color-rule: #CCD0DA;
+    --color-holds: #40A02B;
+    --color-weak: #DF8E1D;
+    --color-missing: #D20F39;
+
     /* Decorative accents */
-    --accent-indigo: #4F46E5;
-    --accent-indigo-soft: #EEF2FF;
-    --accent-amber: #D97706;
-    --accent-amber-soft: #FFFBEB;
-    --accent-emerald: #059669;
-    --accent-emerald-soft: #ECFDF5;
-    --accent-rose: #E11D48;
-    --accent-rose-soft: #FFF1F2;
-    --accent-teal: #0D9488;
-    --accent-teal-soft: #F0FDFA;
-    --accent-sky: #0284C7;
-    --accent-sky-soft: #F0F9FF;
+    --accent-indigo: #7287FD;
+    --accent-indigo-soft: #E8EAFB;
+    --accent-amber: #DF8E1D;
+    --accent-amber-soft: #FAF2E3;
+    --accent-emerald: #40A02B;
+    --accent-emerald-soft: #E9F4E6;
+    --accent-rose: #D20F39;
+    --accent-rose-soft: #FAE6EA;
+    --accent-teal: #179299;
+    --accent-teal-soft: #E4F1F2;
+    --accent-sky: #04A5E5;
+    --accent-sky-soft: #E1F3FA;
   }
 
+  /* Dark default: Claude web palette */
   .dark {
-    --color-paper: #090D15;
-    --color-surface: #111722;
-    --color-ink: #F1F5F9;
-    --color-ink-muted: #94A3B8;
-    --color-rule: #1E293B;
-    --color-holds: #34D399;
-    --color-weak: #FBBF24;
-    --color-missing: #FB7185;
+    --color-paper: #1F1E1D;
+    --color-surface: #262624;
+    --color-ink: #F5F4EF;
+    --color-ink-muted: #B0AEA5;
+    --color-rule: #3A3A37;
+    --color-holds: #7FB77E;
+    --color-weak: #E0A458;
+    --color-missing: #E07A6B;
 
-    --accent-indigo: #818CF8;
-    --accent-indigo-soft: #1E1B4B;
-    --accent-amber: #FBBF24;
-    --accent-amber-soft: #451A03;
-    --accent-emerald: #34D399;
-    --accent-emerald-soft: #064E3B;
-    --accent-rose: #FB7185;
-    --accent-rose-soft: #4C0519;
-    --accent-teal: #2DD4BF;
-    --accent-teal-soft: #134E4A;
-    --accent-sky: #38BDF8;
-    --accent-sky-soft: #0C4A6E;
+    --accent-indigo: #D97757;
+    --accent-indigo-soft: #38302C;
+    --accent-amber: #E0A458;
+    --accent-amber-soft: #35301F;
+    --accent-emerald: #7FB77E;
+    --accent-emerald-soft: #253022;
+    --accent-rose: #E07A6B;
+    --accent-rose-soft: #372725;
+    --accent-teal: #7FBFB6;
+    --accent-teal-soft: #22302E;
+    --accent-sky: #7FB4D9;
+    --accent-sky-soft: #212D36;
+  }
+
+  /* Dark alternative: Catppuccin Mocha */
+  .dark.mocha {
+    --color-paper: #181825;
+    --color-surface: #1E1E2E;
+    --color-ink: #CDD6F4;
+    --color-ink-muted: #A6ADC8;
+    --color-rule: #313244;
+    --color-holds: #A6E3A1;
+    --color-weak: #F9E2AF;
+    --color-missing: #F38BA8;
+
+    --accent-indigo: #B4BEFE;
+    --accent-indigo-soft: #2A2B3C;
+    --accent-amber: #F9E2AF;
+    --accent-amber-soft: #332F26;
+    --accent-emerald: #A6E3A1;
+    --accent-emerald-soft: #26332A;
+    --accent-rose: #F38BA8;
+    --accent-rose-soft: #382630;
+    --accent-teal: #94E2D5;
+    --accent-teal-soft: #243331;
+    --accent-sky: #89DCEB;
+    --accent-sky-soft: #223138;
   }
 
   * {
@@ -94,13 +124,12 @@
 }
 
 .dark .model-hatched {
-  border-left-color: var(--accent-indigo);
   background-image: repeating-linear-gradient(
     45deg,
     transparent,
     transparent 5px,
-    rgba(129, 140, 248, 0.06) 5px,
-    rgba(129, 140, 248, 0.06) 10px
+    color-mix(in srgb, var(--accent-indigo) 8%, transparent) 5px,
+    color-mix(in srgb, var(--accent-indigo) 8%, transparent) 10px
   );
 }
 
@@ -182,10 +211,8 @@
 .kanban-card-id { font: 0.7188rem "IBM Plex Mono", monospace; color: var(--color-ink-muted); }
 
 .kanban-badge { display: inline-flex; align-items: center; gap: 3px; font: 0.7188rem "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 4px; font-weight: 600; flex-shrink: 0; }
-.kanban-badge.urgent { background: #fee2e2; color: #b91c1c; }
-.dark .kanban-badge.urgent { background: #450a0a; color: #fca5a5; }
-.kanban-badge.high { background: #fef3c7; color: #b45309; }
-.dark .kanban-badge.high { background: #451a03; color: #fcd34d; }
+.kanban-badge.urgent { background: var(--accent-rose-soft); color: var(--accent-rose); }
+.kanban-badge.high { background: var(--accent-amber-soft); color: var(--accent-amber); }
 .kanban-badge.medium { background: var(--accent-indigo-soft); color: var(--accent-indigo); }
 .kanban-badge.low { background: var(--color-paper); color: var(--color-ink-muted); border: 1px solid var(--color-rule); }
 
@@ -200,8 +227,7 @@
 .kanban-card-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: auto; }
 .card-action-btn { width: 24px; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--color-ink-muted); display: grid; place-items: center; cursor: pointer; }
 .card-action-btn:hover { background: var(--color-paper); color: var(--color-ink); }
-.card-action-btn.delete:hover { color: #dc2626; background: #fee2e2; }
-.dark .card-action-btn.delete:hover { color: #f87171; background: #450a0a; }
+.card-action-btn.delete:hover { background: var(--accent-rose-soft); color: var(--accent-rose); }
 
 .kanban-modal-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, .45); backdrop-filter: blur(2px); display: grid; place-items: center; padding: 16px; }
 .kanban-modal-panel { width: min(480px, 94vw); max-height: 90vh; background: var(--color-surface); border: 1px solid var(--color-rule); border-radius: 12px; box-shadow: 0 20px 40px rgb(15 23 42 / .2); overflow: hidden; display: flex; flex-direction: column; }
@@ -283,15 +309,11 @@
 .object-meta-row strong { color: var(--color-ink); font-weight: 500; }
 
 .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 999px; font: 600 0.7188rem "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; white-space: nowrap; }
-.status-pill.running, .status-pill.loaded, .status-pill.connected { background: #dcfce7; color: #15803d; }
-.dark .status-pill.running, .dark .status-pill.loaded, .dark .status-pill.connected { background: #052e16; color: #86efac; }
-.status-pill.completed, .status-pill.ready { background: #e0e7ff; color: #4338ca; }
-.dark .status-pill.completed, .dark .status-pill.ready { background: #1e1b4b; color: #a5b4fc; }
-.status-pill.failed, .status-pill.offline { background: #fee2e2; color: #b91c1c; }
-.dark .status-pill.failed, .dark .status-pill.offline { background: #450a0a; color: #fca5a5; }
+.status-pill.running, .status-pill.loaded, .status-pill.connected { background: var(--accent-emerald-soft); color: var(--accent-emerald); }
+.status-pill.completed, .status-pill.ready { background: var(--accent-indigo-soft); color: var(--accent-indigo); }
+.status-pill.failed, .status-pill.offline { background: var(--accent-rose-soft); color: var(--accent-rose); }
 .status-pill.idle, .status-pill.queued { background: var(--color-paper); color: var(--color-ink-muted); border: 1px solid var(--color-rule); }
-.status-pill.busy { background: #fef3c7; color: #b45309; }
-.dark .status-pill.busy { background: #451a03; color: #fcd34d; }
+.status-pill.busy { background: var(--accent-amber-soft); color: var(--accent-amber); }
 
 .pulse-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: pulseAnimation 1.5s infinite; }
 @keyframes pulseAnimation { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(0.85); } }
@@ -325,8 +347,7 @@
 .flow-code { font: 0.75rem "IBM Plex Mono", monospace; color: var(--accent-indigo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .flow-arrow { color: var(--color-ink-muted); font-weight: bold; flex-shrink: 0; }
 .toggle-switch-btn { height: 22px; padding: 0 8px; border: 1px solid var(--color-rule); border-radius: 999px; background: var(--color-surface); color: var(--color-ink-muted); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font: 0.7188rem "IBM Plex Mono", monospace; flex-shrink: 0; white-space: nowrap; }
-.toggle-switch-btn.enabled { background: #dcfce7; color: #15803d; border-color: #86efac; }
-.dark .toggle-switch-btn.enabled { background: #052e16; color: #86efac; border-color: #166534; }
+.toggle-switch-btn.enabled { background: var(--accent-emerald-soft); color: var(--accent-emerald); border-color: color-mix(in srgb, var(--accent-emerald) 45%, transparent); }
 
 /* Target Telemetry */
 .target-usage-box { background: var(--color-paper); border: 1px solid var(--color-rule); border-radius: 7px; padding: 7px 10px; display: flex; flex-direction: column; gap: 2px; }
