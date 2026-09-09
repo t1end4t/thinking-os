@@ -135,7 +135,7 @@ export interface AgentEnvEntry {
   scope: 'global' | 'project';
   projectId: string | null;
   projectName: string | null;
-  category: 'instructions' | 'settings' | 'mcp' | 'skill';
+  category: 'instructions' | 'settings' | 'mcp' | 'skill' | 'template';
   label: string;
   kind: 'markdown' | 'json' | 'toml';
   path: string;

@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Search,
   PanelRight,
-  Tag,
   Settings,
   Type,
   X,
@@ -23,11 +21,6 @@ export const TopBar: React.FC = () => {
   const {
     fontSize,
     setFontSize,
-    activeTag,
-    setActiveTag,
-    availableTags,
-    searchQuery,
-    setSearchQuery,
     isDockOpen,
     toggleDock,
     workspaceDir,
@@ -151,43 +144,6 @@ export const TopBar: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Center: Filters and Search */}
-      <div className="topbar-center flex items-center gap-3">
-        {/* Tag filter */}
-        <div className="flex items-center gap-1.5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-full px-3 py-1 shadow-2xs hover:border-slate-400/60 transition-colors">
-          <Tag className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-          <select
-            id="tag-filter-select"
-            value={activeTag}
-            onChange={e => setActiveTag(e.target.value)}
-            className="bg-transparent text-[var(--color-ink)] text-xs font-medium focus:outline-none cursor-pointer pr-1"
-          >
-            <option value="all">All Topics</option>
-            {availableTags.map(tag => (
-              <option key={tag} value={tag}>
-                #{tag}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Search */}
-        <div className="relative flex items-center">
-          <Search className="w-3.5 h-3.5 absolute left-3 text-slate-400 pointer-events-none" />
-          <input
-            id="global-search-input"
-            type="text"
-            placeholder="Search argument..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-52 pl-8 pr-7 py-1 text-xs bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-full text-[var(--color-ink)] placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/15 transition-all shadow-2xs"
-          />
-          <kbd className="absolute right-2.5 px-1.5 py-0.2 text-[0.7188rem] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 border border-[var(--color-rule)] rounded-full pointer-events-none">
-            /
-          </kbd>
-        </div>
-      </div>
 
       {/* Right: Settings, Theme and Dock Toggle */}
       <div className="topbar-actions relative flex items-center gap-2.5 shrink-0">

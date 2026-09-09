@@ -127,9 +127,6 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   setActiveTag: (tag: string) => void;
   linkStatusFilter: 'all' | LinkStatus;
   setLinkStatusFilter: (status: 'all' | LinkStatus) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  availableTags: string[];
 
   // Entities
   questions: Question[];
@@ -282,7 +279,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
   const [activeTag, setActiveTag] = useState<string>('all');
   const [linkStatusFilter, setLinkStatusFilter] = useState<'all' | LinkStatus>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -327,7 +323,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Assistant Dock
   const [isDockOpen, setIsDockOpen] = useState<boolean>(true);
-  const [dockWidth, setDockWidth] = useState<number>(360);
+  const [dockWidth, setDockWidth] = useState<number>(() => Math.max(320, window.innerWidth / 3));
   const [dockPosition, setDockPositionState] = useState<'left' | 'right'>(() => {
     const saved = localStorage.getItem('thinking_os_dock_position');
     return saved === 'left' || saved === 'right' ? saved : 'right';
@@ -671,11 +667,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSelectedNodeId(null);
     setSelectedLinkId(null);
   }, []);
-
-  // Compute available tags
-  const availableTags = Array.from(
-    new Set(questions.flatMap(q => q.tags))
-  ).sort();
 
   // Unclustered open problems count (for the 15-note gate)
   const unclusteredOpenProblemsCount = openProblems.filter(op => !op.candidateId).length;
@@ -1279,9 +1270,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setActiveTag,
         linkStatusFilter,
         setLinkStatusFilter,
-        searchQuery,
-        setSearchQuery,
-        availableTags,
         questions,
         claims,
         evidence,

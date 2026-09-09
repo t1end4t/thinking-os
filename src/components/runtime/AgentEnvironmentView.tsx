@@ -17,6 +17,7 @@ import {
   FolderPlus,
   Home,
   Info,
+  LayoutTemplate,
   Plus,
   PlugZap,
   RefreshCw,
@@ -43,6 +44,14 @@ import { MarkdownPreview } from './MarkdownPreview';
 type AgentFilter = 'all' | AgentEnvEntry['agent'];
 
 const categories = [
+  {
+    id: 'template',
+    label: 'Templates',
+    detail: 'Reusable drafts · not active',
+    icon: LayoutTemplate,
+    accent: 'var(--accent-indigo)',
+    accentSoft: 'var(--accent-indigo-soft)'
+  },
   {
     id: 'instructions',
     label: 'Instructions',
@@ -82,6 +91,7 @@ export function AgentEnvironmentView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
+  const [loadedId, setLoadedId] = useState<string | null>(null);
   const [scope, setScope] = useState<'global' | string>('global');
   const [agentFilter, setAgentFilter] = useState<AgentFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<AgentEnvEntry['category']>('instructions');
@@ -132,20 +142,25 @@ export function AgentEnvironmentView() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     if (!selectedId) {
       setContent('');
       setSavedContent('');
+      setLoadedId(null);
       return;
     }
     setLoading(true);
     setError(null);
     void loadAgentEnvFile(selectedId)
       .then(file => {
+        if (cancelled) return;
         setContent(file.content);
         setSavedContent(file.content);
+        setLoadedId(file.entry.id);
       })
-      .catch(fail)
-      .finally(() => setLoading(false));
+      .catch(caught => { if (!cancelled) fail(caught); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [selectedId]);
 
   // Synchronize scroll between line numbers gutter and textarea
@@ -166,7 +181,7 @@ export function AgentEnvironmentView() {
   };
 
   const scopeEntries = useMemo(
-    () => (snapshot?.entries ?? []).filter(entry => (scope === 'global' ? entry.scope === 'global' : entry.projectId === scope)),
+    () => (snapshot?.entries ?? []).filter(entry => entry.category === 'template' || (scope === 'global' ? entry.scope === 'global' : entry.projectId === scope)),
     [scope, snapshot]
   );
 
@@ -198,10 +213,12 @@ export function AgentEnvironmentView() {
 
   const selectedEntry = snapshot?.entries.find(entry => entry.id === selectedId) ?? null;
   const isDirty = content !== savedContent;
+  const canSave = loadedId === selectedId && !loading && !saving &&
+    (isDirty || (selectedEntry?.category === 'template' && !selectedEntry.exists));
   const activeProject = snapshot?.projects.find(project => project.id === scope) ?? null;
 
   const save = async () => {
-    if (!selectedId || !isDirty) return;
+    if (!selectedId || !canSave) return;
     setSaving(true);
     setError(null);
     try {
@@ -491,7 +508,7 @@ export function AgentEnvironmentView() {
         </div>
 
         {/* 4 Category Segmented Tabs */}
-        <div className="grid grid-cols-2 gap-1.5 p-2.5 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/50">
+        <div className="grid grid-cols-3 md:grid-cols-2 gap-1.5 p-2.5 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/50">
           {categories.map(cat => {
             const Icon = cat.icon;
             const isSelected = categoryFilter === cat.id;
@@ -633,7 +650,7 @@ export function AgentEnvironmentView() {
                           : 'text-[var(--color-ink-muted)] border border-dashed border-[var(--color-rule)]'
                       }`}
                     >
-                      {entry.exists ? 'active' : 'draft'}
+                      {entry.category === 'template' ? (entry.exists ? 'saved' : 'starter') : entry.exists ? 'active' : 'draft'}
                     </span>
                   </div>
 
@@ -682,7 +699,7 @@ export function AgentEnvironmentView() {
         {selectedEntry ? (
           <>
             {/* Context Header Bar */}
-            <header className="flex-shrink-0 px-4 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between gap-4">
+            <header className="flex-shrink-0 px-4 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4">
               <div className="min-w-0 flex-1">
                 {/* Breadcrumb line */}
                 <div className="flex items-center gap-1.5 text-[0.625rem] font-mono text-[var(--color-ink-muted)]">
@@ -724,7 +741,7 @@ export function AgentEnvironmentView() {
               </div>
 
               {/* Action Toolbar */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0 max-w-full">
                 {/* View Mode Toggle: Edit / Preview */}
                 <div className="flex items-center p-0.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)]">
                   <button
@@ -779,18 +796,24 @@ export function AgentEnvironmentView() {
                 <button
                   type="button"
                   onClick={() => void save()}
-                  disabled={!isDirty || saving}
+                  disabled={!canSave}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
-                    isDirty
+                    canSave
                       ? 'bg-[var(--accent-indigo)] text-white shadow-xs hover:opacity-95 cursor-pointer'
                       : 'bg-[var(--color-rule)]/40 text-[var(--color-ink-muted)] cursor-default'
                   }`}
                 >
                   <Save size={13} className={saving ? 'animate-spin' : ''} />
-                  <span>{saving ? 'Saving...' : isDirty ? 'Save (⌘S)' : 'Saved'}</span>
+                  <span>{saving ? 'Saving...' : canSave ? (selectedEntry.category === 'template' ? 'Save template' : 'Save (⌘S)') : 'Saved'}</span>
                 </button>
               </div>
             </header>
+
+            {selectedEntry.category === 'template' && (
+              <div className="px-4 py-2 border-b border-[var(--color-rule)] text-xs font-mono text-[var(--color-ink-muted)]" role="note">
+                Reusable template only. Saving stores a personal copy; it does not change active instructions or apply to a project.
+              </div>
+            )}
 
             {/* Warning banner if Claude user state */}
             {selectedEntry.id === 'claude-user-state' && (
@@ -847,7 +870,7 @@ export function AgentEnvironmentView() {
                     onSelect={e => updateCursor(e.currentTarget)}
                     onClick={e => updateCursor(e.currentTarget)}
                     onKeyUp={e => updateCursor(e.currentTarget)}
-                    disabled={loading}
+                    disabled={loading || saving || loadedId !== selectedId}
                     spellCheck={selectedEntry.kind === 'markdown'}
                     className="flex-1 min-h-0 resize-none border-0 p-4 font-mono text-[0.8125rem] text-[var(--color-ink)] bg-transparent outline-none selection:bg-[var(--accent-indigo-soft)] tab-size-2"
                     style={{ lineHeight: '1.65rem' }}

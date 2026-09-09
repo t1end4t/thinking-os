@@ -1,9 +1,26 @@
 import React, { useMemo } from 'react';
+import { common, createLowlight } from 'lowlight';
+import { CopyButton } from './CopyButton';
+import './markdown.css';
 
 interface MarkdownPreviewProps {
   content: string;
   className?: string;
 }
+
+const lowlight = createLowlight(common);
+
+function renderTokens(nodes: ReturnType<typeof lowlight.highlight>['children']): React.ReactNode {
+  return nodes.map((node, index) => node.type === 'text' ? node.value : node.type === 'element'
+    ? <span key={index} className={Array.isArray(node.properties.className) ? node.properties.className.join(' ') : undefined}>{renderTokens(node.children)}</span>
+    : null);
+}
+
+const HighlightedCode: React.FC<{ code: string; language: string }> = ({ code, language }) => {
+  const highlighted = useMemo(() => lowlight.registered(language.toLowerCase()) && code.length <= 100000
+    ? renderTokens(lowlight.highlight(language.toLowerCase(), code).children) : code, [code, language]);
+  return <code className="syntax-code">{highlighted}</code>;
+};
 
 interface TableData {
   headers: string[];
@@ -272,12 +289,15 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
           case 'code':
             return (
               <div key={idx} className="rounded-lg border border-[var(--color-rule)] overflow-hidden bg-[var(--color-paper)]">
-                <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)]/60 text-[0.6875rem] font-mono text-[var(--color-ink-muted)]">
+                <div className="flex items-center justify-between gap-2 px-3 py-1 border-b border-[var(--color-rule)] bg-[var(--color-surface)]/60 text-[0.6875rem] font-mono text-[var(--color-ink-muted)]">
                   <span className="uppercase font-semibold tracking-wider">{block.language}</span>
-                  <span>{block.code.split('\n').length} lines</span>
+                  <span className="flex items-center gap-1">
+                    <span>{block.code.split('\n').length} lines</span>
+                    <CopyButton value={block.code} label={`Copy ${block.language} code`} />
+                  </span>
                 </div>
                 <pre className="p-3.5 text-[0.8125rem] font-mono overflow-x-auto text-[var(--color-ink)] leading-normal selection:bg-[var(--accent-indigo-soft)]">
-                  <code>{block.code}</code>
+                  <HighlightedCode code={block.code} language={block.language} />
                 </pre>
               </div>
             );

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { isLoopback, isSameOrigin } from './runtime.mjs';
+import { AGENT_TEMPLATES } from './agentTemplates.mjs';
 
 const MAX_CONTENT_BYTES = 1_000_000;
 
@@ -108,6 +109,17 @@ async function listSkills(root, scope, project) {
 export async function listAgentEnv(home = homedir()) {
   const projects = await readProjects(home);
   const entries = [
+    ...AGENT_TEMPLATES.map(([slug, label]) => ({
+      id: `template:${slug}`,
+      agent: 'shared',
+      label,
+      kind: 'markdown',
+      category: 'template',
+      scope: 'global',
+      projectId: null,
+      projectName: null,
+      path: path.join(home, '.thinking-os/templates', `${slug}.md`)
+    })),
     ...GLOBAL_FILES.map(([id, agent, label, relative, kind]) => ({
       id,
       agent,
@@ -147,7 +159,10 @@ async function findEntry(id, home = homedir()) {
 
 export async function readAgentEnvFile(id, home = homedir()) {
   const entry = await findEntry(id, home);
-  return { entry, content: entry.exists ? await readFile(entry.path, 'utf8') : '' };
+  const defaultContent = entry.category === 'template'
+    ? AGENT_TEMPLATES.find(([slug]) => id === `template:${slug}`)[2]
+    : '';
+  return { entry, content: entry.exists ? await readFile(entry.path, 'utf8') : defaultContent };
 }
 
 export async function writeAgentEnvFile(id, content, home = homedir()) {

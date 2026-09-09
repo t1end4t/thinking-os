@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, realpath, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -36,11 +36,11 @@ test('the assistant endpoint stays same-origin and loopback only', () => {
   assert.equal(isLocalRequest({ ...request, headers: { ...request.headers, origin: 'https://evil.example' } }), false);
 });
 
-async function fixture(context, codex, codexHome, clientOptions = []) {
+async function fixture(context, codex, codexHome, clientOptions = [], imageDir) {
   const server = createServer();
   const previousHome = process.env.CODEX_HOME;
   if (codexHome) process.env.CODEX_HOME = codexHome;
-  agentPlugin(options => { clientOptions.push(options); return codex; }).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   context.after(() => {
@@ -50,10 +50,49 @@ async function fixture(context, codex, codexHome, clientOptions = []) {
   });
   const url = `http://127.0.0.1:${server.address().port}/api/assistant`;
   return {
+    url,
     get: () => fetch(url),
     post: (body, options = {}) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), ...options })
   };
 }
+
+test('uploaded images round-trip locally and reach the SDK with text or alone', async context => {
+  const imageDir = await mkdtemp(path.join(tmpdir(), 'thinking-os-images-'));
+  context.after(() => rm(imageDir, { recursive: true, force: true }));
+  const inputs = [];
+  const { url, post } = await fixture(context, { startThread: () => ({
+    runStreamed: async input => {
+      inputs.push(input);
+      return { events: (async function* () { yield { type: 'turn.completed', usage: {} }; })() };
+    }
+  }) }, undefined, [], imageDir);
+  const bytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4z8AAAAMBAQDgYqciAAAAAElFTkSuQmCC', 'base64');
+  const upload = (body, type = 'image/png') => fetch(`${url}/images`, { method: 'POST', headers: { 'content-type': type }, body });
+  const response = await upload(bytes);
+  assert.equal(response.status, 201);
+  const image = { ...(await response.json()), name: 'diagram.png' };
+  assert.match(image.id, /^[a-f0-9]{64}\.png$/);
+  const stored = await fetch(`${url}/images/${image.id}`);
+  assert.equal(stored.headers.get('content-type'), 'image/png');
+  assert.equal(stored.headers.get('x-content-type-options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await stored.arrayBuffer()), bytes);
+  assert.equal((await (await upload(bytes)).json()).id, image.id);
+  for (const message of ['Describe this image', '']) {
+    const turn = await post({ agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), message, images: [image] });
+    assert.equal(turn.status, 200);
+    await turn.text();
+  }
+  const localImage = { type: 'local_image', path: path.join(imageDir, image.id) };
+  assert.deepEqual(inputs, [[{ type: 'text', text: 'Describe this image' }, localImage], [localImage]]);
+  assert.deepEqual(await readFile(localImage.path), bytes);
+  assert.equal((await upload(bytes, 'image/svg+xml')).status, 415);
+  assert.equal((await upload(Buffer.from('not really a PNG image'))).status, 400);
+  assert.equal((await upload(Buffer.alloc(5 * 1024 * 1024 + 1))).status, 413);
+  const body = { agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), message: '', images: [image] };
+  assert.equal((await post({ ...body, images: Array(5).fill(image) })).status, 400);
+  assert.equal((await post({ ...body, images: [{ ...image, id: '../secret.png' }] })).status, 400);
+  assert.equal((await post({ ...body, images: [{ ...image, id: `${'f'.repeat(64)}.png` }] })).status, 400);
+});
 
 test('agent, provider, model, and resumed session reach the SDK; only the message is sent', async context => {
   const starts = [];
@@ -92,7 +131,7 @@ test('agent, provider, model, and resumed session reach the SDK; only the messag
   assert.deepEqual(events.map(event => event.type), ['thread.started', 'item.completed', 'item.completed', 'turn.completed']);
   assert.deepEqual(messages, ['hello\nworld']);
   assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }]);
-  assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), sandboxMode: 'read-only', approvalPolicy: 'never', skipGitRepoCheck: true, model: 'combo-codex' }]);
+  assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true, model: 'combo-codex' }]);
 
   await (await post({ ...body, conversationId: randomUUID(), threadId: 'thread-1' })).text();
   assert.equal(resumes.length, 1);

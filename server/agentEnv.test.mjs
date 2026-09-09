@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,6 +13,7 @@ import {
   removeProject,
   writeAgentEnvFile
 } from './agentEnv.mjs';
+import { AGENT_TEMPLATES } from './agentTemplates.mjs';
 
 async function fixture(label) {
   const root = await mkdtemp(path.join(tmpdir(), `thinking-os-${label}-`));
@@ -73,4 +75,49 @@ test('project registry rejects duplicates and non-directories, and removal keeps
   assert.deepEqual(await readProjects(home), []);
   assert.equal(await readFile(path.join(project, 'AGENTS.md'), 'utf8'), 'keep me\n');
   await assert.rejects(() => readAgentEnvFile(`project:${projectId}:agents`, home), /unknown agent config entry/);
+});
+
+test('templates read bundled starters and save personal copies without touching active files', async t => {
+  const { root, home, project } = await fixture('template');
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const projectId = (await addProject(project, 'dotcode', home))[0].id;
+  await writeAgentEnvFile('codex-instructions', 'existing global instructions\n', home);
+  await writeAgentEnvFile(`project:${projectId}:agents`, 'existing project instructions\n', home);
+  const { entries } = await listAgentEnv(home);
+  const templates = entries.filter(entry => entry.category === 'template');
+
+  assert.equal(templates.length, AGENT_TEMPLATES.length);
+  assert.ok(templates.every(entry => !entry.exists && entry.path.startsWith(path.join(home, '.thinking-os/templates'))));
+
+  const starter = await readAgentEnvFile('template:thinking-modes', home);
+  assert.match(starter.content, /## Explore/);
+  for (const [slug, , content] of AGENT_TEMPLATES) {
+    assert.equal((await readAgentEnvFile(`template:${slug}`, home)).content, content);
+    assert.ok(content.startsWith('# '));
+    assert.ok(!content.includes('\\`'), `${slug} must render Markdown code normally`);
+  }
+  assert.ok(!existsSync(path.join(home, '.thinking-os/templates')));
+
+  await writeAgentEnvFile('template:thinking-modes', 'my modes\nline two\n', home);
+  assert.equal((await readAgentEnvFile('template:thinking-modes', home)).content, 'my modes\nline two\n');
+  assert.equal(
+    await readFile(path.join(home, '.thinking-os/templates/thinking-modes.md'), 'utf8'),
+    'my modes\nline two\n'
+  );
+  const updated = 'Updated\n\n## Evidence\n\n- First line\n- Second line\n\n```text\nkeep spacing\n```\n';
+  const savedEntry = await writeAgentEnvFile('template:thinking-modes', updated, home);
+  assert.equal(savedEntry.exists, true);
+  assert.equal(await readFile(`${savedEntry.path}.bak`, 'utf8'), 'my modes\nline two\n');
+  assert.equal((await readAgentEnvFile('template:thinking-modes', home)).content, updated);
+  assert.equal((await readAgentEnvFile('codex-instructions', home)).content, 'existing global instructions\n');
+  assert.equal((await readAgentEnvFile(`project:${projectId}:agents`, home)).content, 'existing project instructions\n');
+
+  await assert.rejects(() => writeAgentEnvFile('template:../../AGENTS', 'bad', home), /unknown agent config entry/);
+  await assert.rejects(() => writeAgentEnvFile('template:thinking-modes', {}, home), /content must be a string/);
+  await assert.rejects(() => writeAgentEnvFile('template:thinking-modes', 'x'.repeat(1_000_001), home), /content too large/);
+  assert.equal((await readAgentEnvFile('template:thinking-modes', home)).content, updated);
+
+  await rm(savedEntry.path);
+  assert.equal((await readAgentEnvFile('template:thinking-modes', home)).content, starter.content);
 });

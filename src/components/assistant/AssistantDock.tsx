@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Bot, BookOpen, CheckCircle2, ChevronDown, CornerDownLeft, FileText, FlaskConical, HelpCircle,
+  BookOpen, CheckCircle2, ChevronDown, CornerDownLeft, FileText, FlaskConical, HelpCircle,
   Layers, Link as LinkIcon, ListChecks, Loader2, Maximize2, MessageSquarePlus, Minimize2, Search,
-  Sparkles, Square, Terminal, TriangleAlert, X, Paperclip
+  Sparkles, Square, Terminal, TriangleAlert, X, Paperclip, History, Trash2, ImagePlus, Pencil
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { AssistantContextObject } from '../../types';
 import { MarkdownPreview } from '../runtime/MarkdownPreview';
-import type { ChatEntry } from '../../context/useCodexAssistant';
+import { CopyButton } from '../runtime/CopyButton';
+import { isAssistantImage, type AssistantImage, type ChatEntry } from '../../context/useCodexAssistant';
+import { AssistantProjects } from './AssistantProjects';
 import './assistant.css';
 
 const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, className = 'w-3 h-3' }) => {
@@ -32,26 +34,64 @@ const ActivityIcon: React.FC<{ kind: ChatEntry['kind'] }> = ({ kind }) => {
 const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
   const [open, setOpen] = useState(false);
   const failed = entry.state === 'failed';
+  const content = entry.content.trim();
+  const shell = entry.kind === 'command';
+  const expandable = shell || Boolean(content);
+  const status = entry.state === 'complete' ? 'Success' : entry.state === 'running' ? 'Running…'
+    : entry.state === 'stopped' ? 'Stopped' : failed ? 'Failed' : '';
   return (
-    <div className={`rounded-lg border text-[0.75rem] font-mono ${failed ? 'border-rose-300/70 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30' : 'border-[var(--color-rule)] bg-[var(--color-paper)]/60'}`}>
+    <div className={`assistant-activity-entry min-w-0 text-[0.75rem] ${failed ? 'text-rose-600 dark:text-rose-300' : ''}`}>
       <button
         type="button"
         onClick={() => setOpen(current => !current)}
         aria-expanded={open}
-        disabled={!entry.content.trim()}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-left text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] disabled:cursor-default"
+        disabled={!expandable}
+        className="w-full flex items-center gap-1.5 py-1.5 text-left text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] disabled:cursor-default"
       >
         {entry.state === 'running'
           ? <Loader2 className="w-3 h-3 shrink-0 animate-spin" aria-hidden />
           : <ActivityIcon kind={entry.kind} />}
-        <span className="truncate flex-1">{entry.label}</span>
-        {entry.state && entry.kind !== 'warning' && <span className="assistant-activity-state">{entry.state === 'running' ? 'in progress' : entry.state}</span>}
-        {entry.content.trim() && <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />}
+        <span className="truncate flex-1" title={entry.label}>{shell ? `${entry.state === 'running' ? 'Running' : 'Ran'} ${entry.label}` : entry.label}</span>
+        {!shell && entry.state && entry.kind !== 'warning' && <span className="assistant-activity-state">{entry.state === 'running' ? 'in progress' : entry.state}</span>}
+        {expandable && <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />}
       </button>
-      {open && entry.content.trim() && (
-        <pre className="px-2.5 pb-2 pt-0.5 max-h-56 overflow-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[var(--color-ink)]">{entry.content}</pre>
+      {open && content && !shell && (
+        <pre className="font-mono px-2.5 pb-2 pt-0.5 max-h-56 overflow-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-[var(--color-ink)]">{content}</pre>
+      )}
+      {open && shell && (
+        <div className="assistant-activity-shell">
+          <p className="assistant-activity-shell-label">Shell</p>
+          <pre className="assistant-activity-shell-output">{`$ ${entry.label}\n\n${entry.content}`}</pre>
+          {status && <p className="assistant-activity-shell-status">
+            {entry.state === 'complete' && <CheckCircle2 className="w-3 h-3" aria-hidden />}
+            {failed && <TriangleAlert className="w-3 h-3" aria-hidden />}
+            {status}
+          </p>}
+        </div>
       )}
     </div>
+  );
+};
+
+const ActivityGroup: React.FC<{ entries: ChatEntry[]; prompt?: ChatEntry }> = ({ entries, prompt }) => {
+  if (!entries.length && prompt?.state !== 'running') return null;
+  const label = prompt?.state === 'running' ? 'Working…'
+    : prompt?.state === 'stopped' ? 'Stopped'
+    : prompt?.state === 'failed' ? 'Failed'
+    : prompt?.durationMs === undefined ? 'View steps' : `Worked for ${Math.max(1, Math.round(prompt.durationMs / 1000))}s`;
+  return (
+    <details open={prompt?.state === 'running'} className="assistant-activity-group text-[0.75rem] text-[var(--color-ink-muted)]">
+      <summary>
+        {prompt?.state === 'running' && <Loader2 className="w-3 h-3 animate-spin" aria-hidden />}
+        {label}<ChevronDown className="w-3 h-3" aria-hidden />
+      </summary>
+      <div className="flex min-w-0 flex-col gap-4 pt-4">
+        {entries.length ? entries.map(entry => entry.kind
+          ? <ActivityEntry key={entry.id} entry={entry} />
+          : <MarkdownPreview key={entry.id} content={entry.content} className="assistant-markdown" />
+        ) : <p>Waiting for steps…</p>}
+      </div>
+    </details>
   );
 };
 
@@ -61,20 +101,39 @@ export const AssistantDock: React.FC = () => {
     attachedContexts, addAttachedContext, removeAttachedContext, clearAttachedContexts, activeContext, codexAssistant
   } = useWorkspace();
   const {
-    sessions, session, messages, running, status, error, storageWarning,
-    send, newConversation, selectSession, stop, preferences, configuration
+    sessions, openSessions, session, messages, running, status, error, storageWarning,
+    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir
   } = codexAssistant;
 
   const [input, setInput] = useState('');
+  const [images, setImages] = useState<AssistantImage[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
+  const imageRequest = useRef<AbortController | null>(null);
+  const imagePicker = useRef<HTMLInputElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
   const [resizing, setResizing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [toast, setToast] = useState('');
   const transcriptEnd = useRef<HTMLDivElement>(null);
   const followTranscript = useRef(true);
+  const tabs = useRef<HTMLDivElement>(null);
+  const historyDialog = useRef<HTMLDialogElement>(null);
+  const [historySearch, setHistorySearch] = useState('');
+
+  useEffect(() => { tabs.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [session?.id]);
 
   useEffect(() => { if (followTranscript.current) transcriptEnd.current?.scrollIntoView({ block: 'nearest' }); }, [messages, status, isDockOpen]);
   useEffect(() => { followTranscript.current = true; setInput(''); transcriptEnd.current?.scrollIntoView({ block: 'nearest' }); }, [session?.id]);
-  useEffect(() => { setInput(''); }, [workspaceDir]);
+  useEffect(() => { setInput(''); historyDialog.current?.close(); }, [workspaceDir, projectDir]);
+  useEffect(() => {
+    imageRequest.current?.abort();
+    imageRequest.current = null;
+    setImages([]);
+    setUploading(false);
+    setAttachmentError('');
+    return () => { imageRequest.current?.abort(); };
+  }, [session?.id, projectDir]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(''), 2600);
@@ -99,15 +158,84 @@ export const AssistantDock: React.FC = () => {
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!input.trim() || running || workspaceLoading) return;
+    if ((!input.trim() && !images.length) || running || uploading || workspaceLoading) return;
     followTranscript.current = true;
-    void send(input.trim());
+    void send(input.trim(), images);
     setInput('');
+    setImages([]);
+    setAttachmentError('');
+  }
+
+  function editQuestion(prompt: ChatEntry) {
+    if (running || uploading) return;
+    if ((input.trim() || images.length) && !window.confirm('Replace your current draft with this question? Saved conversation history stays unchanged.')) return;
+    setInput(prompt.content);
+    setImages(prompt.images ?? []);
+    setAttachmentError('');
+    setToast('Question copied into the composer. Sending creates a new message.');
+    composer.current?.focus();
+  }
+
+  async function attachImages(files: File[]) {
+    if (!files.length || running || workspaceLoading || imageRequest.current) return;
+    const validation = images.length + files.length > 4 ? 'Attach up to 4 images per message.'
+      : files.some(file => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) ? 'Use PNG, JPEG, or WebP images.'
+      : files.some(file => !file.size || file.size > 5 * 1024 * 1024) ? 'Images must be non-empty and 5 MiB or smaller.' : '';
+    setAttachmentError(validation);
+    if (validation) return;
+    const controller = new AbortController();
+    imageRequest.current = controller;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const response = await fetch('/api/assistant/images', {
+          method: 'POST', headers: { 'content-type': file.type }, body: file, signal: controller.signal
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Could not upload image. Try again.');
+        const image = { id: payload.id, name: (file.name || 'Clipboard image').slice(0, 255) };
+        if (!isAssistantImage(image)) throw new Error('The server returned an invalid image. Try again.');
+        if (controller.signal.aborted) return;
+        setImages(previous => previous.some(entry => entry.id === image.id) ? previous : [...previous, image]);
+      }
+    } catch (caught) {
+      if (!controller.signal.aborted) setAttachmentError(caught instanceof Error ? caught.message : 'Could not upload image. Try again.');
+    } finally {
+      if (imageRequest.current === controller) { imageRequest.current = null; setUploading(false); }
+    }
+  }
+
+  function removeConversation(id: string, title: string) {
+    if (running || !window.confirm(`Delete conversation “${title}”? This removes its saved chat history and cannot be undone.`)) return;
+    deleteSession(id);
+    requestAnimationFrame(() => {
+      if (historyDialog.current?.open) historyDialog.current.querySelector('input')?.focus();
+      else tabs.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus();
+    });
+  }
+
+  function closeTab(id: string) {
+    closeSession(id);
+    requestAnimationFrame(() => tabs.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus());
+  }
+
+  function navigateTabs(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (running || !(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'tab') return;
+    const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const index = buttons.indexOf(event.target as HTMLButtonElement);
+    const next = event.key === 'ArrowRight' ? (index + 1) % buttons.length
+      : event.key === 'ArrowLeft' ? (index - 1 + buttons.length) % buttons.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    buttons[next].click();
+    buttons[next].focus();
   }
 
   function drop(event: React.DragEvent) {
     event.preventDefault();
     setDragOver(false);
+    if (event.dataTransfer.files.length) { void attachImages(Array.from(event.dataTransfer.files)); return; }
     const payload = event.dataTransfer.getData('application/json');
     if (payload) {
       try {
@@ -126,9 +254,17 @@ export const AssistantDock: React.FC = () => {
 
   if (!isDockOpen) return null;
   const iconButton = 'p-1.5 rounded-md text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)] transition-colors';
-  const activeModel = (session ? session.model : preferences.model) || configuration.model;
-  const activeProviderId = (session ? session.provider : preferences.provider) || configuration.provider;
-  const activeProvider = configuration.providers.find(entry => entry.id === activeProviderId);
+  const turns: { id: string; prompt?: ChatEntry; entries: ChatEntry[]; reply?: ChatEntry }[] = [];
+  for (const entry of messages) {
+    if (entry.role === 'user') turns.push({ id: entry.id, prompt: entry, entries: [] });
+    else {
+      if (!turns.length) turns.push({ id: entry.id, entries: [] });
+      turns[turns.length - 1].entries.push(entry);
+    }
+  }
+  for (const turn of turns) {
+    if (!turn.prompt?.state || turn.prompt.state === 'complete') turn.reply = turn.entries.filter(entry => !entry.kind).at(-1);
+  }
 
   return (
     <aside
@@ -147,18 +283,16 @@ export const AssistantDock: React.FC = () => {
       />
 
       {toast && (
-        <div className="absolute top-12 left-3 right-3 z-50 flex items-center gap-1.5 rounded-lg bg-[var(--color-ink)] px-2.5 py-2 font-mono text-[0.75rem] text-[var(--color-surface)] shadow-lg">
+        <div className="absolute top-12 left-3 right-3 z-50 flex items-center gap-1.5 rounded-lg bg-[var(--color-ink)] px-2.5 py-2 text-[0.75rem] text-[var(--color-surface)] shadow-lg">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{toast}</span>
         </div>
       )}
 
-      <header className="assistant-dock-header flex items-center justify-between gap-2 border-b border-[var(--color-rule)] px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Bot className="w-4 h-4 shrink-0 text-[var(--accent-indigo)]" aria-hidden />
-          <span className="truncate font-sans text-xs font-semibold">Assistant</span>
-        </div>
-        <div className="flex shrink-0 items-center">
+      <header className="assistant-dock-header flex items-center gap-1 border-b border-[var(--color-rule)] px-2 py-1.5">
+        <AssistantProjects key={workspaceDir} />
+        <div className="ml-auto flex shrink-0 items-center">
+          <button type="button" className={iconButton} onClick={() => { setHistorySearch(''); historyDialog.current?.showModal(); historyDialog.current?.querySelector('input')?.focus(); }} aria-label="Browse conversations" aria-haspopup="dialog" title="Browse conversations"><History className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} onClick={() => newConversation()} disabled={running} aria-label="New conversation" title="New conversation"><MessageSquarePlus className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} onClick={() => setDockWidth(dockWidth > 420 ? 360 : 580)} aria-label={dockWidth > 420 ? 'Narrow assistant panel' : 'Expand assistant panel'}>
             {dockWidth > 420 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -167,34 +301,44 @@ export const AssistantDock: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-1.5 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-        <label className="flex w-full min-w-0 items-center gap-1.5">
-          <span className="shrink-0">Chat</span>
-          <select
-            aria-label="Conversation"
-            value={session?.id ?? ''}
-            onChange={event => selectSession(event.target.value)}
-            disabled={running || !sessions.length}
-            className="min-w-0 flex-1 truncate rounded border border-[var(--color-rule)] bg-[var(--color-surface)] px-1.5 py-1 text-[var(--color-ink)]"
-          >
-            {!sessions.length && <option value="">New conversation</option>}
-            {sessions.map(entry => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
-          </select>
-        </label>
-        <span className="w-full truncate" title={`Codex · ${activeProvider?.label || activeProviderId || 'default provider'}${activeModel ? ` · ${activeModel}` : ''}`}>
-          Codex · {activeProvider?.label || activeProviderId || 'default'}{activeModel ? ` · ${activeModel}` : ''}
-        </span>
+      <dialog ref={historyDialog} aria-labelledby="assistant-history-title" className="assistant-history">
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--color-rule)] p-3">
+          <h2 id="assistant-history-title" className="text-xs font-semibold">Conversations</h2>
+          <button type="button" className={iconButton} aria-label="Close conversations" onClick={() => historyDialog.current?.close()}><X className="w-4 h-4" /></button>
+        </div>
+        <div className="flex flex-col gap-2 p-3">
+          <input aria-label="Search conversations" placeholder="Search conversations…" value={historySearch} onChange={event => setHistorySearch(event.target.value)} className="w-full rounded-md border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-2 text-xs" />
+          <button type="button" disabled={running} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[0.75rem] hover:bg-[var(--accent-indigo-soft)]" onClick={() => { newConversation(); historyDialog.current?.close(); }}><MessageSquarePlus className="w-4 h-4" />New conversation</button>
+        </div>
+        <div className="min-h-0 overflow-y-auto px-3 pb-3">
+          {sessions.filter(entry => entry.title.toLocaleLowerCase().includes(historySearch.trim().toLocaleLowerCase())).map(entry => (
+            <div key={entry.id} className={`flex items-center gap-1 rounded-md ${entry.id === session?.id ? 'bg-[var(--accent-indigo-soft)]' : ''}`}>
+              <button type="button" disabled={running} aria-label={`Open conversation: ${entry.title}`} aria-current={entry.id === session?.id ? 'true' : undefined} className="min-w-0 flex-1 rounded-md px-2 py-2 text-left text-xs hover:bg-[var(--accent-indigo-soft)]" onClick={() => { selectSession(entry.id); historyDialog.current?.close(); }}><span className="block break-words">{entry.title}</span></button>
+              <button type="button" disabled={running} className={iconButton} aria-label={`Delete conversation: ${entry.title}`} onClick={() => removeConversation(entry.id, entry.title)}><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+          {!sessions.some(entry => entry.title.toLocaleLowerCase().includes(historySearch.trim().toLocaleLowerCase())) && <p className="px-2 py-3 text-[0.75rem] text-[var(--color-ink-muted)]">{sessions.length ? 'No matching conversations.' : 'No saved conversations yet.'}</p>}
+        </div>
+      </dialog>
+
+      <div className="border-b border-[var(--color-rule)] px-2 py-1 text-[0.6875rem] text-[var(--color-ink-muted)]">
+        <div ref={tabs} role="tablist" aria-label="Conversations" className="assistant-conversation-tabs" onKeyDown={navigateTabs}>
+          {openSessions.map(entry => (
+            <div key={entry.id} role="presentation" className="assistant-conversation-tab">
+              <button type="button" role="tab" id={`assistant-tab-${entry.id}`} aria-controls="assistant-conversation-panel" aria-selected={entry.id === session?.id} tabIndex={entry.id === session?.id ? 0 : -1} disabled={running} title={entry.title} onClick={() => selectSession(entry.id)}>{entry.title}</button>
+              <button type="button" className="assistant-conversation-close" disabled={running} aria-label={`Close conversation: ${entry.title}`} title="Close conversation (history is kept)" onClick={() => closeTab(entry.id)}><X className="w-3 h-3" aria-hidden /></button>
+            </div>
+          ))}
+          {!openSessions.length && <button type="button" role="tab" id="assistant-tab-new" aria-controls="assistant-conversation-panel" aria-selected="true" onClick={() => newConversation()}>New conversation</button>}
+        </div>
       </div>
 
-      <div className="border-b border-[var(--color-rule)] px-3 py-1.5 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-        <span className="block truncate" title={workspaceDir}>Read-only · {workspaceDir}</span>
-      </div>
-
+      <div id="assistant-conversation-panel" role="tabpanel" aria-labelledby={`assistant-tab-${session?.id ?? 'new'}`} className="flex min-h-0 flex-1 flex-col">
       <div id="assistant-transcript-list" role="log" aria-label="Assistant conversation" onScroll={event => { const target = event.currentTarget; followTranscript.current = target.scrollHeight - target.scrollTop - target.clientHeight < 64; }} className="assistant-transcript relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 select-text">
         {dragOver && (
           <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--accent-indigo)] bg-[var(--color-surface)]/90 p-6 text-center">
             <Sparkles className="w-6 h-6 text-[var(--accent-indigo)]" aria-hidden />
-            <p className="font-mono text-xs font-semibold text-[var(--color-ink)]">Drop to attach context</p>
+            <p className="text-xs font-semibold text-[var(--color-ink)]">Drop images or research context</p>
           </div>
         )}
 
@@ -211,23 +355,33 @@ export const AssistantDock: React.FC = () => {
           </div>
         )}
 
-        {messages.map(entry => entry.kind ? (
-          <ActivityEntry key={entry.id} entry={entry} />
-        ) : (
-          <div key={entry.id} className={`flex flex-col gap-1 ${entry.role === 'user' ? 'items-end' : 'items-start'}`}>
-            <span className="px-1 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">{entry.role === 'user' ? 'You' : 'Assistant'}</span>
-            {entry.role === 'user' ? (
-              <p className="assistant-user-message max-w-[92%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl rounded-tr-xs px-3 py-2 text-xs leading-relaxed">{entry.content}</p>
-            ) : (
-              <div className="w-full min-w-0 rounded-2xl rounded-tl-xs border border-[var(--color-rule)] bg-[var(--color-paper)]/40 px-3 py-2 [&_*]:break-words [&_*]:[overflow-wrap:anywhere]">
-                <MarkdownPreview content={entry.content} className="assistant-markdown" />
+        {turns.map(turn => (
+          <React.Fragment key={turn.id}>
+            {turn.prompt && <div className="flex flex-col items-end gap-1">
+              <span className="px-1 text-[0.6875rem] text-[var(--color-ink-muted)]">You</span>
+              {turn.prompt.images?.length ? <div className="assistant-images" aria-label="Sent images">
+                {turn.prompt.images.map(image => <a key={image.id} href={`/api/assistant/images/${image.id}`} target="_blank" rel="noopener noreferrer" title={`Open ${image.name}`}>
+                  <img src={`/api/assistant/images/${image.id}`} alt={image.name} loading="lazy" />
+                </a>)}
+              </div> : null}
+              {turn.prompt.content && <p className="assistant-user-message max-w-[92%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl rounded-tr-xs px-3 py-2 text-xs leading-relaxed">{turn.prompt.content}</p>}
+              <div className="flex items-center gap-1">
+                <CopyButton value={turn.prompt.content} label="Copy question" />
+                <button type="button" aria-label="Edit question" title="Edit a copy of this question" disabled={running || uploading} className={iconButton} onClick={() => editQuestion(turn.prompt!)}><Pencil className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>}
+            <ActivityGroup entries={turn.entries.filter(entry => entry !== turn.reply)} prompt={turn.prompt} />
+            {turn.reply && (
+              <div className="w-full min-w-0 px-1 [&_*]:break-words [&_*]:[overflow-wrap:anywhere]">
+                <MarkdownPreview content={turn.reply.content} className="assistant-markdown" />
+                <div className="mt-2"><CopyButton value={turn.reply.content} label="Copy response" /></div>
               </div>
             )}
-          </div>
+          </React.Fragment>
         ))}
 
         {running && (
-          <div role="status" className="flex items-center gap-1.5 px-1 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
+          <div role="status" className="flex items-center gap-1.5 px-1 text-[0.6875rem] text-[var(--color-ink-muted)]">
             <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
             <span className="truncate" title={status}>{status || 'Working…'}</span>
           </div>
@@ -242,28 +396,41 @@ export const AssistantDock: React.FC = () => {
       )}
 
       <form onSubmit={submit} className="flex flex-col gap-2 border-t border-[var(--color-rule)] p-3">
+        {images.length > 0 && <div className="assistant-images" aria-label="Image attachments">
+          {images.map(image => <div key={image.id} className="relative">
+            <img src={`/api/assistant/images/${image.id}`} alt={image.name} />
+            <button type="button" className="absolute right-0 top-0 rounded bg-[var(--color-surface)] p-1" aria-label={`Remove image ${image.name}`} onClick={() => setImages(previous => previous.filter(entry => entry.id !== image.id))}><X className="w-3 h-3" /></button>
+          </div>)}
+        </div>}
+        {uploading && <p role="status" className="text-[0.75rem] text-[var(--color-ink-muted)]">Uploading images…</p>}
+        {attachmentError && <p role="alert" className="text-[0.75rem] text-[var(--color-ink)]">{attachmentError}</p>}
         {attachedContexts.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)]/60 p-2">
             {attachedContexts.map(context => (
-              <span key={context.id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-surface)] px-2 py-0.5 font-mono text-[0.75rem]">
+              <span key={context.id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-surface)] px-2 py-0.5 text-[0.75rem]">
                 <ContextIcon type={context.type} className="w-3 h-3 shrink-0 text-[var(--accent-indigo)]" />
                 <span className="truncate" title={context.label}>{context.label}</span>
                 <button type="button" onClick={() => removeAttachedContext(context.id)} aria-label={`Remove ${context.label}`} className="rounded p-0.5 text-[var(--color-ink-muted)] hover:text-[var(--color-missing)]"><X className="w-3 h-3" /></button>
               </span>
             ))}
             {attachedContexts.length > 1 && (
-              <button type="button" onClick={clearAttachedContexts} className="ml-auto px-1 font-mono text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-missing)] hover:underline">Clear all</button>
+              <button type="button" onClick={clearAttachedContexts} className="ml-auto px-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-missing)] hover:underline">Clear all</button>
             )}
-            <p className="w-full font-mono text-[0.625rem] text-[var(--color-ink-muted)]">Reference only — attachments are not sent yet.</p>
+            <p className="w-full text-[0.625rem] text-[var(--color-ink-muted)]">Research context is reference only. Image attachments are sent.</p>
           </div>
         )}
 
         <div className="relative overflow-hidden rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper)] focus-within:border-[var(--accent-indigo)]">
           <textarea
+            ref={composer}
             aria-label="Message the assistant"
             rows={2}
             value={input}
             onChange={event => setInput(event.target.value)}
+            onPaste={event => {
+              const files = Array.from(event.clipboardData.files);
+              if (files.length) { event.preventDefault(); void attachImages(files); }
+            }}
             onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) submit(event); }}
             placeholder="Ask the assistant… (Enter to send)"
             className="w-full resize-none bg-transparent p-2.5 pr-10 text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none"
@@ -271,14 +438,19 @@ export const AssistantDock: React.FC = () => {
           {running ? (
             <button type="button" onClick={stop} title="Stop" aria-label="Stop" className="absolute bottom-2 right-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] p-1.5 text-[var(--color-ink)]"><Square className="w-3.5 h-3.5" /></button>
           ) : (
-            <button type="submit" disabled={!input.trim() || workspaceLoading} title="Send message (Enter)" aria-label="Send message" className="absolute bottom-2 right-2 rounded-lg bg-[var(--accent-indigo)] p-1.5 text-white disabled:opacity-40"><CornerDownLeft className="w-3.5 h-3.5" /></button>
+            <button type="submit" disabled={(!input.trim() && !images.length) || uploading || workspaceLoading} title="Send message (Enter)" aria-label="Send message" className="absolute bottom-2 right-2 rounded-lg bg-[var(--accent-indigo)] p-1.5 text-white disabled:opacity-40"><CornerDownLeft className="w-3.5 h-3.5" /></button>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
+        <div className="flex items-center justify-between gap-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
+          <div className="flex items-center">
+          <input ref={imagePicker} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" aria-label="Choose images" disabled={running || uploading || workspaceLoading} onChange={event => { void attachImages(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
+          <button type="button" className={iconButton} disabled={running || uploading || workspaceLoading} aria-label="Attach images" title="Attach images (PNG, JPEG, WebP; 5 MiB each)" onClick={() => imagePicker.current?.click()}><ImagePlus className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} disabled={!activeContext || activeContext.type === 'graph'} aria-label="Attach current selection" title="Attach current selection (reference only)" onClick={() => { if (activeContext) addAttachedContext(activeContext); }}><Paperclip className="w-3.5 h-3.5" /></button>
+          </div>
           <span>Enter to send · Shift+Enter for newline</span>
         </div>
       </form>
+      </div>
     </aside>
   );
 };

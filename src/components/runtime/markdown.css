@@ -1,0 +1,6 @@
+.syntax-code :is(.hljs-keyword, .hljs-selector-tag, .hljs-tag) { color: var(--accent-indigo); }
+.syntax-code :is(.hljs-string, .hljs-regexp, .hljs-addition) { color: var(--accent-emerald); }
+.syntax-code :is(.hljs-number, .hljs-literal, .hljs-symbol, .hljs-attr) { color: var(--accent-amber); }
+.syntax-code :is(.hljs-title, .hljs-built_in, .hljs-type, .hljs-selector-class) { color: var(--accent-sky); }
+.syntax-code :is(.hljs-variable, .hljs-meta, .hljs-deletion) { color: var(--accent-rose); }
+.syntax-code :is(.hljs-comment, .hljs-quote) { color: var(--color-ink-muted); font-style: italic; }

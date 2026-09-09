@@ -42,11 +42,6 @@ const WorkspaceShell: React.FC = () => {
         clearSelection();
       }
 
-      // Focus search: /
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        document.getElementById('global-search-input')?.focus();
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
