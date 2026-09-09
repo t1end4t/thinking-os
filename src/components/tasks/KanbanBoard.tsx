@@ -444,7 +444,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
                 <option value="all">All Tags</option>
                 {allTags.map(tag => (
                   <option key={tag} value={tag}>
-                    {tag}
+                    #{tag}
                   </option>
                 ))}
               </select>
@@ -589,28 +589,31 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
                           ) : (
                             <div className="relative">
                               {isQuickAssigning ? (
-                                <div className="flex items-center gap-1 rounded border border-amber-300 bg-amber-50 p-1 dark:border-amber-800 dark:bg-amber-950">
-                                  <select
-                                    className="w-full rounded bg-white px-1.5 py-0.5 font-mono text-[0.6875rem] text-[var(--color-ink)] dark:bg-slate-900"
-                                    onChange={e => assignTaskGoal(task.id, e.target.value)}
-                                    defaultValue=""
-                                    autoFocus
-                                  >
-                                    <option value="" disabled>
-                                      Select Goal Milestone...
-                                    </option>
+                                <div className="p-1.5 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950 space-y-1">
+                                  <div className="flex items-center justify-between font-mono text-[0.625rem] text-amber-800 dark:text-amber-200">
+                                    <span>Select Milestone</span>
+                                    <button
+                                      onClick={() => setQuickAssignTaskId(null)}
+                                      className="p-0.5 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                  <div className="max-h-28 overflow-y-auto space-y-0.5">
                                     {oneYearGoals.map(g => (
-                                      <option key={g.id} value={g.id}>
+                                      <button
+                                        key={g.id}
+                                        type="button"
+                                        onClick={() => {
+                                          assignTaskGoal(task.id, g.id);
+                                          setQuickAssignTaskId(null);
+                                        }}
+                                        className="w-full text-left p-1 rounded bg-white dark:bg-slate-900 hover:bg-amber-100 dark:hover:bg-amber-900/60 font-mono text-[0.6875rem] text-[var(--color-ink)] truncate block"
+                                      >
                                         {g.title}
-                                      </option>
+                                      </button>
                                     ))}
-                                  </select>
-                                  <button
-                                    onClick={() => setQuickAssignTaskId(null)}
-                                    className="p-1 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
-                                  >
-                                    <X size={12} />
-                                  </button>
+                                  </div>
                                 </div>
                               ) : (
                                 <button

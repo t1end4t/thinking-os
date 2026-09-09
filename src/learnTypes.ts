@@ -91,26 +91,96 @@ export const COGNITIVE_LEVEL_ORDER: CognitiveLevelId[] = [
   'creating'
 ];
 
-export type LearnSourceKind = 'book' | 'video' | 'paper' | 'course' | 'note';
+export type LearnSourceKind = 'book' | 'video' | 'paper' | 'course' | 'article' | 'note';
 
 export interface LearnSource {
   kind: LearnSourceKind;
   title: string;
   url?: string;
+  authorOrChannel?: string;
 }
 
-export type LearnBlockKind = 'card' | 'note' | 'image' | 'table' | 'tree' | 'graph';
+export interface SyllabusSection {
+  id: string;
+  title: string;
+  locator?: string;
+  completed?: boolean;
+}
+
+export interface NotationSymbol {
+  id: string;
+  symbol: string;
+  meaning: string;
+  shape?: string;
+}
+
+export type LearnBlockKind =
+  | 'card'
+  | 'note'
+  | 'image'
+  | 'table'
+  | 'tree'
+  | 'graph'
+  | 'derivation'
+  | 'tensor'
+  | 'code';
 
 interface LearnBlockBase {
   id: string;
   level: CognitiveLevelId;
   /** Where in the source this came from: `p.184`, `14:32`, `§12.2`. */
   locator?: string;
+  /** Optional reference to a syllabus lecture/chapter section */
+  sectionId?: string;
   createdAt: number;
   updatedAt: number;
   promotedClaimId?: string;
   promotedQuestionId?: string;
   promotedTaskId?: string;
+}
+
+export interface DerivationStep {
+  id: string;
+  latex: string;
+  explanation: string;
+  rule?: string;
+  revealedInTestMode?: boolean;
+}
+
+export interface DerivationBlock extends LearnBlockBase {
+  kind: 'derivation';
+  title: string;
+  objective?: string;
+  initialEquation?: string;
+  steps: DerivationStep[];
+  conclusion?: string;
+  testMode?: boolean;
+}
+
+export interface TensorOpRow {
+  id: string;
+  operation: string;
+  inputShape: string;
+  outputShape: string;
+  parameters?: string;
+  notes?: string;
+}
+
+export interface TensorBlock extends LearnBlockBase {
+  kind: 'tensor';
+  title: string;
+  architectureName?: string;
+  symbolsLegend?: string;
+  rows: TensorOpRow[];
+}
+
+export interface CodeBlock extends LearnBlockBase {
+  kind: 'code';
+  title: string;
+  language: string;
+  code: string;
+  notes?: string;
+  highlightLines?: string;
 }
 
 export interface CardBlock extends LearnBlockBase {
@@ -181,7 +251,10 @@ export type LearnBlock =
   | ImageBlock
   | TableBlock
   | TreeBlock
-  | GraphBlock;
+  | GraphBlock
+  | DerivationBlock
+  | TensorBlock
+  | CodeBlock;
 
 /**
  * A board: one source (book, video, paper) plus the visual blocks captured from it.
@@ -195,6 +268,9 @@ export interface LearningUnit {
   source: LearnSource;
   tags: string[];
   blocks: LearnBlock[];
+  sections?: SyllabusSection[];
+  activeSectionId?: string | null;
+  notation?: NotationSymbol[];
   createdAt: number;
   updatedAt: number;
   author: EntityAuthor;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Image, Table2, Lightbulb, StickyNote, Plus, Trash2 } from 'lucide-react';
+import { X, Image, Table2, Lightbulb, StickyNote, Plus, Trash2, Check } from 'lucide-react';
 import { SynthesisArtifact, SynthesisArtifactType } from '../../manuscriptTypes';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -421,18 +421,41 @@ export const ArtifactModal: React.FC<ArtifactModalProps> = ({ isOpen, onClose, o
               <label className="block text-xs font-medium text-[var(--color-ink)] mb-1">
                 Link to Claim (From Research Map)
               </label>
-              <select
-                value={claimId}
-                onChange={e => setClaimId(e.target.value)}
-                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)]"
-              >
-                <option value="">No Claim linked</option>
-                {claims.map(c => (
-                  <option key={c.id} value={c.id}>
-                    [{c.id}] {c.text.slice(0, 50)}...
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                <button
+                  type="button"
+                  onClick={() => setClaimId('')}
+                  className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
+                    !claimId
+                      ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)]'
+                      : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                  }`}
+                >
+                  <span>No Claim linked</span>
+                  {!claimId && <Check size={13} className="text-[var(--accent-indigo)]" />}
+                </button>
+                {claims.map(c => {
+                  const isSelected = claimId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setClaimId(c.id)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
+                        isSelected
+                          ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)]'
+                          : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                      }`}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <span className="font-mono text-[0.625rem] text-teal-600 dark:text-teal-400 font-bold mr-1.5">[{c.id}]</span>
+                        <span className="truncate">{c.text}</span>
+                      </div>
+                      {isSelected && <Check size={13} className="text-[var(--accent-indigo)] shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-[var(--color-ink)] mb-1">

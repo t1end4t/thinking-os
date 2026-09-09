@@ -39,7 +39,13 @@ export function isLocalRequest(req) {
   if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress)) return false;
   try {
     const url = new URL(`http://${req.headers.host}`);
-    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return false;
+    const isAllowedHost =
+      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ||
+      url.hostname.endsWith('.run.app') ||
+      url.hostname.endsWith('.google.internal') ||
+      url.hostname.endsWith('.aistudio.google') ||
+      url.hostname.endsWith('.googleusercontent.com');
+    if (!isAllowedHost) return false;
     const origin = req.headers.origin;
     return (!origin || origin === url.origin) && req.headers['sec-fetch-site'] !== 'cross-site';
   } catch {

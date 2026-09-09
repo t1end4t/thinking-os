@@ -644,28 +644,29 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                                 <span className="font-bold text-[var(--color-ink)]">{task.title}</span>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                <select
-                                  className="h-7 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 font-mono text-[0.6875rem] text-[var(--color-ink)]"
-                                  onChange={e => assignTaskGoal(task.id, e.target.value)}
-                                  defaultValue=""
-                                  aria-label="Assign to milestone"
-                                >
-                                  <option value="" disabled>
-                                    Assign to milestone...
-                                  </option>
-                                  {oneYearGoals.map(g => (
-                                    <option key={g.id} value={g.id}>
-                                      {g.title}
-                                    </option>
-                                  ))}
-                                </select>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {oneYearGoals.length > 0 && (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <span className="font-mono text-[0.625rem] text-[var(--color-ink-muted)]">Assign:</span>
+                                    {oneYearGoals.map(g => (
+                                      <button
+                                        key={g.id}
+                                        type="button"
+                                        onClick={() => assignTaskGoal(task.id, g.id)}
+                                        className="px-2 py-0.5 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] font-mono text-[0.6875rem] text-[var(--color-ink)] hover:border-[var(--accent-indigo)] hover:bg-[var(--accent-indigo-soft)] hover:text-indigo-600 transition-all max-w-40 truncate"
+                                        title={`Assign to ${g.title}`}
+                                      >
+                                        + {g.title}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
 
                                 <button
                                   onClick={() =>
                                     setTasks(current => current.filter(t => t.id !== task.id))
                                   }
-                                  className="p-1 text-[var(--color-ink-muted)] hover:text-red-600"
+                                  className="p-1 text-[var(--color-ink-muted)] hover:text-red-600 font-mono text-[0.6875rem]"
                                   title="Discard task"
                                 >
                                   Discard
@@ -730,33 +731,53 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                       )}
 
                       {/* Add new commitment */}
-                      <form onSubmit={createCommitmentTask} className="mt-4 flex flex-wrap gap-2">
-                        <input
-                          type="text"
-                          value={newTaskTitle}
-                          onChange={e => setNewTaskTitle(e.target.value)}
-                          placeholder="Add concrete deliverable for next week..."
-                          className="min-w-[240px] flex-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-2 text-xs font-medium text-[var(--color-ink)] outline-none focus:border-indigo-500"
-                        />
-                        <select
-                          value={newTaskGoalId}
-                          onChange={e => setNewTaskGoalId(e.target.value)}
-                          className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 py-2 font-mono text-xs text-[var(--color-ink)]"
-                          aria-label="Target Goal"
-                        >
-                          <option value="">
-                            {currentFocusGoal ? `Default: ${currentFocusGoal.title}` : 'Select Milestone...'}
-                          </option>
-                          {oneYearGoals.map(g => (
-                            <option key={g.id} value={g.id}>
-                              {g.title}
-                            </option>
-                          ))}
-                        </select>
-                        <button type="submit" className="kanban-primary-add-btn h-9 px-3">
-                          <Plus size={14} />
-                          <span>Commit to To Do</span>
-                        </button>
+                      <form onSubmit={createCommitmentTask} className="mt-4 space-y-2.5">
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            type="text"
+                            value={newTaskTitle}
+                            onChange={e => setNewTaskTitle(e.target.value)}
+                            placeholder="Add concrete deliverable for next week..."
+                            className="min-w-[240px] flex-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-2 text-xs font-medium text-[var(--color-ink)] outline-none focus:border-indigo-500"
+                          />
+                          <button type="submit" className="kanban-primary-add-btn h-9 px-3 shrink-0">
+                            <Plus size={14} />
+                            <span>Commit to To Do</span>
+                          </button>
+                        </div>
+                        {oneYearGoals.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                            <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Target Milestone:</span>
+                            <button
+                              type="button"
+                              onClick={() => setNewTaskGoalId('')}
+                              className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all ${
+                                !newTaskGoalId
+                                  ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--color-ink)] font-bold'
+                                  : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                              }`}
+                            >
+                              {currentFocusGoal ? `Default (${currentFocusGoal.title})` : 'Unassigned'}
+                            </button>
+                            {oneYearGoals.map(g => {
+                              const isSelected = newTaskGoalId === g.id;
+                              return (
+                                <button
+                                  key={g.id}
+                                  type="button"
+                                  onClick={() => setNewTaskGoalId(g.id)}
+                                  className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
+                                    isSelected
+                                      ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--color-ink)] font-bold'
+                                      : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                  }`}
+                                >
+                                  {g.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </form>
                     </div>
 

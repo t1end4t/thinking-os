@@ -9,7 +9,8 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Edit2
+  Edit2,
+  Check
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { GoalHorizon, GoalItem, GoalStatus, TaskItem, TaskStatus } from '../../productivityTypes';
@@ -294,16 +295,25 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
         {/* Action Controls and Links */}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-rule)] pt-3">
           <div className="flex items-center gap-2">
-            <select
-              className="h-7 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 font-mono text-[0.6875rem] text-[var(--color-ink)]"
-              value={goal.status}
-              onChange={event => updateStatus(goal.id, event.target.value as GoalStatus)}
-              aria-label={`Status for ${goal.title}`}
-            >
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="achieved">Achieved</option>
-            </select>
+            <div className="inline-flex rounded-lg border border-[var(--color-rule)] p-0.5 bg-[var(--color-paper)]">
+              {(['active', 'paused', 'achieved'] as const).map(st => {
+                const isSelected = goal.status === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => updateStatus(goal.id, st)}
+                    className={`px-2 py-0.5 rounded text-[0.6875rem] font-mono capitalize transition-all ${
+                      isSelected
+                        ? 'bg-[var(--color-surface)] text-[var(--color-ink)] font-bold shadow-2xs'
+                        : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                    }`}
+                  >
+                    {st}
+                  </button>
+                );
+              })}
+            </div>
 
             {goal.horizon === 'one-year' && (
               <button
@@ -437,15 +447,32 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
             </div>
 
             <div className="form-field">
-              <label htmlFor="goal-horizon">Horizon</label>
-              <select
-                id="goal-horizon"
-                value={horizon}
-                onChange={event => setHorizon(event.target.value as GoalHorizon)}
-              >
-                <option value="one-year">6–12 Months (Milestone)</option>
-                <option value="five-year">5 Years (North Star)</option>
-              </select>
+              <label id="goal-horizon-label">Horizon</label>
+              <div role="radiogroup" aria-labelledby="goal-horizon-label" className="grid grid-cols-2 gap-2 pt-1">
+                {[
+                  { id: 'one-year' as const, label: '6–12 Months', sub: 'Actionable Milestone' },
+                  { id: 'five-year' as const, label: '5 Years', sub: 'North Star Vision' }
+                ].map(item => {
+                  const isSelected = horizon === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setHorizon(item.id)}
+                      className={`p-2.5 rounded-lg border text-left transition-all ${
+                        isSelected
+                          ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] shadow-xs'
+                          : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                      }`}
+                    >
+                      <div className="font-mono text-xs font-bold text-[var(--color-ink)]">{item.label}</div>
+                      <div className="text-[0.6875rem] text-[var(--color-ink-muted)]">{item.sub}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="form-field">
@@ -460,19 +487,43 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
 
             {horizon === 'one-year' && fiveYearGoals.length > 0 && (
               <div className="form-field">
-                <label htmlFor="goal-parent">Anchor to 5-Year Vision</label>
-                <select
-                  id="goal-parent"
-                  value={parentGoalId}
-                  onChange={event => setParentGoalId(event.target.value)}
-                >
-                  <option value="">No parent vision (Independent)</option>
-                  {fiveYearGoals.map(g => (
-                    <option key={g.id} value={g.id}>
-                      {g.title}
-                    </option>
-                  ))}
-                </select>
+                <label id="goal-parent-label">Anchor to 5-Year Vision</label>
+                <div role="radiogroup" aria-labelledby="goal-parent-label" className="space-y-1 pt-1 max-h-36 overflow-y-auto pr-1">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!parentGoalId}
+                    onClick={() => setParentGoalId('')}
+                    className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
+                      !parentGoalId
+                        ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)]'
+                        : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                    }`}
+                  >
+                    <span>No parent vision (Independent)</span>
+                    {!parentGoalId && <Check size={13} className="text-[var(--accent-indigo)]" />}
+                  </button>
+                  {fiveYearGoals.map(g => {
+                    const isSelected = parentGoalId === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setParentGoalId(g.id)}
+                        className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
+                          isSelected
+                            ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)]'
+                            : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                        }`}
+                      >
+                        <span className="truncate">{g.title}</span>
+                        {isSelected && <Check size={13} className="text-[var(--accent-indigo)] shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

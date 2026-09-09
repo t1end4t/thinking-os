@@ -10,7 +10,8 @@ import {
   Home,
   ChevronLeft,
   Bot,
-  Cpu
+  Cpu,
+  Check
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, WorkspaceDirListing } from '../../vaultClient';
@@ -286,23 +287,41 @@ export const TopBar: React.FC = () => {
                   <p className="mb-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
                     Providers and credentials come from your local Codex configuration; this only chooses which to use.
                   </p>
-                  <label className="form-field mb-2">
-                    <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Provider</span>
-                    <select
-                      aria-label="Provider"
-                      value={codexAssistant.preferences.provider}
-                      onChange={event => codexAssistant.setPreferences(current => ({ ...current, provider: event.target.value }))}
-                    >
-                      <option value="">
-                        Codex default{codexAssistant.configuration.provider ? ` (${codexAssistant.configuration.provider})` : ''}
-                      </option>
-                      {codexAssistant.configuration.providers.map(provider => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.label}{provider.baseUrl ? ` — ${provider.baseUrl}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="mb-3">
+                    <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)] block mb-1.5">Provider</span>
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => codexAssistant.setPreferences(current => ({ ...current, provider: '' }))}
+                        className={`w-full flex items-center justify-between p-2 rounded-lg border text-left font-mono text-xs transition-all ${
+                          codexAssistant.preferences.provider === ''
+                            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 text-[var(--color-ink)] font-semibold shadow-2xs'
+                            : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400'
+                        }`}
+                      >
+                        <span>Codex default{codexAssistant.configuration.provider ? ` (${codexAssistant.configuration.provider})` : ''}</span>
+                        {codexAssistant.preferences.provider === '' && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                      </button>
+                      {codexAssistant.configuration.providers.map(provider => {
+                        const isSelected = codexAssistant.preferences.provider === provider.id;
+                        return (
+                          <button
+                            key={provider.id}
+                            type="button"
+                            onClick={() => codexAssistant.setPreferences(current => ({ ...current, provider: provider.id }))}
+                            className={`w-full flex items-center justify-between p-2 rounded-lg border text-left font-mono text-xs transition-all ${
+                              isSelected
+                                ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 text-[var(--color-ink)] font-semibold shadow-2xs'
+                                : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400'
+                            }`}
+                          >
+                            <span className="truncate mr-2">{provider.label}{provider.baseUrl ? ` — ${provider.baseUrl}` : ''}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <label className="form-field">
                     <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Model</span>
                     <input

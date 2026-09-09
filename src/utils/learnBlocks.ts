@@ -35,7 +35,7 @@ export function levelCoverage(unit: LearningUnit): Record<CognitiveLevelId, numb
   return counts;
 }
 
-const SOURCE_KINDS: LearnSourceKind[] = ['book', 'video', 'paper', 'course', 'note'];
+const SOURCE_KINDS: LearnSourceKind[] = ['book', 'video', 'paper', 'course', 'article', 'note'];
 
 function normalizeSource(raw: unknown, fallbackTitle: string): LearnSource {
   const value = (raw ?? {}) as Partial<LearnSource>;
@@ -43,7 +43,8 @@ function normalizeSource(raw: unknown, fallbackTitle: string): LearnSource {
   return {
     kind,
     title: value.title?.trim() || fallbackTitle,
-    ...(value.url ? { url: value.url } : {})
+    ...(value.url ? { url: value.url } : {}),
+    ...(value.authorOrChannel ? { authorOrChannel: value.authorOrChannel } : {})
   };
 }
 
@@ -58,6 +59,8 @@ export function normalizeLearningUnit(raw: LearningUnit): LearningUnit {
     ...raw,
     tags: Array.isArray(raw.tags) ? raw.tags : [],
     blocks: Array.isArray(raw.blocks) ? raw.blocks : [],
+    sections: Array.isArray(raw.sections) ? raw.sections : [],
+    notation: Array.isArray(raw.notation) ? raw.notation : [],
     source: normalizeSource(raw.source, legacyBook || raw.title || 'Untitled source')
   };
 }

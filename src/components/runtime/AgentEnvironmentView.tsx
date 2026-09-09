@@ -1186,19 +1186,52 @@ export function AgentEnvironmentView() {
               </div>
 
               <div>
-                <label htmlFor="skill-agent" className="block text-xs font-mono font-medium text-[var(--color-ink)] mb-1">
+                <label className="block text-xs font-mono font-medium text-[var(--color-ink)] mb-1.5">
                   Target Agent
                 </label>
-                <select
-                  id="skill-agent"
-                  value={skillAgent}
-                  onChange={e => setSkillAgent(e.target.value as AgentEnvEntry['agent'])}
-                  className="w-full h-9 px-2.5 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:border-[var(--accent-indigo)] focus:outline-none"
-                >
-                  <option value="shared">Shared (.agents/skills) - accessible across all agents</option>
-                  <option value="claude">Claude Code (.claude/skills) - Claude specific</option>
-                  <option value="codex">Codex (.codex/skills) - Codex specific</option>
-                </select>
+                <div className="space-y-1.5">
+                  {[
+                    {
+                      id: 'shared',
+                      title: 'Shared (.agents/skills)',
+                      desc: 'Accessible across all agent runtimes'
+                    },
+                    {
+                      id: 'claude',
+                      title: 'Claude Code (.claude/skills)',
+                      desc: 'Claude specific skills & tools'
+                    },
+                    {
+                      id: 'codex',
+                      title: 'Codex (.codex/skills)',
+                      desc: 'Codex specific skills & tools'
+                    }
+                  ].map(agentOpt => {
+                    const isSelected = skillAgent === agentOpt.id;
+                    return (
+                      <button
+                        key={agentOpt.id}
+                        type="button"
+                        onClick={() => setSkillAgent(agentOpt.id as AgentEnvEntry['agent'])}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)]/50 shadow-xs'
+                            : 'border-[var(--color-rule)] bg-[var(--color-paper)] hover:bg-[var(--color-surface)]'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="text-xs font-mono font-semibold text-[var(--color-ink)]">
+                            {agentOpt.title}
+                          </div>
+                          <div className="text-[0.6875rem] font-mono text-[var(--color-ink-muted)] mt-0.5">
+                            {agentOpt.desc}
+                          </div>
+                        </div>
+                        {isSelected && <Check size={14} className="text-[var(--accent-indigo)] shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {skillName && (

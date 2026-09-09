@@ -1097,34 +1097,63 @@ export const PapersSurface: React.FC = () => {
                 <label className="font-semibold text-slate-700 dark:text-slate-300">
                   Target Claim in Argument Tree:
                 </label>
-                <select
-                  value={selectedClaimId}
-                  onChange={e => setSelectedClaimId(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:border-teal-500"
-                >
-                  {claims.map(c => (
-                    <option key={c.id} value={c.id}>
-                      Claim #{c.id}: {c.text.slice(0, 70)}...
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {claims.map(c => {
+                    const isSelected = selectedClaimId === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedClaimId(c.id)}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs text-left transition-all ${
+                          isSelected
+                            ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/40 font-medium text-slate-900 dark:text-slate-100 shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <span className="font-mono text-[0.625rem] text-teal-600 dark:text-teal-400 font-bold block">
+                            Claim #{c.id}
+                          </span>
+                          <span className="font-sans line-clamp-2">{c.text}</span>
+                        </div>
+                        {isSelected && <CheckCircle2 size={15} className="text-teal-600 dark:text-teal-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="font-semibold text-slate-700 dark:text-slate-300">
                   Evidence Form:
                 </label>
-                <select
-                  value={evidenceForm}
-                  onChange={e => setEvidenceForm(e.target.value as EvidenceForm)}
-                  className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:border-teal-500"
-                >
-                  <option value="measurement">Measurement (Empirical metric)</option>
-                  <option value="benchmark">Benchmark (Comparative run)</option>
-                  <option value="derivation">Derivation (Mathematical/Formal)</option>
-                  <option value="trace">Trace (Execution artifact)</option>
-                  <option value="observation">Observation (Literature finding)</option>
-                </select>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: 'measurement', label: 'Measurement', desc: 'Empirical metric' },
+                    { id: 'benchmark', label: 'Benchmark', desc: 'Comparative run' },
+                    { id: 'derivation', label: 'Derivation', desc: 'Formal/Math' },
+                    { id: 'trace', label: 'Trace', desc: 'Execution artifact' },
+                    { id: 'observation', label: 'Observation', desc: 'Literature finding' }
+                  ].map(f => {
+                    const isSelected = evidenceForm === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setEvidenceForm(f.id as EvidenceForm)}
+                        className={`p-2 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/40 text-slate-900 dark:text-slate-100 font-medium shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        <div className="font-mono text-xs font-semibold">{f.label}</div>
+                        <div className="text-[0.6875rem] text-slate-500 dark:text-slate-400">{f.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">

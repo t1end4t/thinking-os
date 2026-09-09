@@ -3,6 +3,7 @@ import {
   AlertCircle,
   ArrowRight,
   BookOpen,
+  Check,
   ChevronDown,
   ChevronRight,
   ChevronsDownUp,
@@ -804,28 +805,48 @@ export const ArgumentTree: React.FC<ArgumentTreeProps> = ({
             </div>
 
             {/* Parent Selector */}
-            <label className="argument-field-label">
+            <div className="argument-field-label">
               <span>Parent {byId.get(connection.childId)?.kind === 'claim' ? 'Question' : 'Claim'}</span>
-              <select
-                autoFocus
-                required
-                value={connection.parentId}
-                onChange={e => {
-                  setError('');
-                  setConnection({ ...connection, parentId: e.target.value });
-                }}
-                className="argument-select"
-              >
-                <option value="">Select parent object...</option>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 pt-1">
                 {nodes
                   .filter(node => canConnect(node, connection.childId))
-                  .map(node => (
-                    <option key={node.id} value={node.id}>
-                      [{node.kind.toUpperCase()}] {node.title}
-                    </option>
-                  ))}
-              </select>
-            </label>
+                  .map(node => {
+                    const isSelected = connection.parentId === node.id;
+                    const badgeClass =
+                      node.kind === 'question'
+                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60'
+                        : 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60';
+                    return (
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => {
+                          setError('');
+                          setConnection({ ...connection, parentId: node.id });
+                        }}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          isSelected
+                            ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)] shadow-xs'
+                            : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400/50'
+                        }`}
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`px-1.5 py-0.2 rounded font-mono text-[0.625rem] font-bold ${badgeClass}`}>
+                              {node.kind.toUpperCase()}
+                            </span>
+                            <span className="font-mono text-[0.625rem] text-[var(--color-ink-muted)]">
+                              #{node.id}
+                            </span>
+                          </div>
+                          <span className="font-sans text-[var(--color-ink)] line-clamp-2">{node.title}</span>
+                        </div>
+                        {isSelected && <Check size={14} className="text-[var(--accent-indigo)] shrink-0" />}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
 
             {/* Link Reason (MANDATORY per AGENTS.md invariant) */}
             <label className="argument-field-label">

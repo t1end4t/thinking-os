@@ -5,11 +5,12 @@ import { dueCards, levelCoverage } from '../../utils/learnBlocks';
 import { MathView } from '../common/MathView';
 
 export const SOURCE_KIND_LABEL: Record<LearnSourceKind, string> = {
-  book: 'Book',
-  video: 'Video',
-  paper: 'Paper',
-  course: 'Course',
-  note: 'Note'
+  course: 'Course / Playlist',
+  book: 'Book / Textbook',
+  article: 'Article / Blog / Wiki',
+  paper: 'Research Paper',
+  video: 'Talk / Video',
+  note: 'Concept Note'
 };
 
 interface TodayViewProps {

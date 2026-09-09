@@ -12,6 +12,7 @@ import {
   Sparkles,
   BookMarked,
   CheckCircle2,
+  Check,
   AlertCircle,
   HelpCircle,
   Eye,
@@ -47,6 +48,16 @@ import { StoryboardView } from './StoryboardView';
 import { ArtifactModal } from './ArtifactModal';
 import { CitationModal } from './CitationModal';
 import { TabHelpTip } from '../common/TabHelpTip';
+
+const ARGUMENT_ROLES: { id: ArgumentRole; label: string; desc: string }[] = [
+  { id: 'hook_motivation', label: 'Hook & Motivation', desc: 'Problem statement & opening gap' },
+  { id: 'thesis_claim', label: 'Thesis & Claims', desc: 'Core proposition & primary claim' },
+  { id: 'theoretical_derivation', label: 'Theoretical Derivation', desc: 'Mathematical derivation / lemma' },
+  { id: 'methodology_system', label: 'System Architecture', desc: 'System pipeline & design' },
+  { id: 'empirical_evidence', label: 'Empirical Evidence', desc: 'Evaluation & benchmark results' },
+  { id: 'counterargument_refute', label: 'Dialectic Boundary', desc: 'Refutation & failure modes' },
+  { id: 'implications_future', label: 'Conclusion & Impact', desc: 'Implications & future work' }
+];
 
 export const ManuscriptSurface: React.FC = () => {
   const {
@@ -90,6 +101,7 @@ export const ManuscriptSurface: React.FC = () => {
   const [isCitationModalOpen, setIsCitationModalOpen] = useState(false);
   const [citationToEdit, setCitationToEdit] = useState<any>(null);
   const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
+  const [isRolePickerOpen, setIsRolePickerOpen] = useState(false);
 
   // Drop target feedback in outline
   const [dropOverSectionId, setDropOverSectionId] = useState<string | null>(null);
@@ -510,23 +522,59 @@ export const ManuscriptSurface: React.FC = () => {
                     />
 
                     {/* Argument Role Selector */}
-                    <select
-                      value={activeSection.argumentRole}
-                      onChange={e =>
-                        updateManuscriptSection(activeSection.id, {
-                          argumentRole: e.target.value as ArgumentRole
-                        })
-                      }
-                      className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] font-mono font-medium text-[var(--color-ink)]"
-                    >
-                      <option value="hook_motivation">Hook & Motivation</option>
-                      <option value="thesis_claim">Thesis & Claims</option>
-                      <option value="theoretical_derivation">Theoretical Derivation</option>
-                      <option value="methodology_system">System Architecture</option>
-                      <option value="empirical_evidence">Empirical Evidence</option>
-                      <option value="counterargument_refute">Dialectic Boundary</option>
-                      <option value="implications_future">Conclusion & Impact</option>
-                    </select>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsRolePickerOpen(!isRolePickerOpen)}
+                        className="text-xs px-2.5 py-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] font-mono font-medium text-[var(--color-ink)] flex items-center gap-1.5 hover:border-indigo-400 transition-colors shadow-2xs"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                        <span>{ARGUMENT_ROLES.find(r => r.id === activeSection.argumentRole)?.label || activeSection.argumentRole}</span>
+                        <ChevronDown size={12} className="text-[var(--color-ink-muted)]" />
+                      </button>
+
+                      {isRolePickerOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setIsRolePickerOpen(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-1.5 z-50 w-72 rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] p-1.5 shadow-xl space-y-1">
+                            <div className="px-2 py-1 text-[0.625rem] font-mono uppercase tracking-wider text-[var(--color-ink-muted)] font-bold">
+                              Argument Role in Paper
+                            </div>
+                            {ARGUMENT_ROLES.map(role => {
+                              const isSelected = activeSection.argumentRole === role.id;
+                              return (
+                                <button
+                                  key={role.id}
+                                  type="button"
+                                  onClick={() => {
+                                    updateManuscriptSection(activeSection.id, { argumentRole: role.id });
+                                    setIsRolePickerOpen(false);
+                                  }}
+                                  className={`w-full flex items-start justify-between p-2 rounded-lg text-left transition-all ${
+                                    isSelected
+                                      ? 'bg-[var(--accent-indigo-soft)] border border-[var(--accent-indigo)]'
+                                      : 'hover:bg-[var(--color-paper)] border border-transparent'
+                                  }`}
+                                >
+                                  <div className="min-w-0 pr-2">
+                                    <div className="text-xs font-semibold text-[var(--color-ink)]">
+                                      {role.label}
+                                    </div>
+                                    <div className="text-[0.6875rem] text-[var(--color-ink-muted)] leading-tight mt-0.5">
+                                      {role.desc}
+                                    </div>
+                                  </div>
+                                  {isSelected && <Check size={14} className="text-[var(--accent-indigo)] shrink-0 mt-0.5" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
 
                     <button
                       onClick={() => removeManuscriptSection(activeSection.id)}

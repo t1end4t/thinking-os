@@ -239,43 +239,125 @@ export const TaskEditorPanel: React.FC = () => {
         />
       </div>
 
-      <div className="task-editor-grid">
+      <div className="flex flex-col gap-4">
         <div className="form-field">
-          <label htmlFor="task-status-select">Status</label>
-          <select
-            id="task-status-select"
-            value={status}
-            onChange={event => setStatus(event.target.value as TaskStatus)}
-          >
-            {STATUS_OPTIONS.map(option => (
-              <option key={option.id} value={option.id}>
-                {option.title}
-              </option>
-            ))}
-          </select>
+          <label id="task-status-label" className="text-xs font-mono font-medium text-[var(--color-ink)]">Status</label>
+          <div role="radiogroup" aria-labelledby="task-status-label" className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+            {STATUS_OPTIONS.map(option => {
+              const isSelected = status === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => setStatus(option.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono transition-all text-left ${
+                    isSelected
+                      ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-semibold text-[var(--color-ink)] shadow-xs'
+                      : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400/50'
+                  }`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{
+                      backgroundColor:
+                        option.id === 'done'
+                          ? 'var(--color-holds)'
+                          : option.id === 'in-progress'
+                          ? 'var(--accent-indigo)'
+                          : option.id === 'review'
+                          ? 'var(--accent-amber)'
+                          : option.id === 'todo'
+                          ? 'var(--accent-sky, #0284c7)'
+                          : 'var(--color-ink-muted)'
+                    }}
+                  />
+                  <span className="truncate">{option.title}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="form-field">
-          <label htmlFor="task-priority-select">Priority</label>
-          <select
-            id="task-priority-select"
-            value={priority}
-            onChange={event => setPriority(event.target.value as TaskPriority)}
-          >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
+          <label id="task-priority-label" className="text-xs font-mono font-medium text-[var(--color-ink)]">Priority</label>
+          <div role="radiogroup" aria-labelledby="task-priority-label" className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+            {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
+              const isSelected = priority === p;
+              const colorClass =
+                p === 'urgent'
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : p === 'high'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : p === 'medium'
+                  ? 'text-sky-600 dark:text-sky-400'
+                  : 'text-slate-500';
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => setPriority(p)}
+                  className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs font-mono capitalize transition-all ${
+                    isSelected
+                      ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-semibold text-[var(--color-ink)] shadow-xs'
+                      : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400/50'
+                  }`}
+                >
+                  <span className={`text-[0.625rem] font-bold ${colorClass}`}>●</span>
+                  <span>{p}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       <div className="form-field">
-        <label htmlFor="task-goal-select">Goal</label>
-        <select id="task-goal-select" value={goalId} onChange={event => setGoalId(event.target.value)}>
-          <option value="">Unassigned</option>
-          {goals.filter(goal => goal.horizon === 'one-year' && goal.status !== 'achieved').map(goal => <option key={goal.id} value={goal.id}>{goal.title}</option>)}
-        </select>
+        <label id="task-goal-label" className="text-xs font-mono font-medium text-[var(--color-ink)]">Goal Milestone</label>
+        <div role="radiogroup" aria-labelledby="task-goal-label" className="space-y-1.5 pt-1 max-h-44 overflow-y-auto pr-1">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!goalId}
+            onClick={() => setGoalId('')}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-mono transition-all text-left ${
+              !goalId
+                ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--color-ink)] font-semibold'
+                : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+            }`}
+          >
+            <span>Unassigned (No milestone)</span>
+            {!goalId && <Check size={13} className="text-[var(--accent-indigo)]" />}
+          </button>
+          {goals.filter(goal => goal.horizon === 'one-year' && goal.status !== 'achieved').map(goal => {
+            const isSelected = goalId === goal.id;
+            return (
+              <button
+                key={goal.id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => setGoalId(goal.id)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-all text-left ${
+                  isSelected
+                    ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--color-ink)] font-semibold'
+                    : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                }`}
+              >
+                <div className="min-w-0 pr-2">
+                  <div className="font-sans font-medium text-[var(--color-ink)] truncate">{goal.title}</div>
+                  {goal.targetDate && (
+                    <div className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Target: {goal.targetDate}</div>
+                  )}
+                </div>
+                {isSelected && <Check size={13} className="text-[var(--accent-indigo)] shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="form-field">

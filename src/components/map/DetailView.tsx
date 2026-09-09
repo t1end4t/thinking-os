@@ -506,69 +506,119 @@ export const DetailView: React.FC<DetailViewProps> = ({
 
                 {/* Parent Question for Claim */}
                 {newKind === 'claim' && (
-                  <label className="argument-field-label">
+                  <div className="argument-field-label">
                     <span>Parent Question (Required)</span>
-                    <select
-                      value={newParentId}
-                      onChange={e => setNewParentId(e.target.value)}
-                      className="argument-select"
-                      required
-                    >
-                      <option value="">Select question to anchor this claim...</option>
-                      {questions.map(q => (
-                        <option key={q.id} value={q.id}>
-                          {q.id}: {q.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {questions.length === 0 ? (
+                        <p className="text-xs text-[var(--color-ink-muted)]">No questions available to anchor claim.</p>
+                      ) : (
+                        questions.map(q => {
+                          const isSelected = newParentId === q.id;
+                          return (
+                            <button
+                              key={q.id}
+                              type="button"
+                              onClick={() => setNewParentId(q.id)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-xs text-left transition-all ${
+                                isSelected
+                                  ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)] shadow-xs'
+                                  : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400/50'
+                              }`}
+                            >
+                              <div className="min-w-0 pr-2">
+                                <span className="font-mono text-[0.625rem] text-[var(--accent-indigo)] font-bold block">{q.id}</span>
+                                <span className="font-sans text-[var(--color-ink)] font-medium line-clamp-2">{q.title}</span>
+                              </div>
+                              {isSelected && <Check size={14} className="text-[var(--accent-indigo)] shrink-0" />}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {/* Evidence Specific Fields */}
                 {newKind === 'evidence' && (
                   <>
-                    <label className="argument-field-label">
+                    <div className="argument-field-label">
                       <span>Parent Claim (Required)</span>
-                      <select
-                        value={newParentId}
-                        onChange={e => setNewParentId(e.target.value)}
-                        className="argument-select"
-                        required
-                      >
-                        <option value="">Select claim this evidence supports...</option>
-                        {claims.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.id}: {c.text}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {claims.length === 0 ? (
+                          <p className="text-xs text-[var(--color-ink-muted)]">No claims available to anchor evidence.</p>
+                        ) : (
+                          claims.map(c => {
+                            const isSelected = newParentId === c.id;
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => setNewParentId(c.id)}
+                                className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-xs text-left transition-all ${
+                                  isSelected
+                                    ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)] shadow-xs'
+                                    : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:border-slate-400/50'
+                                }`}
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <span className="font-mono text-[0.625rem] text-teal-600 dark:text-teal-400 font-bold block">{c.id}</span>
+                                  <span className="font-sans text-[var(--color-ink)] font-medium line-clamp-2">{c.text}</span>
+                                </div>
+                                {isSelected && <Check size={14} className="text-[var(--accent-indigo)] shrink-0" />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label className="argument-field-label">
+                      <div className="argument-field-label">
                         <span>Origin</span>
-                        <select
-                          value={newOrigin}
-                          onChange={e => setNewOrigin(e.target.value as EvidenceOrigin)}
-                          className="argument-select"
-                        >
-                          <option value="literature">Literature</option>
-                          <option value="experiment">Experiment</option>
-                          <option value="own_reasoning">Own Reasoning</option>
-                        </select>
-                      </label>
-                      <label className="argument-field-label">
+                        <div className="grid grid-cols-3 gap-1 pt-1">
+                          {(['literature', 'experiment', 'own_reasoning'] as const).map(orig => {
+                            const isSelected = newOrigin === orig;
+                            const label = orig === 'literature' ? 'Literature' : orig === 'experiment' ? 'Experiment' : 'Own Reason';
+                            return (
+                              <button
+                                key={orig}
+                                type="button"
+                                onClick={() => setNewOrigin(orig)}
+                                className={`px-2 py-1.5 rounded-lg border text-[0.6875rem] font-mono text-center transition-all ${
+                                  isSelected
+                                    ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-bold text-[var(--color-ink)] shadow-xs'
+                                    : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="argument-field-label">
                         <span>Form</span>
-                        <select
-                          value={newForm}
-                          onChange={e => setNewForm(e.target.value as EvidenceForm)}
-                          className="argument-select"
-                        >
-                          <option value="measurement">Measurement</option>
-                          <option value="derivation">Derivation</option>
-                          <option value="counterexample">Counterexample</option>
-                        </select>
-                      </label>
+                        <div className="grid grid-cols-3 gap-1 pt-1">
+                          {(['measurement', 'derivation', 'counterexample'] as const).map(f => {
+                            const isSelected = newForm === f;
+                            const label = f === 'measurement' ? 'Measurement' : f === 'derivation' ? 'Derivation' : 'Counterex';
+                            return (
+                              <button
+                                key={f}
+                                type="button"
+                                onClick={() => setNewForm(f)}
+                                className={`px-2 py-1.5 rounded-lg border text-[0.6875rem] font-mono text-center transition-all ${
+                                  isSelected
+                                    ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-bold text-[var(--color-ink)] shadow-xs'
+                                    : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
 
                     <label className="argument-field-label">
@@ -809,38 +859,60 @@ export const DetailView: React.FC<DetailViewProps> = ({
                           />
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <label className="argument-field-label">
+                          <div className="argument-field-label">
                             <span>Origin</span>
-                            <select
-                              value={selection.entity.origin}
-                              onChange={e =>
-                                updateEvidence(selection.entity.id, {
-                                  origin: e.target.value as EvidenceOrigin
-                                })
-                              }
-                              className="argument-select"
-                            >
-                              <option value="literature">Literature</option>
-                              <option value="experiment">Experiment</option>
-                              <option value="own_reasoning">Own Reasoning</option>
-                            </select>
-                          </label>
-                          <label className="argument-field-label">
+                            <div className="grid grid-cols-3 gap-1 pt-1">
+                              {(['literature', 'experiment', 'own_reasoning'] as const).map(orig => {
+                                const isSelected = selection.entity.origin === orig;
+                                const label = orig === 'literature' ? 'Literature' : orig === 'experiment' ? 'Experiment' : 'Own Reason';
+                                return (
+                                  <button
+                                    key={orig}
+                                    type="button"
+                                    onClick={() =>
+                                      updateEvidence(selection.entity.id, {
+                                        origin: orig
+                                      })
+                                    }
+                                    className={`px-2 py-1.5 rounded-lg border text-[0.6875rem] font-mono text-center transition-all ${
+                                      isSelected
+                                        ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-bold text-[var(--color-ink)] shadow-xs'
+                                        : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="argument-field-label">
                             <span>Form</span>
-                            <select
-                              value={selection.entity.form}
-                              onChange={e =>
-                                updateEvidence(selection.entity.id, {
-                                  form: e.target.value as EvidenceForm
-                                })
-                              }
-                              className="argument-select"
-                            >
-                              <option value="measurement">Measurement</option>
-                              <option value="derivation">Derivation</option>
-                              <option value="counterexample">Counterexample</option>
-                            </select>
-                          </label>
+                            <div className="grid grid-cols-3 gap-1 pt-1">
+                              {(['measurement', 'derivation', 'counterexample'] as const).map(f => {
+                                const isSelected = selection.entity.form === f;
+                                const label = f === 'measurement' ? 'Measurement' : f === 'derivation' ? 'Derivation' : 'Counterex';
+                                return (
+                                  <button
+                                    key={f}
+                                    type="button"
+                                    onClick={() =>
+                                      updateEvidence(selection.entity.id, {
+                                        form: f
+                                      })
+                                    }
+                                    className={`px-2 py-1.5 rounded-lg border text-[0.6875rem] font-mono text-center transition-all ${
+                                      isSelected
+                                        ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-bold text-[var(--color-ink)] shadow-xs'
+                                        : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                         <label className="argument-field-label">
                           <span>Citation</span>
@@ -951,20 +1023,36 @@ export const DetailView: React.FC<DetailViewProps> = ({
                     </span>
 
                     <div className="p-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2.5">
-                      <select
-                        value={linkTargetId}
-                        onChange={e => setLinkTargetId(e.target.value)}
-                        className="argument-select"
-                      >
-                        <option value="">
-                          Select {selection.kind === 'question' ? 'claim' : 'evidence'} to connect...
-                        </option>
-                        {connectOptions.map(option => (
-                          <option key={option.id} value={option.id}>
-                            [{option.id}] {'text' in option ? option.text : option.title}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+                        {connectOptions.length === 0 ? (
+                          <p className="text-xs text-[var(--color-ink-muted)] py-2">
+                            No unlinked {selection.kind === 'question' ? 'claims' : 'evidence'} available to connect.
+                          </p>
+                        ) : (
+                          connectOptions.map(option => {
+                            const isSelected = linkTargetId === option.id;
+                            const titleText = 'text' in option ? option.text : option.title;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() => setLinkTargetId(isSelected ? '' : option.id)}
+                                className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
+                                  isSelected
+                                    ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)] shadow-xs'
+                                    : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                }`}
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <span className="font-mono text-[0.625rem] text-[var(--accent-indigo)] font-bold mr-1.5">[{option.id}]</span>
+                                  <span className="font-sans text-[var(--color-ink)] truncate">{titleText}</span>
+                                </div>
+                                {isSelected && <Check size={13} className="text-[var(--accent-indigo)] shrink-0" />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
 
                       <textarea
                         value={linkReason}
@@ -1098,18 +1186,32 @@ export const DetailView: React.FC<DetailViewProps> = ({
                                     </>
                                   )}
                                 </button>
-                                <select
-                                  value={link.status}
-                                  onChange={e =>
-                                    setLinkStatus(link.id, e.target.value as LinkStatus)
-                                  }
-                                  aria-label={`Status for ${link.id}`}
-                                  className="argument-select h-7 py-0 px-2 text-xs font-mono w-32 shrink-0 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-md"
-                                >
-                                  <option value="holds">holds</option>
-                                  <option value="weak">weak</option>
-                                  <option value="missing">missing</option>
-                                </select>
+                                <div className="inline-flex rounded-lg border border-[var(--color-rule)] p-0.5 bg-[var(--color-surface)] shrink-0">
+                                  {(['holds', 'weak', 'missing'] as const).map(st => {
+                                    const isSelected = link.status === st;
+                                    const dotColor =
+                                      st === 'holds'
+                                        ? 'bg-emerald-500'
+                                        : st === 'weak'
+                                        ? 'bg-amber-500'
+                                        : 'bg-rose-500';
+                                    return (
+                                      <button
+                                        key={st}
+                                        type="button"
+                                        onClick={() => setLinkStatus(link.id, st)}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[0.6875rem] font-mono transition-all ${
+                                          isSelected
+                                            ? 'bg-white dark:bg-slate-800 text-[var(--color-ink)] font-bold shadow-2xs'
+                                            : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+                                        }`}
+                                      >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                                        <span>{st}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
 
                               <button

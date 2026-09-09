@@ -19,6 +19,7 @@ import {
   WeeklyReviewItem
 } from '../productivityTypes';
 import { VaultSnapshot } from '../vaultClient';
+import { SAMPLE_LEARNING_UNITS } from './sampleLearningUnits';
 
 export const SAMPLE_QUESTIONS: Question[] = [
   {
@@ -824,5 +825,5 @@ export const SAMPLE_SNAPSHOT: VaultSnapshot = {
   models: SAMPLE_MODELS,
   automations: SAMPLE_AUTOMATIONS,
   targets: SAMPLE_TARGETS,
-  learningUnits: []
+  learningUnits: SAMPLE_LEARNING_UNITS
 };
