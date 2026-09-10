@@ -118,7 +118,7 @@ export const AssistantDock: React.FC = () => {
   } = useWorkspace();
   const {
     sessions, openSessions, session, messages, running, status, error, storageWarning,
-    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir
+    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir, mode, setMode
   } = codexAssistant;
 
   const [input, setInput] = useState('');
@@ -362,10 +362,10 @@ export const AssistantDock: React.FC = () => {
           <div className="my-auto shrink-0 py-6 text-center text-[var(--color-ink-muted)]">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)]"><Sparkles className="w-5 h-5" /></div>
             <p className="mb-1 text-xs font-semibold text-[var(--color-ink)]">Start a conversation</p>
-            <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">Ask a question, inspect files, or work through an idea.</p>
+            <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">{mode === 'chat' ? 'Work through an idea. Chat discusses the problem without changing files.' : 'Inspect files, make changes, and check the result.'}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={() => setInput('Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">Explore this folder</button>
-              <button type="button" onClick={() => setInput('Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">Plan a task</button>
+              <button type="button" onClick={() => setInput(mode === 'chat' ? 'Help me think through an idea. Ask what I have in mind.' : 'Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Explore an idea' : 'Explore this folder'}</button>
+              <button type="button" onClick={() => setInput(mode === 'chat' ? 'Help me work through a decision. Ask what I am deciding.' : 'Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Discuss a decision' : 'Plan a task'}</button>
             </div>
             <p className="mt-4 text-[0.6875rem]">Drop objects here for reference. Only typed messages are sent.</p>
           </div>
@@ -448,7 +448,7 @@ export const AssistantDock: React.FC = () => {
               if (files.length) { event.preventDefault(); void attachImages(files); }
             }}
             onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) submit(event); }}
-            placeholder="Ask the assistant… (Enter to send)"
+            placeholder={mode === 'chat' ? 'Think it through… (Enter to send)' : 'What should change? (Enter to send)'}
             className="w-full resize-none bg-transparent p-2.5 pr-10 text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none"
           />
           {running ? (
@@ -457,8 +457,12 @@ export const AssistantDock: React.FC = () => {
             <button type="submit" disabled={(!input.trim() && !images.length) || uploading || workspaceLoading} title="Send message (Enter)" aria-label="Send message" className="absolute bottom-2 right-2 rounded-lg bg-[var(--accent-indigo)] p-1.5 text-white disabled:opacity-40"><CornerDownLeft className="w-3.5 h-3.5" /></button>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
           <div className="flex items-center">
+          <select aria-label="Assistant mode" value={mode} disabled={running || uploading || workspaceLoading} onChange={event => setMode(event.target.value === 'chat' ? 'chat' : 'codex')} title="Chat: discuss ideas, read-only. Codex: execute tasks and change files. Both use your configured Codex backend." className="mr-1 rounded-md border border-[var(--color-rule)] bg-[var(--color-surface)] px-1 py-1 text-[var(--color-ink)] disabled:opacity-40">
+            <option value="chat">Chat</option>
+            <option value="codex">Codex</option>
+          </select>
           <input ref={imagePicker} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" aria-label="Choose images" disabled={running || uploading || workspaceLoading} onChange={event => { void attachImages(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
           <button type="button" className={iconButton} disabled={running || uploading || workspaceLoading} aria-label="Attach images" title="Attach images (PNG, JPEG, WebP; 5 MiB each)" onClick={() => imagePicker.current?.click()}><ImagePlus className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} disabled={!activeContext || activeContext.type === 'graph'} aria-label="Attach current selection" title="Attach current selection (reference only)" onClick={() => { if (activeContext) addAttachedContext(activeContext); }}><Paperclip className="w-3.5 h-3.5" /></button>

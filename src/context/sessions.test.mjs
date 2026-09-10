@@ -53,6 +53,21 @@ test('closed tabs stay closed without losing saved conversations', () => {
   }
 });
 
+test('conversation modes survive reload without rewriting legacy history', () => {
+  const stored = { selectedId: 'a', sessions: [{ id: 'a', title: 'North stars', messages: [], threadId: 'thread-a' }] };
+  assert.equal(parseSessions(JSON.stringify(stored)).sessions[0].mode, undefined);
+  for (const mode of ['chat', 'codex']) {
+    stored.sessions[0].mode = mode;
+    const session = parseSessions(JSON.stringify(stored)).sessions[0];
+    assert.equal(session.mode, mode);
+    assert.equal(session.threadId, 'thread-a');
+  }
+  for (const mode of ['work', '', null, {}, ['chat']]) {
+    stored.sessions[0].mode = mode;
+    assert.throws(() => parseSessions(JSON.stringify(stored)), /Saved conversations could not be read/);
+  }
+});
+
 test('unreadable storage raises rather than silently discarding conversations', () => {
   for (const raw of ['{"sessions":[{"id":1}],"selectedId":""}', '{"sessions":{}}', '{"selectedId":"a"}']) {
     assert.throws(() => parseSessions(raw), /Saved conversations could not be read/);

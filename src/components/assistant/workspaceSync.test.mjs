@@ -33,6 +33,7 @@ try {
     });
     await page.route('**/api/assistant', async route => {
       if (route.request().method() === 'GET') return route.fulfill({ json: { model: '', provider: '', providers: [] } });
+      assert.equal(route.request().postDataJSON().mode, 'codex');
       assert.equal(data.tasks.length, 1, 'The pending manual edit is saved before the assistant starts');
       requests.push('ASSISTANT');
       data.tasks.push({ id: 'task-agent', title: 'Assistant-created task', description: 'First paragraph.\n\nSecond paragraph.', status: 'backlog', priority: 'medium', tag: 'task', author: 'model:test', lastEditedBy: 'model:test', createdAt: '2026-09-10T00:00:00Z' });
@@ -54,6 +55,7 @@ try {
     await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
     const panel = page.getByRole('complementary', { name: 'Assistant', exact: true });
     const input = panel.getByRole('textbox', { name: 'Message the assistant' });
+    await panel.getByRole('combobox', { name: 'Assistant mode' }).selectOption('codex');
     await page.locator('#add-task-col-backlog').click();
     await page.locator('#task-title-input').fill('Manual pending task');
     await page.getByRole('button', { name: 'Create task', exact: true }).click();

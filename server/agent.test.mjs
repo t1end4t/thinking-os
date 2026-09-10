@@ -149,6 +149,44 @@ test('agent, provider, model, and resumed session reach the SDK; only the messag
   assert.equal((await post(body, { headers: { 'content-type': 'text/plain' } })).status, 415);
 });
 
+test('Chat uses conversational instructions and a read-only sandbox; switching modes resumes history', async context => {
+  const starts = [];
+  const resumes = [];
+  const clientOptions = [];
+  const inputs = [];
+  const thread = { runStreamed: async input => {
+    inputs.push(input);
+    return { events: (async function* () {
+      yield { type: 'thread.started', thread_id: 'mode-thread' };
+      yield { type: 'turn.completed', usage: {} };
+    })() };
+  } };
+  const { post } = await fixture(context, {
+    startThread: options => { starts.push(options); return thread; },
+    resumeThread: (id, options) => { resumes.push({ id, options }); return thread; }
+  }, undefined, clientOptions);
+  const body = { agent: 'codex', mode: 'chat', conversationId: randomUUID(), dir: tmpdir(), message: 'Where should I start with my north star?', provider: 'local', model: 'chosen-model' };
+  const first = await post(body);
+  assert.equal(first.status, 200);
+  await first.text();
+  assert.deepEqual(starts[0], { workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true, model: 'chosen-model', sandboxMode: 'read-only', approvalPolicy: 'never' });
+  assert.equal(clientOptions[0].config.model_provider, 'local');
+  assert.match(clientOptions[0].config.developer_instructions, /natural, complete sentences/);
+  assert.match(clientOptions[0].config.developer_instructions, /Brainstorming is not a request to create a file/);
+  assert.match(clientOptions[0].config.developer_instructions, /Do not modify files/);
+  await (await post({ ...body, threadId: 'mode-thread', mode: 'codex' })).text();
+  assert.equal(clientOptions.length, 2);
+  assert.match(clientOptions[1].config.developer_instructions, /You are in Codex mode/);
+  assert.deepEqual(resumes[0], { id: 'mode-thread', options: { workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true, model: 'chosen-model' } });
+  await (await post({ ...body, threadId: 'mode-thread' })).text();
+  assert.equal(clientOptions.length, 2);
+  assert.equal(starts.length, 1);
+  assert.deepEqual(inputs, [body.message, body.message, body.message]);
+  await (await post({ ...body, conversationId: randomUUID(), threadId: 'mode-thread' })).text();
+  assert.equal(resumes[1].options.sandboxMode, 'read-only');
+  for (const mode of ['work', 'constructor', null, {}, ['chat']]) assert.equal((await post({ ...body, mode })).status, 400);
+});
+
 test('disconnect aborts the SDK turn and overlapping turns are refused', async context => {
   let reportAborted;
   const aborted = new Promise(resolve => { reportAborted = resolve; });

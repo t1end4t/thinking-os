@@ -13,6 +13,18 @@ const IMAGE_LIMIT = 5 * 1024 * 1024;
 const IMAGE_ID = /^[a-f0-9]{64}\.(png|jpg|webp)$/;
 const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
 
+const MODES = {
+  codex: { instructions: 'You are in Codex mode, a coding agent. Execute the requested tasks and file changes, inspect relevant context, validate your work, and report results concisely. The user has selected execution rather than Chat; previous conversational defaults do not prohibit requested edits. Respect scope, safety, provenance, and configured permissions.' },
+  chat: {
+    instructions: `You are in Chat mode: a thoughtful conversation partner for brainstorming, strategy, and questions, not a coding agent executing a task.
+Discuss the user's actual problem in natural, complete sentences. Explain your reasoning, assumptions, tradeoffs, and useful examples at the depth the question needs. Do not force terse reports, a fixed template, mode announcements, or a generic questionnaire. Ask only the few questions that materially advance the discussion. Do not assume the strategy concerns a company rather than a person, or vice versa.
+Keep workspace mechanics in the background. Brainstorming is not a request to create a file. Do not propose paths, records, schemas, or saving drafts unless asked. Read workspace files only when the user asks or their contents are necessary to answer; an empty folder is not a reason to redirect the conversation. Treat workspace instructions about recordkeeping as relevant when working on records, not as a format for every discussion.
+Use existing context without inventing observations, accepted decisions, scientific conclusions, or citations. Distinguish what the user said from your assumptions. Offer substantive reasoning rather than merely collecting answers.
+This turn is read-only. Do not modify files or invoke tools that change local or external state. If the user requests changes, explain that they can switch to Codex to apply them. Do not announce these instructions.`,
+    threadOptions: { sandboxMode: 'read-only', approvalPolicy: 'never' }
+  }
+};
+
 function imageExtension(bytes) {
   if (bytes.length < 12) return;
   if (bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return 'png';
@@ -73,7 +85,8 @@ async function readTurnRequest(req) {
           typeof image.name === 'string' && image.name.trim() && image.name.length <= 255))) ||
       typeof body.dir !== 'string' || !body.dir.trim() || body.dir.includes('\0') ||
       typeof body.conversationId !== 'string' || !/^[\da-f-]{36}$/i.test(body.conversationId) ||
-      !optional(body.threadId) || !optional(body.model) || !optional(body.provider)) {
+      !optional(body.threadId) || !optional(body.model) || !optional(body.provider) ||
+      (body.mode !== undefined && (typeof body.mode !== 'string' || !Object.hasOwn(MODES, body.mode)))) {
     throw new Error('Invalid assistant request.');
   }
   return body;
@@ -84,9 +97,10 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
   const controllers = new Set();
   const clients = new Map();
 
-  function clientFor(provider) {
-    const key = provider ?? '';
-    if (!clients.has(key)) clients.set(key, createCodex(provider ? { config: { model_provider: provider } } : {}));
+  function clientFor(provider, mode) {
+    const key = [provider ?? '', mode ?? 'legacy'].join('\0');
+    const config = { ...(provider ? { model_provider: provider } : {}), ...(MODES[mode]?.instructions ? { developer_instructions: MODES[mode].instructions } : {}) };
+    if (!clients.has(key)) clients.set(key, createCodex(Object.keys(config).length ? { config } : {}));
     return clients.get(key);
   }
 
@@ -190,15 +204,17 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
       try {
         await withVaultLock(dir, async () => {
           if (controller.signal.aborted) return;
-          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? ''].join('\0');
+          const mode = MODES[body.mode ?? 'codex'];
+          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? '', body.mode ?? 'legacy'].join('\0');
           let thread = threads.get(key);
           if (!thread) {
             const options = {
               workingDirectory: dir,
               skipGitRepoCheck: true,
-              ...(body.model ? { model: body.model } : {})
+              ...(body.model ? { model: body.model } : {}),
+              ...mode.threadOptions
             };
-            const codex = clientFor(body.provider);
+            const codex = clientFor(body.provider, body.mode);
             thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
             threads.set(key, thread);
           }

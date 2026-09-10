@@ -7,5 +7,6 @@
 - `useCodexAssistant` also owns the saved folder list (`thinking_os_assistant_projects_v1`). The research workspace is always the default project, selected on reload or workspace change. Project selection changes only assistant routing/history, never vault load/save. Removing a project keeps its chats and filesystem contents; unreadable project storage must not be overwritten. Switching or changing projects is blocked during streaming.
 - Persisted session state tracks `openIds` (tab strip) separately from `sessions` (saved history); vaults stored before this field open every conversation. `closeSession` only drops a tab, `deleteSession` erases the record, and both pick a neighboring tab and refuse to run during streaming.
 - Assistant preferences (panel font size, provider, model) are UI-level choices layered over local Codex config; never store credentials.
+- Assistant mode is saved per conversation; the last chosen mode supplies the default for new conversations (Chat initially). Legacy conversations without a mode remain Codex. Mode changes keep the SDK thread ID for continuity. Send the mode explicitly; reject unknown stored modes without overwriting history.
 - SDK types are type-only imports; the SDK runtime stays server-side.
 - Checks: `npm run lint`, `npm run build`, `node --test src/context/sessions.test.mjs`, `node --test server/agent.test.mjs`.

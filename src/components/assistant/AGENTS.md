@@ -1,6 +1,7 @@
 # Assistant Dock
 
 - Agent-neutral surface. Codex is the only implemented backend today. The dock keeps its accessible "Assistant" label; concrete agent/provider/model details live in the project switcher, not an always-visible status row.
+- The composer offers Chat (conversation-first, read-only) and Codex (execution) modes on that same backend, not an embedded ChatGPT session. Mode changes preserve drafts and conversation history, and are disabled during streaming or image uploads. Empty-state prompts follow the selected mode.
 - State and streaming live in `../../context/useCodexAssistant.ts`; the dock renders only.
 - Keep the top to two compact rows: project-name switcher with header actions, then conversation tabs. Full paths and provider/model metadata appear only in the closed-by-default switcher or its tooltip. Do not add extra path/status/project-list rows above the conversation.
 - `AssistantProjects.tsx` lists assistant working folders in a native details dropdown, dismissible by Escape or outside click/focus. Selecting a folder closes it and restores switcher focus. Add folder uses the existing read-only `/api/dirs` browser in a native dialog and restores switcher focus when closed. The workspace is pinned as the default project. Folder selection never calls `setWorkspaceDir`; tabs and history follow the selected project. No external chat-history import/sync.
