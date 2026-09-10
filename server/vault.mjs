@@ -1,28 +1,98 @@
-import { readdir, readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { readdir, readFile, writeFile, mkdir, unlink, copyFile, rmdir } from 'node:fs/promises';
+import { constants, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
 export const DEFAULT_VAULT = path.join(homedir(), 'second-brain');
 
 const MD_COLLECTIONS = {
-  questions: ['questions', 'title'],
-  claims: ['claims', 'text'],
-  evidence: ['evidence', 'title'],
-  openProblems: ['survey/open-problems', 'text'],
-  candidateQuestions: ['survey/candidates', 'title'],
-  papers: ['papers', 'paper'],
-  experiments: ['experiments', 'title'],
-  tasks: ['tasks', 'task'],
-  goals: ['planning/goals', 'goal'],
-  weeklyReviews: ['planning/reviews', 'weekly-review'],
+  questions: ['research/map/questions', 'title'],
+  claims: ['research/map/claims', 'text'],
+  evidence: ['research/map/evidence', 'title'],
+  openProblems: ['research/survey/open-problems', 'text'],
+  candidateQuestions: ['research/survey/candidates', 'title'],
+  papers: ['research/papers', 'paper'],
+  experiments: ['research/experiments', 'title'],
+  tasks: ['tasks/pipeline', 'task'],
+  goals: ['tasks/direction', 'goal'],
+  weeklyReviews: ['tasks/reviews', 'weekly-review'],
   services: ['runtime/services', 'name'],
-  runs: ['runtime/runs', 'name'],
-  models: ['runtime/models', 'name'],
-  automations: ['runtime/automations', 'name'],
-  targets: ['runtime/targets', 'name'],
-  learningUnits: ['learn/units', 'unit']
+  runs: ['runtime/agent-jobs/runs', 'name'],
+  models: ['runtime/llm-models', 'name'],
+  automations: ['runtime/agent-jobs/automations', 'name'],
+  targets: ['runtime/agent-jobs/targets', 'name'],
+  learningUnits: ['learn/board', 'unit']
 };
+
+const LINKS_DIR = 'research/map/links';
+
+const LEGACY_DIRS = {
+  'research/map/questions': 'questions',
+  'research/map/claims': 'claims',
+  'research/map/evidence': 'evidence',
+  [LINKS_DIR]: 'links',
+  'research/survey/open-problems': 'survey/open-problems',
+  'research/survey/candidates': 'survey/candidates',
+  'research/papers': 'papers',
+  'research/experiments': 'experiments',
+  'tasks/pipeline': 'tasks',
+  'tasks/direction': 'planning/goals',
+  'tasks/reviews': 'planning/reviews',
+  'runtime/agent-jobs/runs': 'runtime/runs',
+  'runtime/llm-models': 'runtime/models',
+  'runtime/agent-jobs/automations': 'runtime/automations',
+  'runtime/agent-jobs/targets': 'runtime/targets',
+  'learn/board': 'learn/units'
+};
+
+async function migrateLegacyDirs(root) {
+  const files = [];
+  const directories = new Set();
+  for (const [current, legacy] of Object.entries(LEGACY_DIRS)) {
+    const from = path.join(root, legacy);
+    const to = path.join(root, current);
+    if (!existsSync(from)) continue;
+    const names = (await readdir(from, { withFileTypes: true }))
+      .filter(entry => entry.isFile() && /\.(md|json)$/.test(entry.name))
+      .map(entry => entry.name);
+    for (const name of names) {
+      const source = path.join(from, name);
+      const destination = path.join(to, name);
+      const content = await readFile(source);
+      if (existsSync(destination) && !content.equals(await readFile(destination))) {
+        throw new Error(`Vault migration conflict: ${source} and ${destination} differ. Both files were preserved.`);
+      }
+      files.push({ source, destination, content });
+    }
+    directories.add(from);
+    const parent = path.dirname(from);
+    if (parent !== root) directories.add(parent);
+  }
+  for (const { source, destination, content } of files) {
+    await mkdir(path.dirname(destination), { recursive: true });
+    try {
+      await copyFile(source, destination, constants.COPYFILE_EXCL);
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+    if (!content.equals(await readFile(destination))) {
+      throw new Error(`Vault migration conflict: ${destination} changed. Legacy files were preserved.`);
+    }
+  }
+  for (const { source, content } of files) {
+    if (!content.equals(await readFile(source))) {
+      throw new Error(`Vault migration conflict: ${source} changed. Legacy files were preserved.`);
+    }
+  }
+  for (const { source } of files) await unlink(source);
+  for (const dir of [...directories].sort((first, second) => second.length - first.length)) {
+    try {
+      await rmdir(dir);
+    } catch (error) {
+      if (error.code !== 'ENOTEMPTY' && error.code !== 'ENOENT') throw error;
+    }
+  }
+}
 
 export function resolveVaultDir(raw) {
   const value = (raw || '').trim() || DEFAULT_VAULT;
@@ -92,7 +162,7 @@ function normalizeLink(link, id) {
 }
 
 async function readLinks(root) {
-  const dir = path.join(root, 'links');
+  const dir = path.join(root, LINKS_DIR);
   if (!existsSync(dir)) return [];
   const names = (await readdir(dir)).filter(name => name.endsWith('.json')).sort();
   return Promise.all(names.map(async name => {
@@ -102,6 +172,7 @@ async function readLinks(root) {
 }
 
 export async function readVault(root) {
+  if (existsSync(root)) await migrateLegacyDirs(root);
   const snapshot = {};
   for (const [key, [dir, kind]] of Object.entries(MD_COLLECTIONS)) {
     snapshot[key] = await readMdDir(path.join(root, dir), kind);
@@ -134,7 +205,7 @@ async function syncCollection(root, relativeDir, kind, items) {
 }
 
 async function syncLinks(root, links) {
-  const dir = path.join(root, 'links');
+  const dir = path.join(root, LINKS_DIR);
   await mkdir(dir, { recursive: true });
   const wanted = new Set(links.map(link => `${link.id}.json`));
   for (const name of await readdir(dir)) {
@@ -146,6 +217,7 @@ async function syncLinks(root, links) {
 }
 
 export async function writeVault(root, snapshot) {
+  await migrateLegacyDirs(root);
   for (const [key, [dir, kind]] of Object.entries(MD_COLLECTIONS)) {
     if (Array.isArray(snapshot[key])) await syncCollection(root, dir, kind, snapshot[key]);
   }

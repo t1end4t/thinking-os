@@ -258,7 +258,7 @@ export type LearnBlock =
 
 /**
  * A board: one source (book, video, paper) plus the visual blocks captured from it.
- * Persisted under `learn/units`. Pre-redesign vaults keep extra JSON keys on disk;
+ * Persisted under `learn/board`. Pre-redesign vaults keep extra JSON keys on disk;
  * they are carried through untouched and are not rendered.
  */
 export interface LearningUnit {

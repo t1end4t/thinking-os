@@ -105,10 +105,10 @@ test('templates read and save repository files without touching active instructi
   const starter = await readTemplate('template:thinking-modes');
   assert.match(starter.content, /## Explore/);
   assert.match(starter.content, /Before creating, editing, or deleting any vault record, read VAULT_OPERATIONS\.md/);
-  assert.ok(!starter.content.includes('tasks/<id>.json'));
+  assert.ok(!starter.content.includes('tasks/pipeline/<id>.json'));
   const operations = await readTemplate('template:vault-operations');
   assert.match(operations.content, /Save this template as VAULT_OPERATIONS\.md/);
-  assert.match(operations.content, /tasks\/<id>\.json/);
+  assert.match(operations.content, /tasks\/pipeline\/<id>\.json/);
   assert.match(operations.content, /papers\/<id>\.json/);
   assert.match(operations.content, /close all Thinking OS tabs/);
   for (const [slug] of AGENT_TEMPLATES) {

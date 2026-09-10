@@ -35,7 +35,8 @@ Keep this product model intact. Prefer features that improve traceability, falsi
 
 - The filesystem vault is the source of truth for research and runtime collections.
 - Human-readable prose belongs in `.md`; structured metadata belongs in same-ID `.json` sidecars.
-- Links live as individual JSON files under `links/`.
+- Vault folders follow tabs: `tasks/`, `runtime/`, `research/`, and `learn/`. Collections nest under their subtabs; legacy flat folders migrate on load/save without changing IDs or record schemas.
+- Links live as individual JSON files under `research/map/links/`.
 - Collection-to-directory mappings live in `MD_COLLECTIONS` in `server/vault.mjs`. Update server mapping, client snapshot types, context load/save, and tests together when adding a persisted collection.
 - `writeVault` is snapshot synchronization: absent entities are deleted from disk. Treat changes here as data-loss-sensitive.
 - Manuscript data currently persists separately in browser `localStorage` under `thinking_os_manuscript`.
