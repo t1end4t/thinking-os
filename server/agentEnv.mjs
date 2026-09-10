@@ -2,10 +2,22 @@ import { chmod, copyFile, mkdir, readFile, readdir, rename, stat, writeFile } fr
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isLoopback, isSameOrigin } from './runtime.mjs';
-import { AGENT_TEMPLATES } from './agentTemplates.mjs';
 
 const MAX_CONTENT_BYTES = 1_000_000;
+
+export const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../templates');
+
+export const AGENT_TEMPLATES = [
+  ['shared-core', 'Shared behavior'],
+  ['thinking-modes', 'Thinking modes'],
+  ['vault-operations', 'Vault operations'],
+  ['coding-project', 'Project implementation'],
+  ['directory-context', 'Directory AGENTS.md'],
+  ['index', 'INDEX.md'],
+  ['problem-brief', 'Problem brief']
+];
 
 const registryPath = home => path.join(home, '.thinking-os/agent-projects.json');
 
@@ -106,7 +118,7 @@ async function listSkills(root, scope, project) {
   return entries;
 }
 
-export async function listAgentEnv(home = homedir()) {
+export async function listAgentEnv(home = homedir(), templateDir = TEMPLATE_DIR) {
   const projects = await readProjects(home);
   const entries = [
     ...AGENT_TEMPLATES.map(([slug, label]) => ({
@@ -118,7 +130,7 @@ export async function listAgentEnv(home = homedir()) {
       scope: 'global',
       projectId: null,
       projectName: null,
-      path: path.join(home, '.thinking-os/templates', `${slug}.md`)
+      path: path.join(templateDir, `${slug}.md`)
     })),
     ...GLOBAL_FILES.map(([id, agent, label, relative, kind]) => ({
       id,
@@ -150,25 +162,22 @@ export async function listAgentEnv(home = homedir()) {
   return { home, projects, entries: await Promise.all(entries.map(describe)) };
 }
 
-async function findEntry(id, home = homedir()) {
-  const { entries } = await listAgentEnv(home);
+async function findEntry(id, home = homedir(), templateDir = TEMPLATE_DIR) {
+  const { entries } = await listAgentEnv(home, templateDir);
   const entry = entries.find(item => item.id === id);
   if (!entry) throw new Error(`unknown agent config entry: ${id}`);
   return entry;
 }
 
-export async function readAgentEnvFile(id, home = homedir()) {
-  const entry = await findEntry(id, home);
-  const defaultContent = entry.category === 'template'
-    ? AGENT_TEMPLATES.find(([slug]) => id === `template:${slug}`)[2]
-    : '';
-  return { entry, content: entry.exists ? await readFile(entry.path, 'utf8') : defaultContent };
+export async function readAgentEnvFile(id, home = homedir(), templateDir = TEMPLATE_DIR) {
+  const entry = await findEntry(id, home, templateDir);
+  return { entry, content: entry.exists || entry.category === 'template' ? await readFile(entry.path, 'utf8') : '' };
 }
 
-export async function writeAgentEnvFile(id, content, home = homedir()) {
+export async function writeAgentEnvFile(id, content, home = homedir(), templateDir = TEMPLATE_DIR) {
   if (typeof content !== 'string') throw new Error('content must be a string');
   if (Buffer.byteLength(content) > MAX_CONTENT_BYTES) throw new Error('content too large');
-  const entry = await findEntry(id, home);
+  const entry = await findEntry(id, home, templateDir);
   if (entry.category === 'skill' && !entry.exists) throw new Error('skill file no longer exists');
   if (entry.kind === 'json' && content.trim()) JSON.parse(content);
   await mkdir(path.dirname(entry.path), { recursive: true });

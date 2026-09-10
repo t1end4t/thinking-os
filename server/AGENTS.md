@@ -1,6 +1,6 @@
 # Local Middleware
 
-- `agentEnv.mjs` exposes fixed instruction-template IDs from `agentTemplates.mjs` alongside active configs. Unsaved templates read bundled defaults; saves write only `~/.thinking-os/templates/<slug>.md` with the existing backup/atomic-write path. Never activate templates or include them in vault snapshot synchronization. Checks: `node --test server/agentEnv.test.mjs`.
+- `agentEnv.mjs` exposes fixed instruction-template IDs alongside active configs. Templates read and save repository-root `templates/<slug>.md`, resolved relative to the module, with the existing backup/atomic-write path. Missing templates report a read error; there is no embedded or home-directory fallback. Never activate templates or include them in vault snapshot synchronization. Tests inject a temporary template directory rather than editing repository files. Checks: `node --test server/agentEnv.test.mjs`.
 
 - Vite loads these plugins for development and preview; there is no standalone API server.
 - `agent.mjs` serves `/api/assistant` for the assistant dock. It is agent-keyed (`agent: 'codex'` today) so other backends can be added without changing the client contract.

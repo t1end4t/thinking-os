@@ -811,7 +811,7 @@ export function AgentEnvironmentView() {
 
             {selectedEntry.category === 'template' && (
               <div className="px-4 py-2 border-b border-[var(--color-rule)] text-xs font-mono text-[var(--color-ink-muted)]" role="note">
-                Reusable template only. Saving stores a personal copy; it does not change active instructions or apply to a project.
+                Reusable template only. Saving updates this repository's templates folder; it does not change active instructions or apply to a project.
               </div>
             )}
 
