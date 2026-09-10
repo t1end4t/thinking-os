@@ -66,9 +66,7 @@ export const TopBar: React.FC = () => {
       {/* Left: Brand and Workspace locator */}
       <div className="topbar-left flex items-center gap-3.5 min-w-0">
         <div className="topbar-identity flex items-center gap-2.5 shrink-0">
-          <div className="w-5 h-5 rounded bg-slate-900 dark:bg-slate-100 flex items-center justify-center text-white dark:text-slate-900 shadow-xs">
-            <span className="font-mono text-[0.8125rem] font-bold">I</span>
-          </div>
+          <img src="/favicon.svg?v=inference" alt="" width={20} height={20} className="w-5 h-5 shrink-0" />
           <span className="font-mono tracking-[0.14em] uppercase font-bold text-[0.9688rem] text-[var(--color-ink)]">
             THINKING OS
           </span>
