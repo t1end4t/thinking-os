@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Question,
   Claim,
@@ -28,7 +28,7 @@ import {
 } from '../productivityTypes';
 import { LearningUnit, LearnBlock, LearnSource, LearnViewMode } from '../learnTypes';
 import { normalizeLearningUnit, scheduleCard } from '../utils/learnBlocks';
-import { loadVault, saveVault } from '../vaultClient';
+import { loadVault, saveVault, type VaultSnapshot } from '../vaultClient';
 import { useCodexAssistant } from './useCodexAssistant';
 import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import {
@@ -107,6 +107,7 @@ const INITIAL_THREADS: Record<string, AssistantMessage[]> = {
 
 interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   codexAssistant: ReturnType<typeof useCodexAssistant>;
+  workspaceSyncing: boolean;
   workspaceDir: string;
   workspaceLoading: boolean;
   workspaceError: string | null;
@@ -255,7 +256,10 @@ const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefi
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [workspaceDir, setWorkspaceDirState] = useState(() => localStorage.getItem('thinking_os_workspace_dir') || '~/second-brain');
-  const codexAssistant = useCodexAssistant(workspaceDir);
+  const [workspaceSyncing, setWorkspaceSyncing] = useState(false);
+  const savePaused = useRef(false);
+  const pendingSave = useRef<Promise<void>>(Promise.resolve());
+  const savedSnapshot = useRef('');
   const [workspaceLoading, setWorkspaceLoading] = useState(true);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
@@ -351,64 +355,113 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const manuscriptWorkspace = useManuscriptWorkspace();
 
+  const snapshot = useMemo(() => ({
+    questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
+    tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits
+  }), [questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
+    tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits]);
+  const latestSnapshot = useRef(snapshot);
+  latestSnapshot.current = snapshot;
+
+  const applySnapshot = useCallback((data: VaultSnapshot) => {
+    const normalized = { ...data, tasks: data.tasks.map(task => ({
+      ...task, author: task.author ?? 'user', lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
+    })), learningUnits: data.learningUnits.map(normalizeLearningUnit) };
+    savedSnapshot.current = JSON.stringify(normalized);
+    setQuestions(normalized.questions);
+    setClaims(normalized.claims);
+    setEvidence(normalized.evidence);
+    setLinks(normalized.links);
+    setOpenProblems(normalized.openProblems);
+    setCandidateQuestions(normalized.candidateQuestions);
+    setPapers(normalized.papers);
+    setExperiments(normalized.experiments);
+    setTasks(normalized.tasks);
+    setGoals(normalized.goals);
+    setWeeklyReviews(normalized.weeklyReviews);
+    setServices(normalized.services);
+    setRuns(normalized.runs);
+    setModels(normalized.models);
+    setAutomations(normalized.automations);
+    setTargets(normalized.targets);
+    setLearningUnits(normalized.learningUnits);
+  }, []);
+
+  const persistSnapshot = useCallback((dir: string, data: VaultSnapshot) => {
+    const serialized = JSON.stringify(data);
+    pendingSave.current = pendingSave.current.then(async () => {
+      if (serialized === savedSnapshot.current) return;
+      await saveVault(dir, data);
+      savedSnapshot.current = serialized;
+    });
+    return pendingSave.current;
+  }, []);
+
   const setWorkspaceDir = useCallback(async (dir: string) => {
+    if (savePaused.current) return;
     const requestedDir = dir.trim() || '~/second-brain';
     setWorkspaceLoading(true);
     setWorkspaceError(null);
     setVaultReady(false);
     try {
+      await pendingSave.current.catch(() => {});
       const loaded = await loadVault(requestedDir);
-      let data = loaded.data;
-      // Empty vaults remain clean and empty as intended.
-      // Users can load sample data at any time via TopBar settings -> Load Sample.
-
       setWorkspaceDirState(loaded.dir);
       localStorage.setItem('thinking_os_workspace_dir', loaded.dir);
-      setQuestions(data.questions);
-      setClaims(data.claims);
-      setEvidence(data.evidence);
-      setLinks(data.links);
-      setOpenProblems(data.openProblems);
-      setCandidateQuestions(data.candidateQuestions);
-      setPapers(data.papers);
-      setExperiments(data.experiments);
-      setTasks(data.tasks.map(task => ({
-        ...task,
-        author: task.author ?? 'user',
-        lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
-      })));
-      setGoals(data.goals);
-      setWeeklyReviews(data.weeklyReviews);
-      setServices(data.services);
-      setRuns(data.runs);
-      setModels(data.models);
-      setAutomations(data.automations);
-      setTargets(data.targets);
-      setLearningUnits((data.learningUnits ?? []).map(normalizeLearningUnit));
+      applySnapshot(loaded.data);
+      pendingSave.current = Promise.resolve();
       setVaultReady(true);
     } catch (error) {
       setWorkspaceError(String(error instanceof Error ? error.message : error));
     } finally {
       setWorkspaceLoading(false);
     }
-  }, []);
+  }, [applySnapshot]);
+
+  const codexAssistant = useCodexAssistant(workspaceDir, async dir => {
+    if (dir !== workspaceDir) return;
+    if (!vaultReady || savePaused.current) throw new Error('Wait for the workspace to load before starting the assistant.');
+    savePaused.current = true;
+    setWorkspaceSyncing(true);
+    try {
+      await persistSnapshot(workspaceDir, latestSnapshot.current);
+    } catch (error) {
+      savePaused.current = false;
+      setWorkspaceSyncing(false);
+      throw error;
+    }
+    const before = savedSnapshot.current;
+    return async () => {
+      try {
+        if (JSON.stringify(latestSnapshot.current) !== before) throw new Error('Workspace edits arrived during the assistant turn. Your local edits are kept; preserve them before reloading.');
+        const loaded = await loadVault(workspaceDir);
+        if (JSON.stringify(latestSnapshot.current) !== before) throw new Error('Workspace edits arrived during reload. Your local edits are kept; preserve them before reloading.');
+        applySnapshot(loaded.data);
+        setWorkspaceError(null);
+      } catch (error) {
+        setVaultReady(false);
+        setWorkspaceError(String(error instanceof Error ? error.message : error));
+        throw error;
+      } finally {
+        savePaused.current = false;
+        setWorkspaceSyncing(false);
+      }
+    };
+  });
 
   useEffect(() => {
     void setWorkspaceDir(workspaceDir);
   }, []);
 
   useEffect(() => {
-    if (!vaultReady) return;
+    if (!vaultReady || workspaceSyncing || savePaused.current) return;
     const timer = window.setTimeout(() => {
-      void saveVault(workspaceDir, {
-        questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
-        tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits
-      }).catch(error => setWorkspaceError(String(error instanceof Error ? error.message : error)));
+      if (savePaused.current) return;
+      void persistSnapshot(workspaceDir, snapshot).catch(error => setWorkspaceError(String(error instanceof Error ? error.message : error)));
     }, 250);
     return () => window.clearTimeout(timer);
   }, [
-    vaultReady, workspaceDir, questions, claims, evidence, links, openProblems, candidateQuestions,
-    papers, experiments, tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits
+    vaultReady, workspaceDir, workspaceSyncing, snapshot, persistSnapshot
   ]);
 
   const setFontSize = useCallback((size: number) => {
@@ -618,7 +671,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setTargets(SAMPLE_SNAPSHOT.targets);
       setThreads(INITIAL_THREADS);
       manuscriptWorkspace.resetManuscriptToSample();
-      await saveVault(workspaceDir, { ...SAMPLE_SNAPSHOT, learningUnits });
+      await persistSnapshot(workspaceDir, { ...SAMPLE_SNAPSHOT, learningUnits });
     } catch (err) {
       console.error('Failed to load sample data:', err);
     } finally {
@@ -1254,6 +1307,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     <WorkspaceContext.Provider
       value={{
         codexAssistant,
+        workspaceSyncing,
         workspaceDir,
         workspaceLoading,
         workspaceError,

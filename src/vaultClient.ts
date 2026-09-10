@@ -28,6 +28,8 @@ export const EMPTY_SNAPSHOT: VaultSnapshot = {
   learningUnits: []
 };
 
+const revisions = new Map<string, string>();
+
 async function call(dir: string, init?: RequestInit) {
   const response = await fetch(`/api/vault?dir=${encodeURIComponent(dir)}`, init);
   const payload = await response.json();
@@ -51,41 +53,33 @@ export async function listWorkspaceDirs(dir: string): Promise<WorkspaceDirListin
 }
 
 export async function loadVault(dir: string): Promise<{ dir: string; data: VaultSnapshot }> {
-  try {
-    const payload = await call(dir);
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(`thinking_os_vault_${payload.dir}`, JSON.stringify(payload.data));
-      } catch {}
-    }
-    return { dir: payload.dir, data: { ...EMPTY_SNAPSHOT, ...payload.data } };
-  } catch (error) {
-    console.warn('Vault API call failed, attempting local cache fallback:', error);
-    if (typeof localStorage !== 'undefined') {
-      const cached = localStorage.getItem(`thinking_os_vault_${dir}`);
-      if (cached) {
-        try {
-          return { dir, data: { ...EMPTY_SNAPSHOT, ...JSON.parse(cached) } };
-        } catch {}
-      }
-    }
-    return { dir, data: EMPTY_SNAPSHOT };
+  const payload = await call(dir);
+  if (!payload.data || typeof payload.data !== 'object' || !Object.values(payload.data).every(Array.isArray) || typeof payload.revision !== 'string') {
+    throw new Error('Invalid vault response. The workspace was not replaced.');
   }
+  revisions.set(dir, payload.revision);
+  revisions.set(payload.dir, payload.revision);
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(`thinking_os_vault_${payload.dir}`, JSON.stringify(payload.data));
+    } catch {}
+  }
+  return { dir: payload.dir, data: { ...EMPTY_SNAPSHOT, ...payload.data } };
 }
 
 export async function saveVault(dir: string, snapshot: VaultSnapshot): Promise<void> {
+  const revision = revisions.get(dir);
+  if (!revision) throw new Error('Load the workspace successfully before saving.');
+  const payload = await call(dir, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', 'if-match': revision },
+    body: JSON.stringify(snapshot)
+  });
+  if (typeof payload.revision !== 'string') throw new Error('Save returned no vault revision. Reload before continuing.');
+  revisions.set(dir, payload.revision);
   if (typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem(`thinking_os_vault_${dir}`, JSON.stringify(snapshot));
     } catch {}
-  }
-  try {
-    await call(dir, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(snapshot)
-    });
-  } catch (error) {
-    console.warn('Vault API save failed, saved to local cache:', error);
   }
 }

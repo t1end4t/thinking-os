@@ -33,6 +33,8 @@ const GLOBAL_FILES = [
 const PROJECT_FILES = [
   ['agents', 'shared', 'Project instructions', 'AGENTS.md', 'markdown', 'instructions'],
   ['claude', 'claude', 'Project instructions', 'CLAUDE.md', 'markdown', 'instructions'],
+  ['vault-operations', 'shared', 'Vault operations', 'VAULT_OPERATIONS.md', 'markdown', 'instructions'],
+  ['index', 'shared', 'Navigation index', 'INDEX.md', 'markdown', 'instructions'],
   ['claude-settings', 'claude', 'Project settings', '.claude/settings.json', 'json', 'settings'],
   ['claude-local-settings', 'claude', 'Private project settings', '.claude/settings.local.json', 'json', 'settings'],
   ['codex-config', 'codex', 'Project config', '.codex/config.toml', 'toml', 'settings'],

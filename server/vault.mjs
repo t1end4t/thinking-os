@@ -1,9 +1,26 @@
-import { readdir, readFile, writeFile, mkdir, unlink, copyFile, rmdir } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, unlink, copyFile, rmdir, realpath } from 'node:fs/promises';
 import { constants, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
 export const DEFAULT_VAULT = path.join(homedir(), 'second-brain');
+
+const vaultQueues = new Map();
+
+export async function withVaultLock(root, action) {
+  const key = await realpath(root).catch(error => {
+    if (error.code !== 'ENOENT') throw error;
+    return path.resolve(root);
+  });
+  const previous = vaultQueues.get(key) ?? Promise.resolve();
+  const pending = previous.catch(() => {}).then(action);
+  vaultQueues.set(key, pending);
+  try { return await pending; }
+  finally { if (vaultQueues.get(key) === pending) vaultQueues.delete(key); }
+}
+
+const revisionOf = data => createHash('sha256').update(JSON.stringify(data)).digest('hex');
 
 const MD_COLLECTIONS = {
   questions: ['research/map/questions', 'title'],
@@ -287,16 +304,25 @@ function attach(server) {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const root = resolveVaultDir(url.searchParams.get('dir'));
     try {
-      if (req.method === 'GET') return send(200, { dir: root, exists: existsSync(root), data: await readVault(root) });
+      if (req.method === 'GET') return await withVaultLock(root, async () => {
+        const data = await readVault(root);
+        res.setHeader('cache-control', 'no-store');
+        return send(200, { dir: root, exists: existsSync(root), data, revision: revisionOf(data) });
+      });
       if (req.method === 'PUT') {
         const payload = JSON.parse(await readBody(req));
-        const hasEntities = Object.values(payload).some(v => Array.isArray(v) && v.length > 0);
-        if (!hasEntities && !existsSync(root)) {
-          return send(200, { dir: root, saved: false, empty: true });
-        }
-        await mkdir(root, { recursive: true });
-        await writeVault(root, payload);
-        return send(200, { dir: root, saved: true });
+        return await withVaultLock(root, async () => {
+          if (typeof req.headers['if-match'] !== 'string') return send(428, { error: 'Reload the workspace before saving.' });
+          const current = await readVault(root);
+          if (req.headers['if-match'] !== revisionOf(current)) return send(409, { error: 'Workspace files changed. Your unsaved edits remain in this tab; reload after preserving them. No files were overwritten.' });
+          const hasEntities = Object.values(payload).some(v => Array.isArray(v) && v.length > 0);
+          if (!hasEntities && !existsSync(root)) {
+            return send(200, { dir: root, saved: false, empty: true, revision: revisionOf(current) });
+          }
+          await mkdir(root, { recursive: true });
+          await writeVault(root, payload);
+          return send(200, { dir: root, saved: true, revision: revisionOf(await readVault(root)) });
+        });
       }
       return send(405, { error: `${req.method} not allowed` });
     } catch (error) {

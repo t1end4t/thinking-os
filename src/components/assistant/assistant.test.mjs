@@ -12,7 +12,7 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   const vaultRequests = [];
   page.on('request', request => { if (new URL(request.url()).pathname === '/api/vault') vaultRequests.push(new URL(request.url()).searchParams.get('dir')); });
-  await page.route('**/api/vault*', route => route.fulfill({ json: { dir: '/tmp/assistant-ui-test', data: {} } }));
+  await page.route('**/api/vault*', route => route.fulfill({ json: { dir: '/tmp/assistant-ui-test', data: {}, revision: 'ui-test' } }));
   await page.route('**/api/dirs?*', route => {
     const dir = new URL(route.request().url()).searchParams.get('dir');
     if (dir === '/denied') return route.fulfill({ status: 403, json: { error: 'Folder access denied.' } });
@@ -74,6 +74,19 @@ try {
   const input = page.getByRole('textbox', { name: 'Message the assistant' });
   const send = page.getByRole('button', { name: 'Send message', exact: true });
   await expect(panel).toBeVisible();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
+      const empty = await panel.getByText('Start a conversation').evaluate(element => {
+        const bounds = element.parentElement.getBoundingClientRect();
+        const container = element.closest('[role="log"]').getBoundingClientRect();
+        return { horizontal: bounds.x + bounds.width / 2 - container.x - container.width / 2, vertical: bounds.y + bounds.height / 2 - container.y - container.height / 2 };
+      });
+      assert.ok(Math.abs(empty.horizontal) < 2 && Math.abs(empty.vertical) < 2, `Empty conversation is centered at ${width}px in ${theme} mode`);
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const tabs = panel.getByRole('tablist', { name: 'Conversations' });
   const browse = panel.getByRole('button', { name: 'Browse conversations' });
   const history = page.getByRole('dialog', { name: 'Conversations', exact: true });
@@ -131,7 +144,10 @@ try {
   await expect(send).toBeEnabled();
   await input.fill('Render Markdown');
   await input.press('Enter');
-  await expect(page.getByRole('status')).toBeVisible();
+  await expect(panel.getByRole('status')).toBeVisible();
+  const syncBanner = page.getByRole('status', { name: 'Workspace sync' });
+  await expect(syncBanner).toBeVisible();
+  assert.ok(await page.locator('#kanban-board-grid').evaluate(element => Boolean(element.closest('[inert]'))), 'Workspace surfaces are inert while the assistant runs');
   await expect(panel.getByText('Working…').first()).toBeVisible();
   const progress = transcript.getByText('Reading the workspace before running checks.');
   await expect(progress).toBeVisible();
@@ -139,6 +155,8 @@ try {
   await panel.getByText('Working…', { exact: true }).click();
   await expect(progress).toBeHidden();
   await expect(send).toBeVisible({ timeout: 15000 });
+  await expect(syncBanner).toBeHidden();
+  assert.ok(vaultRequests.length >= 2, 'The assistant reloads the vault after a turn');
   const steps = panel.getByText(/^Worked for \d+s$/);
   await expect(steps).toBeVisible();
   await expect(panel.getByRole('button', { name: /Reasoning summary/ })).toBeHidden();

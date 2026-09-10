@@ -65,7 +65,8 @@ INDEX.md and problem briefs are plain documents with no sidecar. Keep them outsi
 
 ## Before writing
 
-- The running app autosaves snapshots: stale state can overwrite edits, delete new records, or restore deleted records. Before direct file edits, ask me to finish pending saves and close all Thinking OS tabs using this vault. Reopen only after the edits and checks finish, and verify that the app loads the filesystem vault successfully rather than falling back to its browser cache. Reloading before edits is not protection. If working through the app's assistant, defer direct edits until this can be done safely.
+- When the app's assistant works in this vault, edit files directly. The app saves pending changes before the turn, pauses its autosave while the turn runs, and reloads the vault from disk when it ends. Do not ask to close tabs. Verify files directly during the turn; vault API requests wait until it finishes. Use one Thinking OS server for this vault.
+- Outside the running app, another Thinking OS tab can still autosave over external edits: ask for tabs using this vault to be closed first. The app rejects a stale save rather than overwriting newer files; report a reported conflict instead of retrying writes.
 - Read the existing record and a sibling record. Preserve unknown metadata fields. Check the collection's schema before adding fields; siblings are examples, not permission to copy their IDs or results. In the Thinking OS source repository, src/types.ts, src/productivityTypes.ts, and src/learnTypes.ts define records; server/vault.mjs defines serialization. If the schema cannot be established, ask rather than inventing keys.
 - Back up affected files outside synchronized collection directories before editing or deleting them.
 - Say which files you will create, edit, or delete, and wait for confirmation when the change is not clearly implied by my request.

@@ -24,6 +24,7 @@ const WorkspaceShell: React.FC = () => {
     toggleDock,
     dockPosition,
     taskEditor,
+    workspaceSyncing,
     closeTaskEditor
   } = useWorkspace();
 
@@ -54,7 +55,8 @@ const WorkspaceShell: React.FC = () => {
       className="flex flex-col w-screen h-screen overflow-hidden bg-[var(--color-surface)] text-[var(--color-ink)] font-sans antialiased"
     >
       {/* Top Bar */}
-      <TopBar />
+      <div inert={workspaceSyncing}><TopBar /></div>
+      {workspaceSyncing && <p role="status" aria-label="Workspace sync" className="px-4 py-1 text-xs text-[var(--color-ink-muted)] border-b border-[var(--color-rule)]">Assistant working. Workspace editing is paused; file changes load automatically when it finishes.</p>}
 
       {/* Main Surface Body Row */}
       <div className="flex-1 flex overflow-hidden relative">
@@ -65,7 +67,7 @@ const WorkspaceShell: React.FC = () => {
         {dockPosition === 'left' && <AssistantDock />}
 
         {/* Central Work Canvas / Active Surface */}
-        <div className="flex-1 flex flex-col overflow-hidden relative">
+        <div inert={workspaceSyncing} className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 flex overflow-hidden relative">
             {activeSurface === 'map' && <MapSurface />}
             {activeSurface === 'survey' && <SurveySurface />}
@@ -87,6 +89,7 @@ const WorkspaceShell: React.FC = () => {
 
       {taskEditor && (
         <div
+          inert={workspaceSyncing}
           className="kanban-modal-backdrop"
           onMouseDown={event => {
             if (event.target === event.currentTarget) closeTaskEditor();

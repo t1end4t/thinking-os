@@ -21,6 +21,21 @@ const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, cla
   return <FileText className={className} />;
 };
 
+export function shellCommand(command: string): string {
+  const text = command.trim();
+  const wrapped = /^(?:\S*\/)?(?:ba|z|k)?sh\b\s+(?:-\S+\s+)*(?:-[lic]*c[lic]*)\s+(['"])([\s\S]*)\1\s*$/.exec(text);
+  return (wrapped ? wrapped[2] : text).trim();
+}
+
+export function shellSummary(command: string): string {
+  const inner = shellCommand(command);
+  const firstLine = inner.split('\n')[0].trim();
+  const collapsed = firstLine.replace(/\s+/g, ' ');
+  const multiple = /\n/.test(inner) || /[;&|]/.test(inner);
+  const truncated = collapsed.length > 64 ? `${collapsed.slice(0, 63)}…` : collapsed;
+  return multiple && !truncated.endsWith('…') ? `${truncated} …` : truncated || command.trim();
+}
+
 const ActivityIcon: React.FC<{ kind: ChatEntry['kind'] }> = ({ kind }) => {
   const className = 'w-3 h-3 shrink-0';
   if (kind === 'command') return <Terminal className={className} />;
@@ -36,6 +51,7 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
   const failed = entry.state === 'failed';
   const content = entry.content.trim();
   const shell = entry.kind === 'command';
+  const summary = shell ? shellSummary(entry.label ?? '') : entry.label;
   const expandable = shell || Boolean(content);
   const status = entry.state === 'complete' ? 'Success' : entry.state === 'running' ? 'Running…'
     : entry.state === 'stopped' ? 'Stopped' : failed ? 'Failed' : '';
@@ -51,7 +67,7 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
         {entry.state === 'running'
           ? <Loader2 className="w-3 h-3 shrink-0 animate-spin" aria-hidden />
           : <ActivityIcon kind={entry.kind} />}
-        <span className="truncate flex-1" title={entry.label}>{shell ? `${entry.state === 'running' ? 'Running' : 'Ran'} ${entry.label}` : entry.label}</span>
+        <span className="truncate flex-1" title={entry.label}>{shell ? `${entry.state === 'running' ? 'Running' : 'Ran'} ${summary}` : summary}</span>
         {!shell && entry.state && entry.kind !== 'warning' && <span className="assistant-activity-state">{entry.state === 'running' ? 'in progress' : entry.state}</span>}
         {expandable && <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />}
       </button>
@@ -60,8 +76,8 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
       )}
       {open && shell && (
         <div className="assistant-activity-shell">
-          <p className="assistant-activity-shell-label">Shell</p>
-          <pre className="assistant-activity-shell-output">{`$ ${entry.label}\n\n${entry.content}`}</pre>
+          <pre className="assistant-activity-shell-command"><span aria-hidden>$ </span>{shellCommand(entry.label ?? '')}</pre>
+          {content && <pre className="assistant-activity-shell-output">{content}</pre>}
           {status && <p className="assistant-activity-shell-status">
             {entry.state === 'complete' && <CheckCircle2 className="w-3 h-3" aria-hidden />}
             {failed && <TriangleAlert className="w-3 h-3" aria-hidden />}
@@ -343,7 +359,7 @@ export const AssistantDock: React.FC = () => {
         )}
 
         {!messages.length && (
-          <div className="py-6 text-center text-[var(--color-ink-muted)]">
+          <div className="my-auto shrink-0 py-6 text-center text-[var(--color-ink-muted)]">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)]"><Sparkles className="w-5 h-5" /></div>
             <p className="mb-1 text-xs font-semibold text-[var(--color-ink)]">Start a conversation</p>
             <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">Ask a question, inspect files, or work through an idea.</p>
@@ -386,7 +402,7 @@ export const AssistantDock: React.FC = () => {
             <span className="truncate" title={status}>{status || 'Working…'}</span>
           </div>
         )}
-        <div ref={transcriptEnd} />
+        <div ref={transcriptEnd} hidden={!messages.length && !running} />
       </div>
 
       {(error || storageWarning) && (

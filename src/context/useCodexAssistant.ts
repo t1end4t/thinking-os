@@ -70,7 +70,7 @@ export function parseSessions(raw: string | null): { selectedId: string; openIds
     sessions: value.sessions.map((session: AssistantSession) => ({ ...session, messages: session.messages.map(entry => entry.state === 'running' ? { ...entry, state: 'stopped' } : entry) })) };
 }
 
-export function useCodexAssistant(defaultWorkspaceDir: string) {
+export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir: string) => Promise<(() => Promise<void>) | undefined>) {
   const [projectState, setProjectState] = useState(() => {
     try { return { dirs: parseProjects(localStorage.getItem(projectsKey)), error: '' }; }
     catch { return { dirs: [] as string[], error: 'Saved projects could not be read. Existing storage has not been overwritten.' }; }
@@ -217,6 +217,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string) {
     setError(null);
     setStatus('Connecting to Codex…');
     let completed = false;
+    let afterTurn: (() => Promise<void>) | undefined;
 
     function receive(event: ThreadEvent) {
       if (request.current !== controller) return;
@@ -249,6 +250,10 @@ export function useCodexAssistant(defaultWorkspaceDir: string) {
     }
 
     try {
+      setStatus('Saving workspace…');
+      afterTurn = await beforeTurn?.(workspaceDir);
+      if (controller.signal.aborted) throw new Error('Stopped.');
+      setStatus('Connecting to Codex…');
       const response = await fetch('/api/assistant', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ agent: 'codex', dir: workspaceDir, conversationId: current.id, threadId: current.threadId, provider: current.provider, model: current.model, message, ...(images.length ? { images } : {}) }),
@@ -273,8 +278,13 @@ export function useCodexAssistant(defaultWorkspaceDir: string) {
       if (request.current === controller) setError(controller.signal.aborted ? 'Stopped.' : caught instanceof Error ? caught.message : String(caught));
     } finally {
       const turnState = completed ? 'complete' : controller.signal.aborted ? 'stopped' : 'failed';
-      const durationMs = Math.round(performance.now() - startedAt);
       controller.abort();
+      if (afterTurn) {
+        setStatus('Refreshing workspace…');
+        try { await afterTurn(); }
+        catch (caught) { setError(`Workspace refresh failed: ${caught instanceof Error ? caught.message : String(caught)}`); }
+      }
+      const durationMs = Math.round(performance.now() - startedAt);
       if (request.current === controller) {
         update(previous => ({ ...previous, messages: previous.messages.map(entry => entry.id === turnId
           ? { ...entry, state: turnState, durationMs }

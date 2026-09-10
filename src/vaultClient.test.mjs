@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { transform } from 'esbuild';
+
+const compiled = await transform(readFileSync(new URL('./vaultClient.ts', import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' });
+const { loadVault, saveVault, EMPTY_SNAPSHOT } = await import(`data:text/javascript,${encodeURIComponent(compiled.code)}`);
+const requests = [];
+let response = { dir: '/test', data: EMPTY_SNAPSHOT, revision: 'first' };
+let status = 200;
+globalThis.localStorage = { getItem: () => JSON.stringify(EMPTY_SNAPSHOT), setItem() {} };
+globalThis.fetch = async (url, options) => {
+  requests.push({ url, options });
+  return new Response(JSON.stringify(response), { status });
+};
+await assert.rejects(saveVault('/unloaded', EMPTY_SNAPSHOT), /Load the workspace successfully/);
+assert.equal(requests.length, 0);
+await loadVault('/test');
+response = { saved: true, revision: 'second' };
+await saveVault('/test', EMPTY_SNAPSHOT);
+assert.equal(requests.at(-1).options.headers['if-match'], 'first');
+status = 409;
+response = { error: 'Conflict: files changed.' };
+await assert.rejects(saveVault('/test', EMPTY_SNAPSHOT), /Conflict/);
+assert.equal(requests.at(-1).options.headers['if-match'], 'second');
+status = 500;
+response = { error: 'Invalid JSON on disk' };
+await assert.rejects(loadVault('/test'), /Invalid JSON on disk/);
+status = 200;
+response = { dir: '/test', data: EMPTY_SNAPSHOT };
+await assert.rejects(loadVault('/test'), /Invalid vault response/);
+console.log('vault client rejects stale saves and failed reloads without cache fallback');

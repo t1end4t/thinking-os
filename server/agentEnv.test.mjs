@@ -38,6 +38,16 @@ test('registered projects expose their own instruction files', async t => {
   assert.ok(entries.some(entry => entry.id === `project:${projectId}:agents` && entry.path === path.join(project, 'AGENTS.md')));
   assert.ok(!entries.some(entry => entry.scope === 'workspace'));
 
+  for (const [key, filename] of [['vault-operations', 'VAULT_OPERATIONS.md'], ['index', 'INDEX.md']]) {
+    const entryId = `project:${projectId}:${key}`;
+    assert.ok(entries.some(entry => entry.id === entryId && entry.path === path.join(project, filename)));
+    const content = '# Workspace\n\nFirst paragraph.\n\nSecond paragraph.\n';
+    await writeAgentEnvFile(entryId, content, home);
+    assert.equal((await readAgentEnvFile(entryId, home)).content, content);
+    await writeFile(path.join(project, filename), `${content}External edit.\n`);
+    assert.equal((await readAgentEnvFile(entryId, home)).content, `${content}External edit.\n`);
+  }
+
   await writeAgentEnvFile(`project:${projectId}:agents`, 'first\nline\n', home);
   await writeAgentEnvFile(`project:${projectId}:agents`, 'second\nline\n', home);
   assert.equal((await readAgentEnvFile(`project:${projectId}:agents`, home)).content, 'second\nline\n');
@@ -110,7 +120,7 @@ test('templates read and save repository files without touching active instructi
   assert.match(operations.content, /Save this template as VAULT_OPERATIONS\.md/);
   assert.match(operations.content, /tasks\/pipeline\/<id>\.json/);
   assert.match(operations.content, /papers\/<id>\.json/);
-  assert.match(operations.content, /close all Thinking OS tabs/);
+  assert.match(operations.content, /Do not ask to close tabs/);
   for (const [slug] of AGENT_TEMPLATES) {
     const content = await readFile(path.join(templateDir, `${slug}.md`), 'utf8');
     assert.equal((await readTemplate(`template:${slug}`)).content, content);

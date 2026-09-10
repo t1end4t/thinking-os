@@ -5,7 +5,7 @@ import { constants } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { resolveVaultDir } from './vault.mjs';
+import { resolveVaultDir, withVaultLock } from './vault.mjs';
 
 const BODY_LIMIT = 64 * 1024;
 const TURN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -188,21 +188,24 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
       res.setHeader('x-accel-buffering', 'no');
       res.flushHeaders();
       try {
-        const key = [dir, body.conversationId, body.model ?? '', body.provider ?? ''].join('\0');
-        let thread = threads.get(key);
-        if (!thread) {
-          const options = {
-            workingDirectory: dir,
-            skipGitRepoCheck: true,
-            ...(body.model ? { model: body.model } : {})
-          };
-          const codex = clientFor(body.provider);
-          thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
-          threads.set(key, thread);
-        }
-        const input = images.length ? [...(body.message.trim() ? [{ type: 'text', text: body.message }] : []), ...images] : body.message;
-        const { events } = await thread.runStreamed(input, { signal: controller.signal });
-        for await (const event of events) emit(event);
+        await withVaultLock(dir, async () => {
+          if (controller.signal.aborted) return;
+          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? ''].join('\0');
+          let thread = threads.get(key);
+          if (!thread) {
+            const options = {
+              workingDirectory: dir,
+              skipGitRepoCheck: true,
+              ...(body.model ? { model: body.model } : {})
+            };
+            const codex = clientFor(body.provider);
+            thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
+            threads.set(key, thread);
+          }
+          const input = images.length ? [...(body.message.trim() ? [{ type: 'text', text: body.message }] : []), ...images] : body.message;
+          const { events } = await thread.runStreamed(input, { signal: controller.signal });
+          for await (const event of events) emit(event);
+        });
       } catch (error) {
         emit({ type: 'error', message: controller.signal.aborted ? 'The assistant stopped or timed out.' : String(error.message) });
       } finally {
