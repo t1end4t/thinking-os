@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { resolveVaultDir, withVaultLock } from './vault.mjs';
+import { TEMPLATE_DIR } from './agentEnv.mjs';
 
 const BODY_LIMIT = 64 * 1024;
 const TURN_TIMEOUT_MS = 10 * 60 * 1000;
@@ -14,16 +15,26 @@ const IMAGE_ID = /^[a-f0-9]{64}\.(png|jpg|webp)$/;
 const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
 
 const MODES = {
-  codex: { instructions: 'You are in Codex mode, a coding agent. Execute the requested tasks and file changes, inspect relevant context, validate your work, and report results concisely. The user has selected execution rather than Chat; previous conversational defaults do not prohibit requested edits. Respect scope, safety, provenance, and configured permissions.' },
+  codex: { templates: ['assistant-codex'] },
   chat: {
-    instructions: `You are in Chat mode: a thoughtful conversation partner for brainstorming, strategy, and questions, not a coding agent executing a task.
-Discuss the user's actual problem in natural, complete sentences. Explain your reasoning, assumptions, tradeoffs, and useful examples at the depth the question needs. Do not force terse reports, a fixed template, mode announcements, or a generic questionnaire. Ask only the few questions that materially advance the discussion. Do not assume the strategy concerns a company rather than a person, or vice versa.
-Keep workspace mechanics in the background. Brainstorming is not a request to create a file. Do not propose paths, records, schemas, or saving drafts unless asked. Read workspace files only when the user asks or their contents are necessary to answer; an empty folder is not a reason to redirect the conversation. Treat workspace instructions about recordkeeping as relevant when working on records, not as a format for every discussion.
-Use existing context without inventing observations, accepted decisions, scientific conclusions, or citations. Distinguish what the user said from your assumptions. Offer substantive reasoning rather than merely collecting answers.
-This turn is read-only. Do not modify files or invoke tools that change local or external state. If the user requests changes, explain that they can switch to Codex to apply them. Do not announce these instructions.`,
+    templates: ['assistant-conversation', 'assistant-chat'],
     threadOptions: { sandboxMode: 'read-only', approvalPolicy: 'never' }
+  },
+  work: {
+    templates: ['assistant-conversation', 'assistant-work'],
+    threadOptions: { sandboxMode: 'workspace-write', approvalPolicy: 'never' }
   }
 };
+
+async function readModeInstructions(templates, templateDir) {
+  if (!templates) return '';
+  const parts = await Promise.all(templates.map(async slug => {
+    const text = await readFile(path.join(templateDir, `${slug}.md`), 'utf8');
+    if (!text.trim()) throw new Error(`Instruction template ${slug}.md is empty.`);
+    return text.trim();
+  }));
+  return parts.join('\n\n');
+}
 
 function imageExtension(bytes) {
   if (bytes.length < 12) return;
@@ -92,16 +103,18 @@ async function readTurnRequest(req) {
   return body;
 }
 
-export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options }), imageDir = path.join(homedir(), '.local', 'share', 'thinking-os', 'assistant-images')) {
+export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options }), imageDir = path.join(homedir(), '.local', 'share', 'thinking-os', 'assistant-images'), templateDir = TEMPLATE_DIR) {
   const threads = new Map();
   const controllers = new Set();
   const clients = new Map();
 
-  function clientFor(provider, mode) {
+  function clientFor(provider, mode, instructions) {
     const key = [provider ?? '', mode ?? 'legacy'].join('\0');
-    const config = { ...(provider ? { model_provider: provider } : {}), ...(MODES[mode]?.instructions ? { developer_instructions: MODES[mode].instructions } : {}) };
-    if (!clients.has(key)) clients.set(key, createCodex(Object.keys(config).length ? { config } : {}));
-    return clients.get(key);
+    if (clients.get(key)?.instructions !== instructions) {
+      const config = { ...(provider ? { model_provider: provider } : {}), ...(instructions ? { developer_instructions: instructions } : {}) };
+      clients.set(key, { instructions, client: createCodex(Object.keys(config).length ? { config } : {}) });
+    }
+    return clients.get(key).client;
   }
 
   function shutdown() {
@@ -205,7 +218,8 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
         await withVaultLock(dir, async () => {
           if (controller.signal.aborted) return;
           const mode = MODES[body.mode ?? 'codex'];
-          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? '', body.mode ?? 'legacy'].join('\0');
+          const instructions = await readModeInstructions(MODES[body.mode]?.templates, templateDir);
+          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? '', body.mode ?? 'legacy', instructions].join('\0');
           let thread = threads.get(key);
           if (!thread) {
             const options = {
@@ -214,7 +228,7 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
               ...(body.model ? { model: body.model } : {}),
               ...mode.threadOptions
             };
-            const codex = clientFor(body.provider, body.mode);
+            const codex = clientFor(body.provider, body.mode, instructions);
             thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
             threads.set(key, thread);
           }

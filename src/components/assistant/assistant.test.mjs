@@ -73,17 +73,28 @@ try {
   const transcript = page.getByRole('log', { name: 'Assistant conversation' });
   const input = page.getByRole('textbox', { name: 'Message the assistant' });
   const send = page.getByRole('button', { name: 'Send message', exact: true });
-  const mode = panel.getByRole('combobox', { name: 'Assistant mode' });
+  const mode = {
+    summary: panel.locator('details.assistant-mode-menu > summary'),
+    async select(label) {
+      await this.summary.click();
+      await panel.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click();
+      await expect(this.summary).toHaveAttribute('aria-label', `Assistant mode: ${label}`);
+    },
+    expectCurrent(label) { return expect(this.summary).toHaveAttribute('aria-label', `Assistant mode: ${label}`); }
+  };
   await expect(panel).toBeVisible();
-  await expect(mode).toHaveValue('chat');
+  await mode.expectCurrent('Chat');
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
-      await expect(mode).toBeVisible();
-      await mode.selectOption('codex');
+      await expect(mode.summary).toBeVisible();
+      await mode.select('Codex');
       await expect(panel.getByText('Inspect files, make changes, and check the result.')).toBeVisible();
-      await mode.selectOption('chat');
+      await mode.select('Work');
+      await expect(panel.getByText('Work through an idea. Work discusses the problem and can change workspace files.')).toBeVisible();
+      await expect(panel.getByRole('button', { name: 'Explore an idea', exact: true })).toBeVisible();
+      await mode.select('Chat');
       await panel.screenshot({ path: `/tmp/thinking-os-chat-${width}-${theme}.png` });
       const empty = await panel.getByText('Start a conversation').evaluate(element => {
         const bounds = element.parentElement.getBoundingClientRect();
@@ -97,7 +108,7 @@ try {
   const tabs = panel.getByRole('tablist', { name: 'Conversations' });
   const browse = panel.getByRole('button', { name: 'Browse conversations' });
   const history = page.getByRole('dialog', { name: 'Conversations', exact: true });
-  await expect(panel.getByRole('combobox')).toHaveCount(1);
+  await expect(panel.getByRole('combobox')).toHaveCount(0);
   for (const locator of [input, panel.locator('header summary > span'), tabs.getByRole('tab').first(), panel.getByText('Start a conversation'), panel.getByText('Enter to send · Shift+Enter for newline')]) {
     assert.match(await locator.evaluate(element => getComputedStyle(element).fontFamily), /^system-ui/);
   }
@@ -152,15 +163,17 @@ try {
   await input.fill('Render Markdown');
   await input.press('Enter');
   await expect(panel.getByRole('status')).toBeVisible();
-  await expect(mode).toBeDisabled();
+  await expect(mode.summary).toHaveAttribute('aria-disabled', 'true');
   const syncBanner = page.getByRole('status', { name: 'Workspace sync' });
   await expect(syncBanner).toBeVisible();
   assert.ok(await page.locator('#kanban-board-grid').evaluate(element => Boolean(element.closest('[inert]'))), 'Workspace surfaces are inert while the assistant runs');
-  await expect(panel.getByText('Working…').first()).toBeVisible();
+  await expect(transcript.getByRole('status')).toHaveCount(1);
+  await expect(transcript.getByRole('status')).toHaveText('Thinking…');
+  await expect(transcript.locator('.animate-spin')).toHaveCount(1);
   const progress = transcript.getByText('Reading the workspace before running checks.');
   await expect(progress).toBeVisible();
   await expect(transcript.locator('.assistant-activity-group').getByText('Reading the workspace before running checks.')).toBeVisible();
-  await panel.getByText('Working…', { exact: true }).click();
+  await panel.getByText('View steps', { exact: true }).click();
   await expect(progress).toBeHidden();
   await expect(send).toBeVisible({ timeout: 15000 });
   await expect(syncBanner).toBeHidden();
@@ -178,7 +191,7 @@ try {
   assert.deepEqual(await transcript.locator('.assistant-activity-group > div').evaluate(element =>
     [...element.children].map(child => child.textContent)), [
     'Reasoning summarycomplete', 'Reading the workspace before running checks.', 'Ran pwd',
-    'Provider notice', 'Interim update before the final answer.'
+    'Nonfatal provider metadata notice.', 'Interim update before the final answer.'
   ]);
   await panel.screenshot({ path: '/tmp/thinking-os-assistant-steps-expanded.png' });
   await steps.press('Enter');
@@ -255,11 +268,11 @@ try {
   await expect(transcript.getByRole('heading', { name: 'Capabilities' })).toBeVisible();
   assert.equal(await tabs.getByRole('tab', { name: firstTitle, exact: true }).getAttribute('aria-selected'), 'true');
   await input.fill('Keep this draft');
-  await mode.selectOption('codex');
+  await mode.select('Work');
   await expect(input).toHaveValue('Keep this draft');
   await page.reload();
   await page.waitForLoadState('networkidle');
-  await expect(mode).toHaveValue('codex');
+  await mode.expectCurrent('Work');
   await expect(transcript.getByRole('heading', { name: 'Capabilities' })).toBeVisible();
   await expect(transcript.getByRole('img', { name: 'diagram.png' })).toBeVisible();
   await expect(panel.getByText(/^Worked for \d+s$/)).toBeVisible();
@@ -270,8 +283,8 @@ try {
   await expect(send).toBeVisible({ timeout: 15000 });
   const selectedId = await tabs.getByRole('tab', { name: firstTitle, exact: true }).evaluate(element => element.id.replace('assistant-tab-', ''));
   assert.equal((await page.evaluate(() => window.assistantRequests[0])).threadId, `thread-${selectedId}`);
-  assert.equal((await page.evaluate(() => window.assistantRequests[0])).mode, 'codex');
-  await mode.selectOption('chat');
+  assert.equal((await page.evaluate(() => window.assistantRequests[0])).mode, 'work');
+  await mode.select('Chat');
 
   await firstTab.focus();
   await page.keyboard.press('End');

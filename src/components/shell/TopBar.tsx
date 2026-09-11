@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, WorkspaceDirListing } from '../../vaultClient';
+import { tildePath } from '../../utils/paths';
 
 const FONT_SIZE_PRESETS = [12, 14, 16, 18, 20];
 
@@ -81,7 +82,7 @@ export const TopBar: React.FC = () => {
           <button
             id="workspace-dir-btn"
             onClick={() => void browseFolder(workspaceDir)}
-            title={workspaceError ?? `Workspace folder: ${workspaceDir} (click to choose)`}
+            title={workspaceError ?? `Workspace folder: ${tildePath(workspaceDir)} (click to choose)`}
             className="max-w-80 truncate px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/80 border border-[var(--color-rule)] text-[var(--color-ink)] flex items-center gap-1.5 hover:border-slate-400/60"
           >
             <span
@@ -89,7 +90,7 @@ export const TopBar: React.FC = () => {
                 workspaceError ? 'bg-rose-500' : workspaceLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
               }`}
             />
-            {workspaceDir}
+            {tildePath(workspaceDir)}
           </button>
         </div>
       </div>
@@ -119,8 +120,8 @@ export const TopBar: React.FC = () => {
                 <button type="button" onClick={() => void browseFolder(folderPicker.home)} title="Home folder" className="p-1.5 rounded border border-[var(--color-rule)] hover:bg-[var(--color-paper)]">
                   <Home className="w-4 h-4" />
                 </button>
-                <div className="min-w-0 flex-1 truncate rounded border border-[var(--color-rule)] bg-[var(--color-surface)] px-3 py-1.5 font-mono text-xs" title={folderPicker.dir}>
-                  {folderPicker.dir}
+                <div className="min-w-0 flex-1 truncate rounded border border-[var(--color-rule)] bg-[var(--color-surface)] px-3 py-1.5 font-mono text-xs" title={tildePath(folderPicker.dir)}>
+                  {tildePath(folderPicker.dir)}
                 </div>
               </div>
               <div className="h-72 overflow-y-auto rounded border border-[var(--color-rule)] bg-[var(--color-surface)] p-1">

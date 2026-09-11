@@ -38,6 +38,7 @@ import {
   WorkspaceObject
 } from '../../productivityTypes';
 import { setDragObjectData } from '../../utils/dragDrop';
+import { tildePath } from '../../utils/paths';
 import {
   LocalModelStatus,
   ModelDownloadRequest,
@@ -454,7 +455,7 @@ export function ExecutionEngineView({
           <span className="drag-hint-pill">Tip</span>
           {currentSubTab === 'llm-models' ? (
             <span>
-              <strong>{modelsDir}</strong> · {modelHardware?.gpuName ?? 'No NVIDIA GPU'}
+              <strong>{tildePath(modelsDir)}</strong> · {modelHardware?.gpuName ?? 'No NVIDIA GPU'}
               {modelHardware ? ` · VRAM ${modelHardware.vramFree} free · RAM ${modelHardware.ramFree} free` : ''}
               {!llamaServerAvailable ? ' · llama-server unavailable' : ''}
             </span>
@@ -809,7 +810,7 @@ export function ExecutionEngineView({
           <div className="objects-grid" id="llm-models-grid">
             {filteredModels.length === 0 ? (
               <div className="engine-empty-results">
-                No GGUF files found in <code>{modelsDir}</code>. Download one or copy it into the directory, then refresh.
+                No GGUF files found in <code>{tildePath(modelsDir)}</code>. Download one or copy it into the directory, then refresh.
               </div>
             ) : (
               filteredModels.map(model => {
@@ -884,7 +885,7 @@ export function ExecutionEngineView({
 
                     <div className="model-hash-row">
                       <span className="hash-label">File:</span>
-                      <code className="hash-code" title={model.path}>{model.fileName}</code>
+                      <code className="hash-code" title={tildePath(model.path)}>{model.fileName}</code>
                       <button className="model-copy-path" onClick={() => copyText(model.path, `path-${model.id}`)} title="Copy path" aria-label={`Copy path for ${model.name}`}>
                         {copiedId === `path-${model.id}` ? <Check size={12} /> : <Copy size={12} />}
                       </button>
@@ -949,7 +950,7 @@ export function ExecutionEngineView({
                     <div className="object-card-footer">
                       <span className="drag-chip-hint">⠿ Drag to chat</span>
                       <span className="footer-status-text">
-                        {model.projectorFileName ? `Projector: ${model.projectorFileName}` : model.path}
+                        {model.projectorFileName ? `Projector: ${model.projectorFileName}` : tildePath(model.path)}
                       </span>
                     </div>
                   </div>
@@ -1189,7 +1190,7 @@ export function ExecutionEngineView({
                 <input id="model-local-name" value={modelLocalName} onChange={event => setModelLocalName(event.target.value)} placeholder="Defaults to repository filename" pattern="[A-Za-z0-9._+()-]+\.[Gg][Gg][Uu][Ff]" />
               </div>
               <p className="task-editor-tip">
-                Saves into <code>{modelsDir}</code>. Private or gated repositories use the server process <code>HF_TOKEN</code> environment variable.
+                Saves into <code>{tildePath(modelsDir)}</code>. Private or gated repositories use the server process <code>HF_TOKEN</code> environment variable.
               </p>
               <div className="task-editor-actions">
                 <button type="button" className="task-editor-button is-secondary" disabled={isSubmittingDownload} onClick={() => setIsAddingModel(false)}>Cancel</button>

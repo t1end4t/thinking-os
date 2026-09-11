@@ -55,7 +55,8 @@ try {
     await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
     const panel = page.getByRole('complementary', { name: 'Assistant', exact: true });
     const input = panel.getByRole('textbox', { name: 'Message the assistant' });
-    await panel.getByRole('combobox', { name: 'Assistant mode' }).selectOption('codex');
+    await panel.locator('details.assistant-mode-menu > summary').click();
+    await panel.getByRole('menuitemradio', { name: /^Codex/ }).click();
     await page.locator('#add-task-col-backlog').click();
     await page.locator('#task-title-input').fill('Manual pending task');
     await page.getByRole('button', { name: 'Create task', exact: true }).click();

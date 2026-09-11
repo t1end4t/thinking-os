@@ -39,6 +39,7 @@ import {
   saveAgentEnvFile
 } from '../../runtimeClient';
 import { WorkspaceDirListing, listWorkspaceDirs } from '../../vaultClient';
+import { tildePath } from '../../utils/paths';
 import { MarkdownPreview } from './MarkdownPreview';
 
 type AgentFilter = 'all' | AgentEnvEntry['agent'];
@@ -396,7 +397,7 @@ export function AgentEnvironmentView() {
                       {scope === 'global' ? 'Global Environment' : activeProject?.name}
                     </div>
                     <div className="text-[0.625rem] font-mono text-[var(--color-ink-muted)] truncate">
-                      {scope === 'global' ? snapshot?.home ?? '~' : activeProject?.path}
+                      {scope === 'global' ? tildePath(snapshot?.home ?? '~') : tildePath(activeProject?.path ?? '')}
                     </div>
                   </div>
                 </div>
@@ -433,7 +434,7 @@ export function AgentEnvironmentView() {
                     <Home size={14} className="flex-shrink-0" />
                     <div className="truncate">
                       <div>Global (~/)</div>
-                      <div className="text-[0.625rem] text-[var(--color-ink-muted)] truncate">{snapshot?.home}</div>
+                      <div className="text-[0.625rem] text-[var(--color-ink-muted)] truncate">{tildePath(snapshot?.home ?? '')}</div>
                     </div>
                   </div>
                   {scope === 'global' && <Check size={14} />}
@@ -464,8 +465,8 @@ export function AgentEnvironmentView() {
                           <Folder size={14} className="flex-shrink-0" />
                           <div className="truncate">
                             <div className="truncate">{project.name}</div>
-                            <div className="text-[0.625rem] text-[var(--color-ink-muted)] truncate" title={project.path}>
-                              {project.path}
+                            <div className="text-[0.625rem] text-[var(--color-ink-muted)] truncate" title={tildePath(project.path)}>
+                              {tildePath(project.path)}
                             </div>
                           </div>
                         </button>
@@ -659,7 +660,7 @@ export function AgentEnvironmentView() {
                       {entry.agent}
                     </span>
                     <span>·</span>
-                    <span className="truncate" title={entry.path}>
+                    <span className="truncate" title={tildePath(entry.path)}>
                       {entry.path.split('/').slice(-2).join('/')}
                     </span>
                   </div>
@@ -724,9 +725,9 @@ export function AgentEnvironmentView() {
                 <div className="flex items-center gap-2 mt-1">
                   <code
                     className="text-[0.6875rem] font-mono text-[var(--color-ink-muted)] truncate max-w-xl"
-                    title={selectedEntry.path}
+                    title={tildePath(selectedEntry.path)}
                   >
-                    {selectedEntry.path}
+                    {tildePath(selectedEntry.path)}
                   </code>
                   <button
                     type="button"
@@ -811,7 +812,9 @@ export function AgentEnvironmentView() {
 
             {selectedEntry.category === 'template' && (
               <div className="px-4 py-2 border-b border-[var(--color-rule)] text-xs font-mono text-[var(--color-ink-muted)]" role="note">
-                Reusable template only. Saving updates this repository's templates folder; it does not change active instructions or apply to a project.
+                {selectedEntry.id.startsWith('template:assistant-')
+                  ? 'Active assistant prompt. Saving changes the next matching assistant turn, including existing conversations. Sandbox permissions stay in code.'
+                  : 'Reusable template only. Saving updates this repository\'s templates folder; it does not change active instructions or apply to a project.'}
               </div>
             )}
 
@@ -1005,8 +1008,8 @@ export function AgentEnvironmentView() {
                 >
                   <Home size={14} />
                 </button>
-                <div className="flex-1 px-2 py-1 text-xs font-mono text-[var(--color-ink)] truncate" title={picker.dir}>
-                  {picker.dir}
+                <div className="flex-1 px-2 py-1 text-xs font-mono text-[var(--color-ink)] truncate" title={tildePath(picker.dir)}>
+                  {tildePath(picker.dir)}
                 </div>
               </div>
 
@@ -1238,7 +1241,7 @@ export function AgentEnvironmentView() {
                 <div className="p-2.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[0.625rem] font-mono text-[var(--color-ink-muted)] truncate">
                   Path preview:{' '}
                   <span className="text-[var(--color-ink)] font-semibold">
-                    {scope === 'global' ? '~' : activeProject?.path}/
+                    {scope === 'global' ? '~' : tildePath(activeProject?.path ?? '')}/
                     {skillAgent === 'shared' ? '.agents' : skillAgent === 'claude' ? '.claude' : '.codex'}
                     /skills/{skillName}/SKILL.md
                   </span>

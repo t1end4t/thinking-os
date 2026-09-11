@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  BookOpen, CheckCircle2, ChevronDown, CornerDownLeft, FileText, FlaskConical, HelpCircle,
-  Layers, Link as LinkIcon, ListChecks, Loader2, Maximize2, MessageSquarePlus, Minimize2, Search,
+  BookOpen, Check, CheckCircle2, ChevronDown, CornerDownLeft, FileText, FlaskConical, HelpCircle,
+  Layers, Link as LinkIcon, ListChecks, Loader2, Maximize2, MessageCircle, MessageSquarePlus, Minimize2, Search,
   Sparkles, Square, Terminal, TriangleAlert, X, Paperclip, History, Trash2, ImagePlus, Pencil
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { AssistantContextObject } from '../../types';
 import { MarkdownPreview } from '../runtime/MarkdownPreview';
 import { CopyButton } from '../runtime/CopyButton';
-import { isAssistantImage, type AssistantImage, type ChatEntry } from '../../context/useCodexAssistant';
+import { isAssistantImage, type AssistantImage, type AssistantMode, type ChatEntry } from '../../context/useCodexAssistant';
 import { AssistantProjects } from './AssistantProjects';
+import { useDetailsMenu } from './useDetailsMenu';
 import './assistant.css';
 
 const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, className = 'w-3 h-3' }) => {
@@ -55,6 +56,12 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
   const expandable = shell || Boolean(content);
   const status = entry.state === 'complete' ? 'Success' : entry.state === 'running' ? 'Running…'
     : entry.state === 'stopped' ? 'Stopped' : failed ? 'Failed' : '';
+  if (entry.kind === 'warning') return (
+    <div className="assistant-activity-entry flex items-start gap-1.5 text-[0.75rem]">
+      <TriangleAlert className="w-3 h-3 shrink-0 mt-0.5" aria-hidden />
+      <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{content || entry.label}</p>
+    </div>
+  );
   return (
     <div className={`assistant-activity-entry min-w-0 text-[0.75rem] ${failed ? 'text-rose-600 dark:text-rose-300' : ''}`}>
       <button
@@ -64,11 +71,9 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
         disabled={!expandable}
         className="w-full flex items-center gap-1.5 py-1.5 text-left text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] disabled:cursor-default"
       >
-        {entry.state === 'running'
-          ? <Loader2 className="w-3 h-3 shrink-0 animate-spin" aria-hidden />
-          : <ActivityIcon kind={entry.kind} />}
+        <ActivityIcon kind={entry.kind} />
         <span className="truncate flex-1" title={entry.label}>{shell ? `${entry.state === 'running' ? 'Running' : 'Ran'} ${summary}` : summary}</span>
-        {!shell && entry.state && entry.kind !== 'warning' && <span className="assistant-activity-state">{entry.state === 'running' ? 'in progress' : entry.state}</span>}
+        {!shell && entry.state && <span className="assistant-activity-state">{entry.state === 'running' ? 'in progress' : entry.state}</span>}
         {expandable && <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />}
       </button>
       {open && content && !shell && (
@@ -90,22 +95,53 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
 };
 
 const ActivityGroup: React.FC<{ entries: ChatEntry[]; prompt?: ChatEntry }> = ({ entries, prompt }) => {
-  if (!entries.length && prompt?.state !== 'running') return null;
-  const label = prompt?.state === 'running' ? 'Working…'
+  if (!entries.length) return null;
+  const label = prompt?.state === 'running' ? 'View steps'
     : prompt?.state === 'stopped' ? 'Stopped'
     : prompt?.state === 'failed' ? 'Failed'
     : prompt?.durationMs === undefined ? 'View steps' : `Worked for ${Math.max(1, Math.round(prompt.durationMs / 1000))}s`;
   return (
     <details open={prompt?.state === 'running'} className="assistant-activity-group text-[0.75rem] text-[var(--color-ink-muted)]">
       <summary>
-        {prompt?.state === 'running' && <Loader2 className="w-3 h-3 animate-spin" aria-hidden />}
         {label}<ChevronDown className="w-3 h-3" aria-hidden />
       </summary>
       <div className="flex min-w-0 flex-col gap-4 pt-4">
-        {entries.length ? entries.map(entry => entry.kind
+        {entries.map(entry => entry.kind
           ? <ActivityEntry key={entry.id} entry={entry} />
           : <MarkdownPreview key={entry.id} content={entry.content} className="assistant-markdown" />
-        ) : <p>Waiting for steps…</p>}
+        )}
+      </div>
+    </details>
+  );
+};
+
+const MODES: { id: AssistantMode; label: string; hint: string; Icon: typeof MessageCircle }[] = [
+  { id: 'chat', label: 'Chat', hint: 'Discuss ideas. Reads files only.', Icon: MessageCircle },
+  { id: 'work', label: 'Work', hint: 'Same conversation. Can change workspace files.', Icon: Pencil },
+  { id: 'codex', label: 'Codex', hint: 'Execute tasks and report back.', Icon: Terminal }
+];
+
+const AssistantModeMenu: React.FC<{ mode: AssistantMode; setMode: (mode: AssistantMode) => void; disabled: boolean }> = ({ mode, setMode, disabled }) => {
+  const menu = useDetailsMenu();
+  const active = MODES.find(entry => entry.id === mode) ?? MODES[0];
+  return (
+    <details ref={menu.ref} className="assistant-switcher assistant-mode-menu mr-1">
+      <summary aria-haspopup="menu" aria-label={`Assistant mode: ${active.label}`} title={MODES.map(entry => `${entry.label}: ${entry.hint}`).join('\n')} {...(disabled ? { 'aria-disabled': true, onClick: (event: React.MouseEvent) => event.preventDefault() } : {})}>
+        <active.Icon className="w-3.5 h-3.5 shrink-0" aria-hidden />
+        <span className="truncate">{active.label}</span>
+        <ChevronDown className="w-3 h-3 shrink-0" aria-hidden />
+      </summary>
+      <div className="assistant-switcher-menu assistant-mode-menu-list" role="menu" aria-label="Assistant mode">
+        {MODES.map(entry => (
+          <button key={entry.id} type="button" role="menuitemradio" aria-checked={entry.id === mode} disabled={disabled} className="assistant-mode-option" onClick={() => { setMode(entry.id); menu.dismiss(); }}>
+            <entry.Icon className="w-3.5 h-3.5 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium text-[var(--color-ink)]">{entry.label}</span>
+              <span className="block text-[0.6875rem] text-[var(--color-ink-muted)]">{entry.hint}</span>
+            </span>
+            {entry.id === mode && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--accent-indigo)]" aria-hidden />}
+          </button>
+        ))}
       </div>
     </details>
   );
@@ -362,10 +398,12 @@ export const AssistantDock: React.FC = () => {
           <div className="my-auto shrink-0 py-6 text-center text-[var(--color-ink-muted)]">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)]"><Sparkles className="w-5 h-5" /></div>
             <p className="mb-1 text-xs font-semibold text-[var(--color-ink)]">Start a conversation</p>
-            <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">{mode === 'chat' ? 'Work through an idea. Chat discusses the problem without changing files.' : 'Inspect files, make changes, and check the result.'}</p>
+            <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">{mode === 'chat' ? 'Work through an idea. Chat discusses the problem without changing files.'
+                : mode === 'work' ? 'Work through an idea. Work discusses the problem and can change workspace files.'
+                : 'Inspect files, make changes, and check the result.'}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={() => setInput(mode === 'chat' ? 'Help me think through an idea. Ask what I have in mind.' : 'Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Explore an idea' : 'Explore this folder'}</button>
-              <button type="button" onClick={() => setInput(mode === 'chat' ? 'Help me work through a decision. Ask what I am deciding.' : 'Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Discuss a decision' : 'Plan a task'}</button>
+              <button type="button" onClick={() => setInput(mode !== 'codex' ? 'Help me think through an idea. Ask what I have in mind.' : 'Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode !== 'codex' ? 'Explore an idea' : 'Explore this folder'}</button>
+              <button type="button" onClick={() => setInput(mode !== 'codex' ? 'Help me work through a decision. Ask what I am deciding.' : 'Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode !== 'codex' ? 'Discuss a decision' : 'Plan a task'}</button>
             </div>
             <p className="mt-4 text-[0.6875rem]">Drop objects here for reference. Only typed messages are sent.</p>
           </div>
@@ -396,10 +434,10 @@ export const AssistantDock: React.FC = () => {
           </React.Fragment>
         ))}
 
-        {running && (
+        {running && status !== 'Responding…' && (
           <div role="status" className="flex items-center gap-1.5 px-1 text-[0.6875rem] text-[var(--color-ink-muted)]">
             <Loader2 className="w-3 h-3 animate-spin" aria-hidden />
-            <span className="truncate" title={status}>{status || 'Working…'}</span>
+            <span className="truncate" title={status}>{status || 'Waiting for response…'}</span>
           </div>
         )}
         <div ref={transcriptEnd} hidden={!messages.length && !running} />
@@ -448,7 +486,7 @@ export const AssistantDock: React.FC = () => {
               if (files.length) { event.preventDefault(); void attachImages(files); }
             }}
             onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) submit(event); }}
-            placeholder={mode === 'chat' ? 'Think it through… (Enter to send)' : 'What should change? (Enter to send)'}
+            placeholder={mode !== 'codex' ? 'Think it through… (Enter to send)' : 'What should change? (Enter to send)'}
             className="w-full resize-none bg-transparent p-2.5 pr-10 text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none"
           />
           {running ? (
@@ -459,10 +497,7 @@ export const AssistantDock: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
           <div className="flex items-center">
-          <select aria-label="Assistant mode" value={mode} disabled={running || uploading || workspaceLoading} onChange={event => setMode(event.target.value === 'chat' ? 'chat' : 'codex')} title="Chat: discuss ideas, read-only. Codex: execute tasks and change files. Both use your configured Codex backend." className="mr-1 rounded-md border border-[var(--color-rule)] bg-[var(--color-surface)] px-1 py-1 text-[var(--color-ink)] disabled:opacity-40">
-            <option value="chat">Chat</option>
-            <option value="codex">Codex</option>
-          </select>
+          <AssistantModeMenu mode={mode} setMode={setMode} disabled={running || uploading || workspaceLoading} />
           <input ref={imagePicker} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" aria-label="Choose images" disabled={running || uploading || workspaceLoading} onChange={event => { void attachImages(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
           <button type="button" className={iconButton} disabled={running || uploading || workspaceLoading} aria-label="Attach images" title="Attach images (PNG, JPEG, WebP; 5 MiB each)" onClick={() => imagePicker.current?.click()}><ImagePlus className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} disabled={!activeContext || activeContext.type === 'graph'} aria-label="Attach current selection" title="Attach current selection (reference only)" onClick={() => { if (activeContext) addAttachedContext(activeContext); }}><Paperclip className="w-3.5 h-3.5" /></button>

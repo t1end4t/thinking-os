@@ -36,11 +36,11 @@ test('the assistant endpoint stays same-origin and loopback only', () => {
   assert.equal(isLocalRequest({ ...request, headers: { ...request.headers, origin: 'https://evil.example' } }), false);
 });
 
-async function fixture(context, codex, codexHome, clientOptions = [], imageDir) {
+async function fixture(context, codex, codexHome, clientOptions = [], imageDir, templateDir) {
   const server = createServer();
   const previousHome = process.env.CODEX_HOME;
   if (codexHome) process.env.CODEX_HOME = codexHome;
-  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir, templateDir).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   context.after(() => {
@@ -149,7 +149,7 @@ test('agent, provider, model, and resumed session reach the SDK; only the messag
   assert.equal((await post(body, { headers: { 'content-type': 'text/plain' } })).status, 415);
 });
 
-test('Chat uses conversational instructions and a read-only sandbox; switching modes resumes history', async context => {
+test('Chat and Work share conversation templates with different sandboxes; switching modes resumes history', async context => {
   const starts = [];
   const resumes = [];
   const clientOptions = [];
@@ -176,7 +176,8 @@ test('Chat uses conversational instructions and a read-only sandbox; switching m
   assert.match(clientOptions[0].config.developer_instructions, /Do not modify files/);
   await (await post({ ...body, threadId: 'mode-thread', mode: 'codex' })).text();
   assert.equal(clientOptions.length, 2);
-  assert.match(clientOptions[1].config.developer_instructions, /You are in Codex mode/);
+  assert.match(clientOptions[1].config.developer_instructions, /coding agent/);
+  assert.doesNotMatch(clientOptions[1].config.developer_instructions, /Brainstorming is not a request to create a file/);
   assert.deepEqual(resumes[0], { id: 'mode-thread', options: { workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true, model: 'chosen-model' } });
   await (await post({ ...body, threadId: 'mode-thread' })).text();
   assert.equal(clientOptions.length, 2);
@@ -184,7 +185,35 @@ test('Chat uses conversational instructions and a read-only sandbox; switching m
   assert.deepEqual(inputs, [body.message, body.message, body.message]);
   await (await post({ ...body, conversationId: randomUUID(), threadId: 'mode-thread' })).text();
   assert.equal(resumes[1].options.sandboxMode, 'read-only');
-  for (const mode of ['work', 'constructor', null, {}, ['chat']]) assert.equal((await post({ ...body, mode })).status, 400);
+
+  await (await post({ ...body, threadId: 'mode-thread', mode: 'work' })).text();
+  assert.equal(clientOptions.length, 3);
+  assert.match(clientOptions[2].config.developer_instructions, /Brainstorming is not a request to create a file/);
+  assert.doesNotMatch(clientOptions[2].config.developer_instructions, /This turn is read-only/);
+  assert.equal(resumes.at(-1).options.sandboxMode, 'workspace-write');
+  for (const mode of ['unknown', 'constructor', null, {}, ['chat']]) assert.equal((await post({ ...body, mode })).status, 400);
+});
+
+test('mode instructions come from editable templates and a missing template fails the turn', async context => {
+  const clientOptions = [];
+  const thread = { runStreamed: async () => ({ events: (async function* () { yield { type: 'turn.completed', usage: {} }; })() }) };
+  const templateDir = await mkdtemp(path.join(tmpdir(), 'thinking-os-agent-templates-'));
+  context.after(() => rm(templateDir, { recursive: true, force: true }));
+  await writeFile(path.join(templateDir, 'assistant-conversation.md'), '# Conversation\n\nShared conversational rule.\n');
+  await writeFile(path.join(templateDir, 'assistant-chat.md'), '# Chat mode\n\nRead-only rule.\n');
+  const { post } = await fixture(context, { startThread: () => thread, resumeThread: () => thread }, undefined, clientOptions, undefined, templateDir);
+  const body = { agent: 'codex', mode: 'chat', conversationId: randomUUID(), dir: tmpdir(), message: 'Where should I start?' };
+
+  await (await post(body)).text();
+  assert.equal(clientOptions[0].config.developer_instructions, '# Conversation\n\nShared conversational rule.\n\n# Chat mode\n\nRead-only rule.');
+
+  await writeFile(path.join(templateDir, 'assistant-conversation.md'), '# Conversation\n\nEdited rule.\n');
+  await (await post({ ...body, threadId: 'existing-thread' })).text();
+  assert.match(clientOptions[1].config.developer_instructions, /Edited rule/);
+
+  await rm(path.join(templateDir, 'assistant-chat.md'));
+  const failed = await post({ ...body, threadId: 'existing-thread' });
+  assert.match(await failed.text(), /assistant-chat\.md/);
 });
 
 test('disconnect aborts the SDK turn and overlapping turns are refused', async context => {

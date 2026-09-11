@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { ThreadEvent } from '@openai/codex-sdk';
 
 export interface AssistantImage { id: string; name: string }
-export type AssistantMode = 'chat' | 'codex';
+export type AssistantMode = 'chat' | 'work' | 'codex';
+const MODES: AssistantMode[] = ['chat', 'work', 'codex'];
 
 export function isAssistantImage(value: unknown): value is AssistantImage {
   if (!value || typeof value !== 'object') return false;
@@ -56,7 +57,7 @@ export function parseSessions(raw: string | null): { selectedId: string; openIds
       (value.openIds !== undefined && (!Array.isArray(value.openIds) || !value.openIds.every((id: string) => typeof id === 'string'))) ||
       !value.sessions.every((session: AssistantSession) => session && typeof session.id === 'string' &&
         typeof session.title === 'string' && Array.isArray(session.messages) &&
-        (session.mode === undefined || session.mode === 'chat' || session.mode === 'codex') &&
+        (session.mode === undefined || MODES.includes(session.mode)) &&
         [session.threadId, session.provider, session.model].every(field => field === undefined || typeof field === 'string') &&
         session.messages.every(entry => entry && typeof entry.id === 'string' && typeof entry.content === 'string' &&
           (entry.images === undefined || (Array.isArray(entry.images) && entry.images.length <= 4 && entry.images.every(isAssistantImage))) &&
@@ -92,7 +93,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
   const [preferences, setPreferences] = useState<Preferences>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(preferencesKey) || '{}');
-      return { fontSize: Math.min(24, Math.max(11, Number(stored.fontSize) || 14)), provider: typeof stored.provider === 'string' ? stored.provider : '', model: typeof stored.model === 'string' ? stored.model : '', mode: stored.mode === 'codex' ? 'codex' : 'chat' };
+      return { fontSize: Math.min(24, Math.max(11, Number(stored.fontSize) || 14)), provider: typeof stored.provider === 'string' ? stored.provider : '', model: typeof stored.model === 'string' ? stored.model : '', mode: MODES.includes(stored.mode) ? stored.mode as AssistantMode : 'chat' };
     } catch { return { fontSize: 14, provider: '', model: '', mode: 'chat' }; }
   });
   const request = useRef<AbortController | null>(null);
@@ -101,7 +102,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
   const mode = session ? session.mode ?? 'codex' : preferences.mode;
 
   function setMode(next: AssistantMode) {
-    if (request.current || (next !== 'chat' && next !== 'codex')) return;
+    if (request.current || !MODES.includes(next)) return;
     setPreferences(previous => ({ ...previous, mode: next }));
     setState(previous => ({ ...previous, sessions: previous.sessions.map(entry => entry.id === previous.selectedId ? { ...entry, mode: next } : entry) }));
   }

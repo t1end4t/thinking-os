@@ -10,6 +10,10 @@ const MAX_CONTENT_BYTES = 1_000_000;
 export const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../templates');
 
 export const AGENT_TEMPLATES = [
+  ['assistant-conversation', 'Assistant conversation (active: Chat + Work)'],
+  ['assistant-chat', 'Assistant Chat (active)'],
+  ['assistant-work', 'Assistant Work (active)'],
+  ['assistant-codex', 'Assistant Codex (active)'],
   ['shared-core', 'Shared behavior'],
   ['thinking-modes', 'Thinking modes'],
   ['vault-operations', 'Vault operations'],

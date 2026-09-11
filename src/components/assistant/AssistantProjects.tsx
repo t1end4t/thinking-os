@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, ChevronDown, Folder, FolderOpen, Plus, TriangleAlert, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, type WorkspaceDirListing } from '../../vaultClient';
+import { tildePath } from '../../utils/paths';
+import { useDetailsMenu } from './useDetailsMenu';
 
 export function AssistantProjects() {
   const { workspaceDir, workspaceLoading, codexAssistant } = useWorkspace();
   const { projects, projectDir, projectWarning, selectProject, addProject, removeProject, running, configuration, preferences, session } = codexAssistant;
   const dialog = useRef<HTMLDialogElement>(null);
-  const switcher = useRef<HTMLDetailsElement>(null);
+  const { ref: switcher, dismiss } = useDetailsMenu(() => !!dialog.current?.open);
   const [listing, setListing] = useState<WorkspaceDirListing | null>(null);
   const [path, setPath] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,22 +21,6 @@ export function AssistantProjects() {
   const providerId = (session ? session.provider : preferences.provider) || configuration.provider;
   const provider = configuration.providers.find(entry => entry.id === providerId);
   const agent = `Codex · ${provider?.label || providerId || 'default'}${model ? ` · ${model}` : ''}`;
-
-  useEffect(() => {
-    const close = (event: Event) => { if (!switcher.current?.contains(event.target as Node)) switcher.current?.removeAttribute('open'); };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && switcher.current?.open && !dialog.current?.open) {
-        event.preventDefault();
-        event.stopPropagation();
-        switcher.current.removeAttribute('open');
-        switcher.current.querySelector('summary')?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('focusin', close);
-    document.addEventListener('keydown', escape);
-    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('focusin', close); document.removeEventListener('keydown', escape); };
-  }, []);
 
   async function browse(dir: string) {
     setLoading(true);
@@ -52,7 +38,7 @@ export function AssistantProjects() {
   return (
     <>
       <details ref={switcher} className="assistant-switcher">
-        <summary aria-label={`Project: ${projectDir}`} title={`${projectDir}\n${agent}`}>
+        <summary aria-label={`Project: ${tildePath(projectDir)}`} title={`${tildePath(projectDir)}\n${agent}`}>
           <FolderOpen className="w-3.5 h-3.5 shrink-0" aria-hidden />
           <span className="truncate">{projectName(projectDir)}</span>
           {projectWarning && <TriangleAlert className="w-3.5 h-3.5 shrink-0 text-[var(--accent-amber)]" aria-label="Project list unavailable" />}
@@ -62,14 +48,14 @@ export function AssistantProjects() {
           <nav aria-label="Assistant projects" className="max-h-56 overflow-y-auto">
             {projects.map(dir => (
               <div key={dir} className="flex items-center gap-1">
-                <button type="button" disabled={disabled} aria-current={dir === projectDir ? 'true' : undefined} aria-label={`Select project: ${dir}`} title={dir} onClick={() => { selectProject(dir); switcher.current?.removeAttribute('open'); switcher.current?.querySelector('summary')?.focus(); }} className={`${buttonClass} flex min-w-0 flex-1 items-center gap-2 text-left`}>
+                <button type="button" disabled={disabled} aria-current={dir === projectDir ? 'true' : undefined} aria-label={`Select project: ${tildePath(dir)}`} title={tildePath(dir)} onClick={() => { selectProject(dir); dismiss(); }} className={`${buttonClass} flex min-w-0 flex-1 items-center gap-2 text-left`}>
                   {dir === projectDir ? <Check className="w-3.5 h-3.5 shrink-0 text-[var(--accent-indigo)]" aria-hidden /> : <span className="w-3.5 shrink-0" aria-hidden />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{projectName(dir)}{dir === workspaceDir ? ' · Workspace' : ''}</span>
-                    <span className="block truncate font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">{dir}</span>
+                    <span className="block truncate font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">{tildePath(dir)}</span>
                   </span>
                 </button>
-                {dir !== workspaceDir && <button type="button" disabled={disabled || !!projectWarning} className={buttonClass} aria-label={`Remove project: ${dir}`} title="Remove from projects (folder and history are kept)" onClick={() => removeProject(dir)}><X className="w-3 h-3" aria-hidden /></button>}
+                {dir !== workspaceDir && <button type="button" disabled={disabled || !!projectWarning} className={buttonClass} aria-label={`Remove project: ${tildePath(dir)}`} title="Remove from projects (folder and history are kept)" onClick={() => removeProject(dir)}><X className="w-3 h-3" aria-hidden /></button>}
               </div>
             ))}
           </nav>
@@ -86,7 +72,7 @@ export function AssistantProjects() {
         <div className="flex min-h-0 flex-col gap-3 p-3">
           <p className="text-[0.75rem] text-[var(--color-ink-muted)]">Choose where the assistant works. Your research workspace stays unchanged.</p>
           <form className="flex gap-2" onSubmit={event => { event.preventDefault(); if (!loading && path.trim()) void browse(path.trim()); }}>
-            <input aria-label="Project folder path" disabled={loading} value={path} onChange={event => setPath(event.target.value)} className="min-w-0 flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 py-1.5 font-mono text-[0.75rem]" />
+            <input aria-label="Project folder path" disabled={loading} value={tildePath(path)} onChange={event => setPath(event.target.value)} className="min-w-0 flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 py-1.5 font-mono text-[0.75rem]" />
             <button type="submit" disabled={loading || !path.trim()} className={buttonClass}>Browse</button>
           </form>
           <div className="flex gap-2">
@@ -101,7 +87,7 @@ export function AssistantProjects() {
           {error && <p role="alert" className="text-[0.75rem] text-[var(--color-ink-muted)]">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={buttonClass} onClick={() => dialog.current?.close()}>Cancel</button>
-            <button type="button" disabled={disabled || loading || !listing?.exists || path !== listing.dir} className={`${buttonClass} border border-[var(--color-rule)]`} onClick={() => { if (listing && addProject(listing.dir)) dialog.current?.close(); else setError('Project could not be saved. Check browser storage and try again.'); }}>Choose this folder</button>
+            <button type="button" disabled={disabled || loading || !listing?.exists || tildePath(path) !== tildePath(listing.dir)} className={`${buttonClass} border border-[var(--color-rule)]`} onClick={() => { if (listing && addProject(listing.dir)) dialog.current?.close(); else setError('Project could not be saved. Check browser storage and try again.'); }}>Choose this folder</button>
           </div>
         </div>
       </dialog>

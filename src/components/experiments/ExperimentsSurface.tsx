@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Experiment, ExperimentArtifact, ExperimentStatus } from '../../types';
+import { tildePath } from '../../utils/paths';
 import {
   FlaskConical,
   CheckCircle2,
@@ -296,7 +297,7 @@ export const ExperimentsSurface: React.FC = () => {
 
             <div className="flex flex-col gap-1 text-xs bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
               <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-                Locator Path: {selectedArtifact.artifact.path}
+                Locator Path: {tildePath(selectedArtifact.artifact.path)}
               </span>
               <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
                 SHA-256 Hash: {selectedArtifact.artifact.contentHash}
