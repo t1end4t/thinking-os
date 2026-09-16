@@ -24,7 +24,9 @@ const snapshot = {
   runs: [{ id: 'r1', name: 'Run', status: 'queued', target: 'target1', duration: '', resourceLock: '', timestamp: 'now' }],
   models: [{ id: 'm1', name: 'Model', hash: '', quantization: '', parameters: '', contextLength: '', vramRequired: '', status: 'ready' }],
   automations: [{ id: 'a1', name: 'Automation', trigger: '', action: '', target: 'target1', enabled: false, lastRun: '' }],
-  targets: [{ id: 'target1', name: 'Target', kind: 'workspace', location: '.', resourceUsage: '', status: 'offline' }]
+  targets: [{ id: 'target1', name: 'Target', kind: 'workspace', location: '.', resourceUsage: '', status: 'offline' }],
+  reproductions: [{ id: 'rep1', baselineIdentity: 'Standard baseline', claimId: 'c1', publishedNumber: '7.2', reproducedNumber: '7.18', gap: '0.02', date: '2026-09-16', author: 'user' }],
+  alternatives: [{ id: 'alt1', statement: 'Sliding window truncation artifact', claimId: 'c1', state: 'open', createdAt: 1, author: 'user' }]
 };
 
 await writeVault(root, snapshot);

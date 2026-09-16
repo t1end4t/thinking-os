@@ -34,8 +34,12 @@ import {
   Tag,
   Trash2,
   TriangleAlert,
-  X
+  X,
+  Target,
+  FlaskConical,
+  Compass
 } from 'lucide-react';
+import { CLAIM_STATE_CONFIGS } from '../../utils/claimState';
 import { ArgumentTree } from './ArgumentTree';
 import './argument.css';
 
@@ -92,7 +96,15 @@ export const DetailView: React.FC<DetailViewProps> = ({
     deleteLink,
     weakenClaim,
     rejectClaim,
-    addAttachedContext
+    addAttachedContext,
+    activeClaimId,
+    setActiveClaimId,
+    claimLifecycleStates,
+    reproductions,
+    alternatives,
+    addReproduction,
+    addAlternativeExplanation,
+    updateAlternativeExplanation
   } = useWorkspace();
 
   const [newKind, setNewKind] = useState<'question' | 'claim' | 'evidence'>(targetKind || 'question');
@@ -122,6 +134,18 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [rejectReason, setRejectReason] = useState<string>('');
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(Boolean(initialEditMode));
+
+  // Reproduction & Alternative Explanation Drafts
+  const [showAddReproduction, setShowAddReproduction] = useState(false);
+  const [repBaseline, setRepBaseline] = useState('');
+  const [repPublished, setRepPublished] = useState('');
+  const [repReproduced, setRepReproduced] = useState('');
+  const [repGap, setRepGap] = useState('');
+  const [repHash, setRepHash] = useState('');
+
+  const [showAddAlternative, setShowAddAlternative] = useState(false);
+  const [altStatement, setAltStatement] = useState('');
+  const [altControlExpId, setAltControlExpId] = useState('');
 
   useEffect(() => {
     if (initialEditMode !== undefined) {
@@ -697,6 +721,23 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  {selection.kind === 'claim' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeClaimId === selection.entity.id) {
+                          setActiveClaimId(null);
+                        } else {
+                          setActiveClaimId(selection.entity.id);
+                        }
+                      }}
+                      className={`argument-micro-btn ${activeClaimId === selection.entity.id ? 'primary font-bold' : ''}`}
+                      title={activeClaimId === selection.entity.id ? 'Clear global scope' : 'Set as active workspace scope'}
+                    >
+                      <Target size={13} />
+                      <span className="hidden sm:inline">{activeClaimId === selection.entity.id ? 'Scoped' : 'Scope'}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleSendToDock(selection)}
@@ -744,6 +785,25 @@ export const DetailView: React.FC<DetailViewProps> = ({
               </header>
 
               <div className="argument-inspector-content">
+                {/* Claim Lifecycle State Badge & Overview */}
+                {selection.kind === 'claim' && (() => {
+                  const state = claimLifecycleStates[selection.entity.id] || (selection.entity.rejected ? 'rejected' : 'candidate');
+                  const cfg = CLAIM_STATE_CONFIGS[state];
+                  return (
+                    <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-xs mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${cfg.dotClass}`} />
+                        <span className="font-mono text-xs uppercase font-bold text-[var(--color-ink)]">
+                          Lifecycle: {cfg.label}
+                        </span>
+                      </div>
+                      <span className="text-[0.6875rem] text-[var(--color-ink-muted)]">
+                        {cfg.description}
+                      </span>
+                    </div>
+                  );
+                })()}
+
                 {/* Rejection / Weakness Banners */}
                 {selection.kind === 'claim' && selection.entity.rejected && (
                   <div className="argument-status-banner rejected">
@@ -1010,6 +1070,240 @@ export const DetailView: React.FC<DetailViewProps> = ({
                           <Ban size={12} />
                           Reject Claim (Preserve Record)
                         </button>
+                      </div>
+                    </div>
+
+                    {/* Reproductions Track */}
+                    <div className="p-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-indigo-700 dark:text-indigo-400">
+                          <FlaskConical size={13} />
+                          Reproductions
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddReproduction(!showAddReproduction)}
+                          className="argument-micro-btn"
+                        >
+                          <Plus size={11} />
+                          <span>Add Record</span>
+                        </button>
+                      </div>
+
+                      {showAddReproduction && (
+                        <div className="p-2 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] space-y-2 mt-1">
+                          <input
+                            type="text"
+                            placeholder="Baseline identity (e.g. StreamingLLM Dense Baseline)"
+                            value={repBaseline}
+                            onChange={e => setRepBaseline(e.target.value)}
+                            className="argument-input text-xs"
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Published (e.g. 7.21)"
+                              value={repPublished}
+                              onChange={e => setRepPublished(e.target.value)}
+                              className="argument-input text-xs"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Reproduced (e.g. 7.18)"
+                              value={repReproduced}
+                              onChange={e => setRepReproduced(e.target.value)}
+                              className="argument-input text-xs"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Gap (e.g. -0.03)"
+                              value={repGap}
+                              onChange={e => setRepGap(e.target.value)}
+                              className="argument-input text-xs"
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Evaluation script hash (optional, e.g. sha256:...)"
+                            value={repHash}
+                            onChange={e => setRepHash(e.target.value)}
+                            className="argument-input text-xs"
+                          />
+                          <div className="flex justify-end gap-1.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowAddReproduction(false)}
+                              className="argument-micro-btn"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!repBaseline.trim() || !repPublished.trim() || !repReproduced.trim()) return;
+                                addReproduction({
+                                  claimId: selection.entity.id,
+                                  baselineIdentity: repBaseline.trim(),
+                                  publishedNumber: repPublished.trim(),
+                                  reproducedNumber: repReproduced.trim(),
+                                  gap: repGap.trim() || '0',
+                                  evaluationScriptHash: repHash.trim() || undefined,
+                                  date: new Date().toISOString().slice(0, 10)
+                                });
+                                setRepBaseline('');
+                                setRepPublished('');
+                                setRepReproduced('');
+                                setRepGap('');
+                                setRepHash('');
+                                setShowAddReproduction(false);
+                                setMessage('Reproduction record added.');
+                              }}
+                              className="argument-micro-btn primary"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {reproductions.filter(r => r.claimId === selection.entity.id).length === 0 ? (
+                          <p className="text-[0.6875rem] text-[var(--color-ink-muted)]">No reproduction attempts logged yet.</p>
+                        ) : (
+                          reproductions.filter(r => r.claimId === selection.entity.id).map(r => (
+                            <div key={r.id} className="p-2 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col gap-1 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono font-bold text-[var(--color-ink)]">{r.baselineIdentity}</span>
+                                <span className="font-mono text-[0.625rem] bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                                  {String(r.date)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
+                                <span>Pub: <strong className="text-[var(--color-ink)]">{String(r.publishedNumber)}</strong></span>
+                                <span>Rep: <strong className="text-[var(--color-ink)]">{String(r.reproducedNumber)}</strong></span>
+                                <span>Gap: <strong className="text-emerald-600 dark:text-emerald-400">{String(r.gap)}</strong></span>
+                              </div>
+                              {r.evaluationScriptHash && (
+                                <p className="text-[0.625rem] font-mono text-[var(--color-ink-muted)] truncate">
+                                  Hash: {r.evaluationScriptHash}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Alternative Explanations */}
+                    <div className="p-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-purple-700 dark:text-purple-400">
+                          <Compass size={13} />
+                          Alternative Explanations
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddAlternative(!showAddAlternative)}
+                          className="argument-micro-btn"
+                        >
+                          <Plus size={11} />
+                          <span>Add Alternative</span>
+                        </button>
+                      </div>
+
+                      {showAddAlternative && (
+                        <div className="p-2 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] space-y-2 mt-1">
+                          <textarea
+                            placeholder="Alternative explanation or confounding hypothesis..."
+                            value={altStatement}
+                            onChange={e => setAltStatement(e.target.value)}
+                            rows={2}
+                            className="argument-textarea text-xs"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Control experiment ID (optional, e.g. exp1)"
+                            value={altControlExpId}
+                            onChange={e => setAltControlExpId(e.target.value)}
+                            className="argument-input text-xs"
+                          />
+                          <div className="flex justify-end gap-1.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowAddAlternative(false)}
+                              className="argument-micro-btn"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!altStatement.trim()) return;
+                                addAlternativeExplanation({
+                                  claimId: selection.entity.id,
+                                  statement: altStatement.trim(),
+                                  controlExperimentId: altControlExpId.trim() || undefined,
+                                  state: 'open'
+                                });
+                                setAltStatement('');
+                                setAltControlExpId('');
+                                setShowAddAlternative(false);
+                                setMessage('Alternative explanation recorded.');
+                              }}
+                              className="argument-micro-btn primary"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {alternatives.filter(a => a.claimId === selection.entity.id).length === 0 ? (
+                          <p className="text-[0.6875rem] text-[var(--color-ink-muted)]">No rival explanations registered.</p>
+                        ) : (
+                          alternatives.filter(a => a.claimId === selection.entity.id).map(a => (
+                            <div key={a.id} className="p-2 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col gap-1 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className={`font-mono text-[0.625rem] uppercase px-1.5 py-0.5 rounded font-bold ${
+                                  a.state === 'removed_by_control' ? 'bg-emerald-100 text-emerald-800 line-through' :
+                                  a.state === 'damaged_result' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {a.state.replace(/_/g, ' ')}
+                                </span>
+                                <div className="flex gap-1">
+                                  {a.state === 'open' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateAlternativeExplanation(a.id, { state: 'removed_by_control' })}
+                                      className="text-[0.625rem] font-mono px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 text-emerald-700"
+                                      title="Mark as eliminated by control experiment"
+                                    >
+                                      Removed by control
+                                    </button>
+                                  )}
+                                  {a.state === 'removed_by_control' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => updateAlternativeExplanation(a.id, { state: 'open' })}
+                                      className="text-[0.625rem] font-mono px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 text-amber-700"
+                                    >
+                                      Re-open
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <p className={`text-[0.75rem] text-[var(--color-ink)] ${a.state === 'removed_by_control' ? 'line-through opacity-60' : ''}`}>
+                                {a.statement}
+                              </p>
+                              {a.controlExperimentId && (
+                                <p className="text-[0.6875rem] text-[var(--color-ink-muted)] font-mono">
+                                  Control: {a.controlExperimentId}
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </section>

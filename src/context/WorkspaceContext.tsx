@@ -13,8 +13,18 @@ import {
   AssistantContextObject,
   AssistantMessage,
   LinkStatus,
-  LinkKind
+  LinkKind,
+  ClaimLifecycleState,
+  Reproduction,
+  AlternativeExplanation,
+  WorkspaceConstraints,
+  SurveyRetireReason
 } from '../types';
+import {
+  getClaimLifecycleState,
+  computeClaimStateCounts,
+  ClaimStateCounts
+} from '../utils/claimState';
 import {
   AutomationItem,
   GoalItem,
@@ -129,6 +139,21 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   linkStatusFilter: 'all' | LinkStatus;
   setLinkStatusFilter: (status: 'all' | LinkStatus) => void;
 
+  // Research Scope & Constraints
+  activeClaimId: string | null;
+  setActiveClaimId: (id: string | null) => void;
+  claimStateFilter: ClaimLifecycleState | 'retired' | 'all' | null;
+  setClaimStateFilter: (filter: ClaimLifecycleState | 'retired' | 'all' | null) => void;
+  workspaceConstraints: WorkspaceConstraints;
+  updateWorkspaceConstraints: (constraints: Partial<WorkspaceConstraints>) => void;
+  claimLifecycleStates: Record<string, ClaimLifecycleState>;
+  claimStateCounts: ClaimStateCounts;
+  reproductions: Reproduction[];
+  alternatives: AlternativeExplanation[];
+  addReproduction: (rep: Omit<Reproduction, 'id' | 'author'>) => Reproduction;
+  addAlternativeExplanation: (alt: Omit<AlternativeExplanation, 'id' | 'createdAt' | 'author'>) => AlternativeExplanation;
+  updateAlternativeExplanation: (id: string, updates: Partial<AlternativeExplanation>) => void;
+
   // Entities
   questions: Question[];
   claims: Claim[];
@@ -184,6 +209,8 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
 
   // Actions on Survey
   addSurveyOpenProblem: (text: string, citation: string) => { success: boolean; error?: string };
+  retireSurveyOpenProblem: (id: string, reason: SurveyRetireReason) => void;
+  retireSurveyCandidateQuestion: (id: string, reason: SurveyRetireReason) => void;
   promoteCandidateQuestion: (
     candidateId: string,
     claimText: string,
@@ -304,6 +331,74 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activeLearningUnitId, setActiveLearningUnitId] = useState<string | null>(null);
   const [activeLearnTab, setActiveLearnTab] = useState<LearnViewMode>('today');
 
+  // Research Scope & Lifecycle State
+  const [reproductions, setReproductions] = useState<Reproduction[]>([]);
+  const [alternatives, setAlternatives] = useState<AlternativeExplanation[]>([]);
+  const [activeClaimId, setActiveClaimIdState] = useState<string | null>(() => {
+    return localStorage.getItem('thinking_os_active_claim_id') || null;
+  });
+  const setActiveClaimId = useCallback((id: string | null) => {
+    setActiveClaimIdState(id);
+    if (id) {
+      localStorage.setItem('thinking_os_active_claim_id', id);
+    } else {
+      localStorage.removeItem('thinking_os_active_claim_id');
+    }
+  }, []);
+
+  const [claimStateFilter, setClaimStateFilter] = useState<ClaimLifecycleState | 'retired' | 'all' | null>('all');
+
+  const [workspaceConstraints, setWorkspaceConstraints] = useState<WorkspaceConstraints>(() => {
+    try {
+      const saved = localStorage.getItem('thinking_os_workspace_constraints');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      contributionType: 'measure',
+      computeBudget: '8x H100 SXM5 / 400h',
+      dataBudget: 'FineWeb-Edu 100B'
+    };
+  });
+
+  const updateWorkspaceConstraints = useCallback((changes: Partial<WorkspaceConstraints>) => {
+    setWorkspaceConstraints(prev => {
+      const next = { ...prev, ...changes };
+      localStorage.setItem('thinking_os_workspace_constraints', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const claimLifecycleStates = useMemo(() => {
+    const map: Record<string, ClaimLifecycleState> = {};
+    for (const c of claims) {
+      map[c.id] = getClaimLifecycleState(c, claims, reproductions, alternatives, experiments);
+    }
+    return map;
+  }, [claims, reproductions, alternatives, experiments]);
+
+  const claimStateCounts = useMemo(() => {
+    const retiredCount = openProblems.filter(op => Boolean((op as unknown as { retired?: boolean }).retired)).length;
+    return computeClaimStateCounts(claims, reproductions, alternatives, experiments, retiredCount);
+  }, [claims, reproductions, alternatives, experiments, openProblems]);
+
+  const addReproduction = useCallback((rep: Omit<Reproduction, 'id' | 'author'>): Reproduction => {
+    const id = `rep-${Date.now().toString().slice(-4)}`;
+    const newRep: Reproduction = { ...rep, id, author: 'user' };
+    setReproductions(prev => [...prev, newRep]);
+    return newRep;
+  }, []);
+
+  const addAlternativeExplanation = useCallback((alt: Omit<AlternativeExplanation, 'id' | 'createdAt' | 'author'>): AlternativeExplanation => {
+    const id = `alt-${Date.now().toString().slice(-4)}`;
+    const newAlt: AlternativeExplanation = { ...alt, id, createdAt: Date.now(), author: 'user' };
+    setAlternatives(prev => [...prev, newAlt]);
+    return newAlt;
+  }, []);
+
+  const updateAlternativeExplanation = useCallback((id: string, updates: Partial<AlternativeExplanation>) => {
+    setAlternatives(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+  }, []);
+
   const addService = useCallback((service: Omit<ServiceItem, 'id' | 'createdAt' | 'author' | 'uptime'>) => {
     setServices(current => {
       const slug = service.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'service';
@@ -353,13 +448,25 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
   const [attachedContexts, setAttachedContexts] = useState<AssistantContextObject[]>([]);
 
+  // Isolated transcript threads per context ID
+  const [threads, setThreads] = useState<Record<string, AssistantMessage[]>>(INITIAL_THREADS);
+
+  const clearThread = useCallback((contextId: string) => {
+    setThreads(prev => ({
+      ...prev,
+      [contextId]: []
+    }));
+  }, []);
+
   const manuscriptWorkspace = useManuscriptWorkspace();
 
   const snapshot = useMemo(() => ({
     questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
-    tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits
+    tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits,
+    reproductions, alternatives
   }), [questions, claims, evidence, links, openProblems, candidateQuestions, papers, experiments,
-    tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits]);
+    tasks, goals, weeklyReviews, services, runs, models, automations, targets, learningUnits,
+    reproductions, alternatives]);
   const latestSnapshot = useRef(snapshot);
   latestSnapshot.current = snapshot;
 
@@ -385,6 +492,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAutomations(normalized.automations);
     setTargets(normalized.targets);
     setLearningUnits(normalized.learningUnits);
+    setReproductions(normalized.reproductions ?? []);
+    setAlternatives(normalized.alternatives ?? []);
   }, []);
 
   const persistSnapshot = useCallback((dir: string, data: VaultSnapshot) => {
@@ -397,6 +506,43 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return pendingSave.current;
   }, []);
 
+  const loadSampleData = useCallback(async (targetDir?: string) => {
+    const dirToPersist = targetDir || workspaceDir;
+    setWorkspaceLoading(true);
+    try {
+      setQuestions(SAMPLE_SNAPSHOT.questions);
+      setClaims(SAMPLE_SNAPSHOT.claims);
+      setEvidence(SAMPLE_SNAPSHOT.evidence);
+      setLinks(SAMPLE_SNAPSHOT.links);
+      setOpenProblems(SAMPLE_SNAPSHOT.openProblems);
+      setCandidateQuestions(SAMPLE_SNAPSHOT.candidateQuestions);
+      setPapers(SAMPLE_SNAPSHOT.papers);
+      setExperiments(SAMPLE_SNAPSHOT.experiments);
+      setTasks(SAMPLE_SNAPSHOT.tasks.map(task => ({
+        ...task,
+        author: task.author ?? 'user',
+        lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
+      })));
+      setGoals(SAMPLE_SNAPSHOT.goals);
+      setWeeklyReviews(SAMPLE_SNAPSHOT.weeklyReviews);
+      setServices(SAMPLE_SNAPSHOT.services);
+      setRuns(SAMPLE_SNAPSHOT.runs);
+      setModels(SAMPLE_SNAPSHOT.models);
+      setAutomations(SAMPLE_SNAPSHOT.automations);
+      setTargets(SAMPLE_SNAPSHOT.targets);
+      setReproductions(SAMPLE_SNAPSHOT.reproductions ?? []);
+      setAlternatives(SAMPLE_SNAPSHOT.alternatives ?? []);
+      setLearningUnits(SAMPLE_SNAPSHOT.learningUnits);
+      setThreads(INITIAL_THREADS);
+      manuscriptWorkspace.resetManuscriptToSample();
+      await persistSnapshot(dirToPersist, { ...SAMPLE_SNAPSHOT, learningUnits: SAMPLE_SNAPSHOT.learningUnits });
+    } catch (err) {
+      console.error('Failed to load sample data:', err);
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, [workspaceDir, manuscriptWorkspace, persistSnapshot]);
+
   const setWorkspaceDir = useCallback(async (dir: string) => {
     if (savePaused.current) return;
     const requestedDir = dir.trim() || '~/second-brain';
@@ -408,7 +554,16 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const loaded = await loadVault(requestedDir);
       setWorkspaceDirState(loaded.dir);
       localStorage.setItem('thinking_os_workspace_dir', loaded.dir);
-      applySnapshot(loaded.data);
+      
+      const isCompletelyEmpty = Object.values(loaded.data).every(
+        v => !Array.isArray(v) || v.length === 0
+      );
+
+      if (isCompletelyEmpty) {
+        await loadSampleData(loaded.dir);
+      } else {
+        applySnapshot(loaded.data);
+      }
       pendingSave.current = Promise.resolve();
       setVaultReady(true);
     } catch (error) {
@@ -416,7 +571,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setWorkspaceLoading(false);
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, loadSampleData]);
 
   const codexAssistant = useCodexAssistant(workspaceDir, async dir => {
     if (dir !== workspaceDir) return;
@@ -635,49 +790,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const clearAttachedContexts = useCallback(() => {
     setAttachedContexts([]);
   }, []);
-
-  // Isolated transcript threads per context ID
-  const [threads, setThreads] = useState<Record<string, AssistantMessage[]>>(INITIAL_THREADS);
-
-  const clearThread = useCallback((contextId: string) => {
-    setThreads(prev => ({
-      ...prev,
-      [contextId]: []
-    }));
-  }, []);
-
-  const loadSampleData = useCallback(async () => {
-    setWorkspaceLoading(true);
-    try {
-      setQuestions(SAMPLE_SNAPSHOT.questions);
-      setClaims(SAMPLE_SNAPSHOT.claims);
-      setEvidence(SAMPLE_SNAPSHOT.evidence);
-      setLinks(SAMPLE_SNAPSHOT.links);
-      setOpenProblems(SAMPLE_SNAPSHOT.openProblems);
-      setCandidateQuestions(SAMPLE_SNAPSHOT.candidateQuestions);
-      setPapers(SAMPLE_SNAPSHOT.papers);
-      setExperiments(SAMPLE_SNAPSHOT.experiments);
-      setTasks(SAMPLE_SNAPSHOT.tasks.map(task => ({
-        ...task,
-        author: task.author ?? 'user',
-        lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
-      })));
-      setGoals(SAMPLE_SNAPSHOT.goals);
-      setWeeklyReviews(SAMPLE_SNAPSHOT.weeklyReviews);
-      setServices(SAMPLE_SNAPSHOT.services);
-      setRuns(SAMPLE_SNAPSHOT.runs);
-      setModels(SAMPLE_SNAPSHOT.models);
-      setAutomations(SAMPLE_SNAPSHOT.automations);
-      setTargets(SAMPLE_SNAPSHOT.targets);
-      setThreads(INITIAL_THREADS);
-      manuscriptWorkspace.resetManuscriptToSample();
-      await persistSnapshot(workspaceDir, { ...SAMPLE_SNAPSHOT, learningUnits });
-    } catch (err) {
-      console.error('Failed to load sample data:', err);
-    } finally {
-      setWorkspaceLoading(false);
-    }
-  }, [workspaceDir, learningUnits]);
 
   // Theme follows the OS colour scheme
   useEffect(() => {
@@ -1116,6 +1228,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return { success: true };
   }, [candidateQuestions]);
 
+  const retireSurveyOpenProblem = useCallback((id: string, reason: SurveyRetireReason) => {
+    setOpenProblems(prev => prev.map(op => (op.id === id ? { ...op, retireReason: reason } : op)));
+  }, []);
+
+  const retireSurveyCandidateQuestion = useCallback((id: string, reason: SurveyRetireReason) => {
+    setCandidateQuestions(prev => prev.map(cq => (cq.id === id ? { ...cq, retireReason: reason } : cq)));
+  }, []);
+
   // Update artifact observation
   const updateArtifactObservation = useCallback((experimentId: string, artifactId: string, observation: string) => {
     setExperiments(prev => prev.map(exp => {
@@ -1373,6 +1493,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addPaperHighlight,
         removePaperHighlight,
         addSurveyOpenProblem,
+        retireSurveyOpenProblem,
+        retireSurveyCandidateQuestion,
         promoteCandidateQuestion,
         unclusteredOpenProblemsCount,
         updateArtifactObservation,
@@ -1421,6 +1543,19 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         promoteBlockToClaim,
         promoteBlockToQuestion,
         promoteBlockToTask,
+        activeClaimId,
+        setActiveClaimId,
+        claimStateFilter,
+        setClaimStateFilter,
+        workspaceConstraints,
+        updateWorkspaceConstraints,
+        claimLifecycleStates,
+        claimStateCounts,
+        reproductions,
+        alternatives,
+        addReproduction,
+        addAlternativeExplanation,
+        updateAlternativeExplanation,
         ...manuscriptWorkspace
       }}
     >

@@ -1,6 +1,8 @@
 import React from 'react';
 import { LayoutNode } from './computeLayout';
-import { AlertCircle, ArrowRight, Ban, GripVertical, Pencil, Plus } from 'lucide-react';
+import { AlertCircle, ArrowRight, Ban, GripVertical, Pencil, Plus, Target } from 'lucide-react';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { CLAIM_STATE_CONFIGS } from '../../utils/claimState';
 
 interface NodeCardProps {
   node: LayoutNode;
@@ -27,6 +29,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   onMouseLeave,
   onAddToContext
 }) => {
+  const { activeClaimId, claimLifecycleStates } = useWorkspace();
+
   // GHOST node: interactive argument gap card leading to Detail view
   if (node.isGhost) {
     return (
@@ -100,16 +104,22 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   };
 
   // Determine dynamic visual hierarchy
+  const isClaimScoped = node.type === 'claim' && activeClaimId === node.id;
+  const claimState = node.type === 'claim' ? (claimLifecycleStates[node.id] || (node.rejected ? 'retired' : 'candidate')) : null;
+  const effectiveDimmed = isDimmed;
+
   let stateClasses = 'border-[var(--color-rule)] hover:border-slate-400 dark:hover:border-slate-500 hover:shadow-xs';
   if (isSelected) {
     stateClasses = 'border-[var(--color-ink)] ring-2 ring-[var(--color-ink)]/20 shadow-md scale-[1.01] z-20';
+  } else if (isClaimScoped) {
+    stateClasses = 'border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-500/50 shadow-md scale-[1.01] z-20';
   } else if (isHovered) {
     stateClasses = 'border-indigo-500 dark:border-indigo-400 ring-3 ring-indigo-500/40 shadow-lg scale-[1.02] z-25 bg-[var(--color-surface)]';
   } else if (isRelated) {
     stateClasses = 'border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-400/40 shadow-md scale-[1.008] z-15 bg-[var(--color-surface)]';
   }
 
-  const opacityClass = isDimmed ? 'opacity-25 filter grayscale-[50%]' : 'opacity-100';
+  const opacityClass = effectiveDimmed ? 'opacity-25 filter grayscale-[50%]' : 'opacity-100';
 
   return (
     <div
@@ -176,9 +186,32 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
         {/* Header Row: Type tag & identifiers */}
         <div className="flex items-center justify-between gap-1 mb-1.5 shrink-0 pr-12">
-          <span className="font-mono text-[0.7188rem] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)] border border-[var(--color-rule)]">
-            {node.type}
-          </span>
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="font-mono text-[0.7188rem] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)] border border-[var(--color-rule)]">
+              {node.type}
+            </span>
+
+            {node.type === 'claim' && claimState && (
+              <span
+                className={`font-mono text-[0.6875rem] px-1.5 py-0.5 rounded border capitalize ${
+                  CLAIM_STATE_CONFIGS[claimState].badgeClass
+                }`}
+                title={`Lifecycle: ${CLAIM_STATE_CONFIGS[claimState].label} - ${CLAIM_STATE_CONFIGS[claimState].description}`}
+              >
+                {CLAIM_STATE_CONFIGS[claimState].label}
+              </span>
+            )}
+
+            {isClaimScoped && (
+              <span
+                className="font-mono text-[0.625rem] px-1.5 py-0.5 rounded bg-indigo-600 text-white font-bold flex items-center gap-1 shrink-0 shadow-2xs"
+                title="This claim is the active global scope"
+              >
+                <Target className="w-2.5 h-2.5" />
+                SCOPE
+              </span>
+            )}
+          </div>
 
           {node.type !== 'question' && node.tags && node.tags.length > 0 && (
             <div className="flex items-center gap-1 truncate">

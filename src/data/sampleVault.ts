@@ -6,7 +6,9 @@ import {
   SurveyOpenProblem,
   SurveyCandidateQuestion,
   Paper,
-  Experiment
+  Experiment,
+  Reproduction,
+  AlternativeExplanation
 } from '../types';
 import {
   TaskItem,
@@ -50,6 +52,9 @@ export const SAMPLE_CLAIMS: Claim[] = [
     id: 'c1',
     text: 'Retaining the first 4 initial tokens as designated attention sinks prevents softmax numerical collapse in sliding-window attention.',
     rejected: false,
+    prediction: 'Streaming perplexity stays below 7.2 over 4,000,000 tokens when initial 4 tokens are anchored as sinks.',
+    failureThreshold: 'Perplexity exceeds 12.0 or NaN activations appear before 100,000 tokens.',
+    scopeLimits: 'Autoregressive Transformer decoders with dense multi-head attention up to 4M tokens.',
     createdAt: 1718005000000,
     author: 'user'
   },
@@ -57,6 +62,9 @@ export const SAMPLE_CLAIMS: Claim[] = [
     id: 'c2',
     text: 'Speculative draft verification with modified rejection sampling strictly matches target model token probability distributions.',
     rejected: false,
+    prediction: 'Draft acceptance rate achieves >= 2.4 tokens/step with exact distribution equivalence under temperature T > 0.',
+    failureThreshold: 'Total variation distance exceeds 1e-4 or latency speedup drops below 1.2x.',
+    scopeLimits: 'Finite vocabulary spaces and standard non-greedy softmax distributions.',
     createdAt: 1718105000000,
     author: 'user'
   },
@@ -64,6 +72,8 @@ export const SAMPLE_CLAIMS: Claim[] = [
     id: 'c3',
     text: '4-bit integer KV-cache quantization exhibits non-linear catastrophic perplexity spikes past 64k sequence length.',
     rejected: false,
+    prediction: 'Needle retrieval drops > 25% at 64k tokens under uniform RTN INT4 without outlier preservation.',
+    failureThreshold: 'Retrieval degradation remains < 5% across all context depths.',
     createdAt: 1718150000000,
     author: 'user'
   },
@@ -71,7 +81,19 @@ export const SAMPLE_CLAIMS: Claim[] = [
     id: 'c4',
     text: 'Unsupervised self-verification in test-time reasoning loops leads to circular reinforcement without external ground-truth verifiers.',
     rejected: false,
+    prediction: 'Self-verification accuracy plateaus at step 3 and degrades with additional loop iterations.',
+    failureThreshold: 'Iterative reflection continues monotonic accuracy gains beyond 5 reasoning hops.',
     createdAt: 1718210000000,
+    author: 'user'
+  },
+  {
+    id: 'c5',
+    text: 'Linear attention kernels with chunked state-space projections match softmax retrieval at 1M tokens without attention sinks.',
+    rejected: true,
+    rejectionReason: 'Failure threshold met: state capacity saturation causes catastrophic retrieval drop on Multi-Query associative recall below 40% accuracy.',
+    prediction: 'Associative recall stays above 85% at 1M context with fixed state memory.',
+    failureThreshold: 'Recall accuracy falls below 50% on needle retrieval sweeps.',
+    createdAt: 1718220000000,
     author: 'user'
   }
 ];
@@ -428,6 +450,62 @@ export const SAMPLE_EXPERIMENTS: Experiment[] = [
   }
 ];
 
+export const SAMPLE_REPRODUCTIONS: Reproduction[] = [
+  {
+    id: 'rep-1',
+    claimId: 'c1',
+    baselineIdentity: 'StreamingLLM Llama-2-7B Dense Attention Baseline',
+    publishedNumber: '7.21 perplexity',
+    reproducedNumber: '7.18 perplexity',
+    gap: '-0.03 (surpassed published baseline)',
+    evaluationScriptHash: 'sha256:4a8b7921c3',
+    date: '2026-08-15',
+    author: 'user'
+  },
+  {
+    id: 'rep-2',
+    claimId: 'c2',
+    baselineIdentity: 'Leviathan et al. Speculative Verification Rate',
+    publishedNumber: '2.50 tokens/step',
+    reproducedNumber: '2.42 tokens/step',
+    gap: '-0.08 (within 3.2% confidence band)',
+    evaluationScriptHash: 'sha256:d82e140f7b',
+    date: '2026-08-20',
+    author: 'user'
+  },
+  {
+    id: 'rep-3',
+    claimId: 'c3',
+    baselineIdentity: 'A100 SXM4 80GB RTN INT4 Quantized Cache Sweep',
+    publishedNumber: '58.1% accuracy at 128k',
+    reproducedNumber: '57.8% accuracy at 128k',
+    gap: '-0.3% (verified catastrophic cliff)',
+    evaluationScriptHash: 'sha256:912bfa4e61',
+    date: '2026-09-02',
+    author: 'user'
+  }
+];
+
+export const SAMPLE_ALTERNATIVES: AlternativeExplanation[] = [
+  {
+    id: 'alt-1',
+    claimId: 'c1',
+    statement: 'Perplexity stability is merely an artifact of evaluation prompt repetitiveness rather than structural attention anchoring.',
+    state: 'removed_by_control',
+    controlExperimentId: 'exp1',
+    createdAt: 1718010000000,
+    author: 'user'
+  },
+  {
+    id: 'alt-2',
+    claimId: 'c2',
+    statement: 'Draft model verification speedups vanish at high batch concurrency due to memory bus saturation on target model forward passes.',
+    state: 'open',
+    createdAt: 1718115000000,
+    author: 'user'
+  }
+];
+
 export const SAMPLE_OPEN_PROBLEMS: SurveyOpenProblem[] = [
   {
     id: 'op1',
@@ -446,6 +524,17 @@ export const SAMPLE_OPEN_PROBLEMS: SurveyOpenProblem[] = [
     text: 'Circular reasoning rationalization in test-time iterative self-correction loops.',
     citation: 'MATH-500 Error Analysis 2026',
     createdAt: 1718240000000
+  },
+  {
+    id: 'op4',
+    text: 'Softmax temperature entropy collapse in infinite autoregressive streams.',
+    citation: 'Gu et al. 2023, Mamba Technical Report',
+    createdAt: 1715000000000,
+    retireReason: {
+      kind: 'solved_since',
+      reference: 'Xiao et al. 2024 (StreamingLLM attention sink anchors)',
+      retiredAt: 1721000000000
+    }
   }
 ];
 
@@ -462,6 +551,17 @@ export const SAMPLE_CANDIDATE_QUESTIONS: SurveyCandidateQuestion[] = [
     title: 'What is the optimal draft model parameter scale relative to target size for batch sizes > 32?',
     openProblemIds: ['op2'],
     createdAt: 1718145000000
+  },
+  {
+    id: 'cq3',
+    title: 'Can zero-shot self-verification replace external verifiers via recursive reflection prompting?',
+    openProblemIds: ['op3'],
+    createdAt: 1714000000000,
+    retireReason: {
+      kind: 'infeasible',
+      reference: 'Empirically disproven: circular reasoning loops without external ground-truth verifiers (Huang et al. 2024)',
+      retiredAt: 1722000000000
+    }
   }
 ];
 
@@ -825,5 +925,7 @@ export const SAMPLE_SNAPSHOT: VaultSnapshot = {
   models: SAMPLE_MODELS,
   automations: SAMPLE_AUTOMATIONS,
   targets: SAMPLE_TARGETS,
-  learningUnits: SAMPLE_LEARNING_UNITS
+  learningUnits: SAMPLE_LEARNING_UNITS,
+  reproductions: SAMPLE_REPRODUCTIONS,
+  alternatives: SAMPLE_ALTERNATIVES
 };

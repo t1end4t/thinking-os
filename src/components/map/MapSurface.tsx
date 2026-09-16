@@ -3,6 +3,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { computeMapLayout, LayoutEdge, LayoutNode } from './computeLayout';
 import { NodeCard } from './NodeCard';
 import { DetailView } from './DetailView';
+import { ClaimLedger } from './ClaimLedger';
 import { TabHelpTip } from '../common/TabHelpTip';
 import {
   ZoomIn,
@@ -37,7 +38,7 @@ export const MapSurface: React.FC = () => {
   } = useWorkspace();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeView, setActiveView] = useState<'map' | 'detail'>('map');
+  const [activeView, setActiveView] = useState<'map' | 'ledger' | 'detail'>('map');
   const [creating, setCreating] = useState(false);
   const [targetKind, setTargetKind] = useState<'question' | 'claim' | 'evidence'>('question');
   const [targetParentId, setTargetParentId] = useState<string>('');
@@ -391,6 +392,16 @@ export const MapSurface: React.FC = () => {
             <button
               type="button"
               onClick={() => {
+                setActiveView('ledger');
+                setCreating(false);
+              }}
+              className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${activeView === 'ledger' ? 'bg-[var(--color-ink)] text-[var(--color-surface)] font-semibold' : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'}`}
+            >
+              Ledger
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setActiveView('detail');
                 setCreating(false);
               }}
@@ -485,7 +496,20 @@ export const MapSurface: React.FC = () => {
         </div>
       </header>
 
-      {activeView === 'detail' ? (
+      {activeView === 'ledger' ? (
+        <ClaimLedger
+          onSelectClaim={claimId => {
+            setSelectedNodeId(claimId);
+          }}
+          onInspectClaim={claimId => {
+            setSelectedNodeId(claimId);
+            setSelectedLinkId(null);
+            setCreating(false);
+            setInitialEditMode(false);
+            setActiveView('detail');
+          }}
+        />
+      ) : activeView === 'detail' ? (
         <DetailView
           creating={creating}
           onCreatingChange={setCreating}

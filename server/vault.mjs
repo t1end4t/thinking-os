@@ -38,7 +38,9 @@ const MD_COLLECTIONS = {
   models: ['runtime/llm-models', 'name'],
   automations: ['runtime/agent-jobs/automations', 'name'],
   targets: ['runtime/agent-jobs/targets', 'name'],
-  learningUnits: ['learn/board', 'unit']
+  learningUnits: ['learn/board', 'unit'],
+  reproductions: ['research/map/reproductions', 'baselineIdentity'],
+  alternatives: ['research/map/alternatives', 'statement']
 };
 
 const LINKS_DIR = 'research/map/links';

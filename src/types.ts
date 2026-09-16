@@ -10,11 +10,57 @@ export interface Question {
   author: EntityAuthor;
 }
 
+export type ClaimLifecycleState =
+  | 'candidate'
+  | 'committed'
+  | 'instrumented'
+  | 'contested'
+  | 'defended'
+  | 'narrowed'
+  | 'rejected';
+
+export interface Reproduction {
+  id: string;
+  claimId: string;
+  baselineIdentity: string;
+  publishedNumber: string | number;
+  reproducedNumber: string | number;
+  gap: string | number;
+  evaluationScriptHash?: string;
+  date: string | number;
+  author: EntityAuthor;
+}
+
+export type AlternativeExplanationState = 'open' | 'removed_by_control' | 'damaged_result';
+
+export interface AlternativeExplanation {
+  id: string;
+  claimId: string;
+  statement: string;
+  state: AlternativeExplanationState;
+  controlExperimentId?: string;
+  createdAt: number;
+  author: EntityAuthor;
+}
+
+export type ContributionType = 'solve' | 'measure' | 'explain';
+
+export interface WorkspaceConstraints {
+  contributionType: ContributionType;
+  computeBudget: string;
+  dataBudget: string;
+}
+
 export interface Claim {
   id: string;
   text: string;
   rejected: boolean;
   rejectionReason?: string;
+  prediction?: string;
+  failureThreshold?: string;
+  scopeLimits?: string;
+  parentClaimId?: string;
+  successorClaimId?: string;
   createdAt: number;
   author: EntityAuthor;
 }
@@ -68,12 +114,21 @@ export interface Link {
   author: EntityAuthor;
 }
 
+export type SurveyRetireReasonKind = 'solved_since' | 'infeasible' | 'already_stated';
+
+export interface SurveyRetireReason {
+  kind: SurveyRetireReasonKind;
+  reference: string;
+  retiredAt: number;
+}
+
 export interface SurveyOpenProblem {
   id: string;
   text: string;
   citation: string;
   createdAt: number;
   candidateId?: string;
+  retireReason?: SurveyRetireReason;
 }
 
 export interface SurveyCandidateQuestion {
@@ -82,6 +137,7 @@ export interface SurveyCandidateQuestion {
   openProblemIds: string[];
   createdAt: number;
   promotedQuestionId?: string;
+  retireReason?: SurveyRetireReason;
 }
 
 export interface PaperParagraph {

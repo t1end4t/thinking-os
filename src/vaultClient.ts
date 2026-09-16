@@ -1,4 +1,4 @@
-import { Question, Claim, Evidence, Link, SurveyOpenProblem, SurveyCandidateQuestion, Paper, Experiment } from './types';
+import { Question, Claim, Evidence, Link, SurveyOpenProblem, SurveyCandidateQuestion, Paper, Experiment, Reproduction, AlternativeExplanation } from './types';
 import { AutomationItem, GoalItem, LLMModelItem, RunItem, ServiceItem, TargetItem, TaskItem, WeeklyReviewItem } from './productivityTypes';
 import { LearningUnit } from './learnTypes';
 
@@ -20,12 +20,14 @@ export interface VaultSnapshot {
   automations: AutomationItem[];
   targets: TargetItem[];
   learningUnits: LearningUnit[];
+  reproductions?: Reproduction[];
+  alternatives?: AlternativeExplanation[];
 }
 
 export const EMPTY_SNAPSHOT: VaultSnapshot = {
   questions: [], claims: [], evidence: [], links: [], openProblems: [], candidateQuestions: [],
   papers: [], experiments: [], tasks: [], goals: [], weeklyReviews: [], services: [], runs: [], models: [], automations: [], targets: [],
-  learningUnits: []
+  learningUnits: [], reproductions: [], alternatives: []
 };
 
 const revisions = new Map<string, string>();
