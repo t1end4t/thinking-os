@@ -6,35 +6,12 @@ import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { resolveVaultDir, withVaultLock } from './vault.mjs';
-import { TEMPLATE_DIR } from './agentEnv.mjs';
 
 const BODY_LIMIT = 64 * 1024;
 const TURN_TIMEOUT_MS = 10 * 60 * 1000;
 const IMAGE_LIMIT = 5 * 1024 * 1024;
 const IMAGE_ID = /^[a-f0-9]{64}\.(png|jpg|webp)$/;
 const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
-
-const MODES = {
-  codex: { templates: ['assistant-codex'] },
-  chat: {
-    templates: ['assistant-conversation', 'assistant-chat'],
-    threadOptions: { sandboxMode: 'read-only', approvalPolicy: 'never' }
-  },
-  work: {
-    templates: ['assistant-conversation', 'assistant-work'],
-    threadOptions: { sandboxMode: 'workspace-write', approvalPolicy: 'never' }
-  }
-};
-
-async function readModeInstructions(templates, templateDir) {
-  if (!templates) return '';
-  const parts = await Promise.all(templates.map(async slug => {
-    const text = await readFile(path.join(templateDir, `${slug}.md`), 'utf8');
-    if (!text.trim()) throw new Error(`Instruction template ${slug}.md is empty.`);
-    return text.trim();
-  }));
-  return parts.join('\n\n');
-}
 
 function imageExtension(bytes) {
   if (bytes.length < 12) return;
@@ -96,25 +73,24 @@ async function readTurnRequest(req) {
           typeof image.name === 'string' && image.name.trim() && image.name.length <= 255))) ||
       typeof body.dir !== 'string' || !body.dir.trim() || body.dir.includes('\0') ||
       typeof body.conversationId !== 'string' || !/^[\da-f-]{36}$/i.test(body.conversationId) ||
-      !optional(body.threadId) || !optional(body.model) || !optional(body.provider) ||
-      (body.mode !== undefined && (typeof body.mode !== 'string' || !Object.hasOwn(MODES, body.mode)))) {
+      !optional(body.threadId) || !optional(body.model) || !optional(body.provider)) {
     throw new Error('Invalid assistant request.');
   }
   return body;
 }
 
-export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options }), imageDir = path.join(homedir(), '.local', 'share', 'thinking-os', 'assistant-images'), templateDir = TEMPLATE_DIR) {
+export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options }), imageDir = path.join(homedir(), '.local', 'share', 'thinking-os', 'assistant-images')) {
   const threads = new Map();
   const controllers = new Set();
   const clients = new Map();
 
-  function clientFor(provider, mode, instructions) {
-    const key = [provider ?? '', mode ?? 'legacy'].join('\0');
-    if (clients.get(key)?.instructions !== instructions) {
-      const config = { ...(provider ? { model_provider: provider } : {}), ...(instructions ? { developer_instructions: instructions } : {}) };
-      clients.set(key, { instructions, client: createCodex(Object.keys(config).length ? { config } : {}) });
+  function clientFor(provider) {
+    const key = provider ?? '';
+    if (!clients.has(key)) {
+      const config = provider ? { model_provider: provider } : undefined;
+      clients.set(key, createCodex(config ? { config } : {}));
     }
-    return clients.get(key).client;
+    return clients.get(key);
   }
 
   function shutdown() {
@@ -217,18 +193,15 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
       try {
         await withVaultLock(dir, async () => {
           if (controller.signal.aborted) return;
-          const mode = MODES[body.mode ?? 'codex'];
-          const instructions = await readModeInstructions(MODES[body.mode]?.templates, templateDir);
-          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? '', body.mode ?? 'legacy', instructions].join('\0');
+          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? ''].join('\0');
           let thread = threads.get(key);
           if (!thread) {
             const options = {
               workingDirectory: dir,
               skipGitRepoCheck: true,
-              ...(body.model ? { model: body.model } : {}),
-              ...mode.threadOptions
+              ...(body.model ? { model: body.model } : {})
             };
-            const codex = clientFor(body.provider, body.mode, instructions);
+            const codex = clientFor(body.provider);
             thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
             threads.set(key, thread);
           }

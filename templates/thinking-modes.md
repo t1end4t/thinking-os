@@ -1,6 +1,6 @@
 # Research Thinking Modes
 
-Read with the shared behavior file. I name the thinking mode in ordinary words. If I do not name one, assume Explore without announcing it. Thinking modes control reasoning, not permissions or the app's Chat/Work/Codex selection.
+Read with the shared behavior file. I name the thinking mode in ordinary words. If I do not name one, assume Explore without announcing it. Thinking modes control reasoning, not permissions.
 
 ## Workspace context
 

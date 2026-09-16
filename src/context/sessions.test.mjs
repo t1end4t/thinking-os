@@ -53,18 +53,14 @@ test('closed tabs stay closed without losing saved conversations', () => {
   }
 });
 
-test('conversation modes survive reload without rewriting legacy history', () => {
+test('legacy conversation modes are discarded without losing SDK history', () => {
   const stored = { selectedId: 'a', sessions: [{ id: 'a', title: 'North stars', messages: [], threadId: 'thread-a' }] };
   assert.equal(parseSessions(JSON.stringify(stored)).sessions[0].mode, undefined);
-  for (const mode of ['chat', 'work', 'codex']) {
+  for (const mode of ['chat', 'work', 'codex', 'unknown', '', null, {}, ['chat']]) {
     stored.sessions[0].mode = mode;
     const session = parseSessions(JSON.stringify(stored)).sessions[0];
-    assert.equal(session.mode, mode);
+    assert.equal(session.mode, undefined);
     assert.equal(session.threadId, 'thread-a');
-  }
-  for (const mode of ['unknown', '', null, {}, ['chat']]) {
-    stored.sessions[0].mode = mode;
-    assert.throws(() => parseSessions(JSON.stringify(stored)), /Saved conversations could not be read/);
   }
 });
 

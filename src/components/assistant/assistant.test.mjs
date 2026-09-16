@@ -73,29 +73,15 @@ try {
   const transcript = page.getByRole('log', { name: 'Assistant conversation' });
   const input = page.getByRole('textbox', { name: 'Message the assistant' });
   const send = page.getByRole('button', { name: 'Send message', exact: true });
-  const mode = {
-    summary: panel.locator('details.assistant-mode-menu > summary'),
-    async select(label) {
-      await this.summary.click();
-      await panel.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click();
-      await expect(this.summary).toHaveAttribute('aria-label', `Assistant mode: ${label}`);
-    },
-    expectCurrent(label) { return expect(this.summary).toHaveAttribute('aria-label', `Assistant mode: ${label}`); }
-  };
   await expect(panel).toBeVisible();
-  await mode.expectCurrent('Chat');
+  await expect(panel.locator('details.assistant-mode-menu')).toHaveCount(0);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
-      await expect(mode.summary).toBeVisible();
-      await mode.select('Codex');
       await expect(panel.getByText('Inspect files, make changes, and check the result.')).toBeVisible();
-      await mode.select('Work');
-      await expect(panel.getByText('Work through an idea. Work discusses the problem and can change workspace files.')).toBeVisible();
-      await expect(panel.getByRole('button', { name: 'Explore an idea', exact: true })).toBeVisible();
-      await mode.select('Chat');
-      await panel.screenshot({ path: `/tmp/thinking-os-chat-${width}-${theme}.png` });
+      await expect(panel.getByRole('button', { name: 'Explore this folder', exact: true })).toBeVisible();
+      await panel.screenshot({ path: `/tmp/thinking-os-codex-${width}-${theme}.png` });
       const empty = await panel.getByText('Start a conversation').evaluate(element => {
         const bounds = element.parentElement.getBoundingClientRect();
         const container = element.closest('[role="log"]').getBoundingClientRect();
@@ -163,7 +149,6 @@ try {
   await input.fill('Render Markdown');
   await input.press('Enter');
   await expect(panel.getByRole('status')).toBeVisible();
-  await expect(mode.summary).toHaveAttribute('aria-disabled', 'true');
   const syncBanner = page.getByRole('status', { name: 'Workspace sync' });
   await expect(syncBanner).toBeVisible();
   assert.ok(await page.locator('#kanban-board-grid').evaluate(element => Boolean(element.closest('[inert]'))), 'Workspace surfaces are inert while the assistant runs');
@@ -248,7 +233,7 @@ try {
   assert.match(await transcript.locator('.assistant-activity-shell-output').innerText(), /^\$ pwd\n\n\/tmp\/assistant-ui-test$/);
   assert.equal(await page.getByRole('alert').count(), 0);
   const request = await page.evaluate(() => window.assistantRequests[0]);
-  assert.equal(request.mode, 'chat');
+  assert.equal('mode' in request, false);
   assert.equal(request.message, 'Render Markdown');
   assert.equal(JSON.stringify(request).includes('never-send-this'), false);
   assert.equal(JSON.stringify(request).includes('private-claim'), false);
@@ -268,11 +253,9 @@ try {
   await expect(transcript.getByRole('heading', { name: 'Capabilities' })).toBeVisible();
   assert.equal(await tabs.getByRole('tab', { name: firstTitle, exact: true }).getAttribute('aria-selected'), 'true');
   await input.fill('Keep this draft');
-  await mode.select('Work');
   await expect(input).toHaveValue('Keep this draft');
   await page.reload();
   await page.waitForLoadState('networkidle');
-  await mode.expectCurrent('Work');
   await expect(transcript.getByRole('heading', { name: 'Capabilities' })).toBeVisible();
   await expect(transcript.getByRole('img', { name: 'diagram.png' })).toBeVisible();
   await expect(panel.getByText(/^Worked for \d+s$/)).toBeVisible();
@@ -283,8 +266,7 @@ try {
   await expect(send).toBeVisible({ timeout: 15000 });
   const selectedId = await tabs.getByRole('tab', { name: firstTitle, exact: true }).evaluate(element => element.id.replace('assistant-tab-', ''));
   assert.equal((await page.evaluate(() => window.assistantRequests[0])).threadId, `thread-${selectedId}`);
-  assert.equal((await page.evaluate(() => window.assistantRequests[0])).mode, 'work');
-  await mode.select('Chat');
+  assert.equal('mode' in (await page.evaluate(() => window.assistantRequests[0])), false);
 
   await firstTab.focus();
   await page.keyboard.press('End');
