@@ -20,8 +20,8 @@ One sentence: what this area of the repository or vault is for.
 | `AGENTS.md` | How to work here |
 | `docs/...` | |
 
-## Open work
+## Current work
 
-- Link to the current problem brief, if one exists.
+- Link to the active task, issue, experiment, or decision record when one exists.
 
 Last updated: YYYY-MM-DD

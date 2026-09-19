@@ -112,11 +112,11 @@ test('templates read and save repository files without touching active instructi
   assert.equal(templates.length, AGENT_TEMPLATES.length);
   assert.ok(templates.every(entry => entry.exists && path.dirname(entry.path) === templateDir));
 
-  const starter = await readTemplate('template:thinking-modes');
+  const starter = await readTemplate('template:thinking-mode');
   assert.match(starter.content, /## Explore/);
   assert.match(starter.content, /Before creating, editing, or deleting any vault record, read VAULT_OPERATIONS\.md/);
   assert.ok(!starter.content.includes('tasks/pipeline/<id>.json'));
-  const operations = await readTemplate('template:vault-operations');
+  const operations = await readTemplate('template:vault-operation');
   assert.match(operations.content, /Save this template as VAULT_OPERATIONS\.md/);
   assert.match(operations.content, /tasks\/pipeline\/<id>\.json/);
   assert.match(operations.content, /papers\/<id>\.json/);
@@ -128,32 +128,37 @@ test('templates read and save repository files without touching active instructi
     assert.ok(!content.includes('\\`'), `${slug} must render Markdown code normally`);
   }
 
-  const savedOperations = await writeTemplate('template:vault-operations', operations.content);
-  assert.equal(savedOperations.path, path.join(templateDir, 'vault-operations.md'));
-  assert.equal((await readTemplate('template:vault-operations')).content, operations.content);
+  const savedOperations = await writeTemplate('template:vault-operation', operations.content);
+  assert.equal(savedOperations.path, path.join(templateDir, 'vault-operation.md'));
+  assert.equal((await readTemplate('template:vault-operation')).content, operations.content);
   assert.ok(!existsSync(path.join(project, 'VAULT_OPERATIONS.md')));
 
-  await writeTemplate('template:thinking-modes', 'my modes\nline two\n');
-  assert.equal((await readTemplate('template:thinking-modes')).content, 'my modes\nline two\n');
+  await writeTemplate('template:thinking-mode', 'my modes\nline two\n');
+  assert.equal((await readTemplate('template:thinking-mode')).content, 'my modes\nline two\n');
   assert.equal(
-    await readFile(path.join(templateDir, 'thinking-modes.md'), 'utf8'),
+    await readFile(path.join(templateDir, 'thinking-mode.md'), 'utf8'),
     'my modes\nline two\n'
   );
   const updated = 'Updated\n\n## Evidence\n\n- First line\n- Second line\n\n```text\nkeep spacing\n```\n';
-  const savedEntry = await writeTemplate('template:thinking-modes', updated);
+  const savedEntry = await writeTemplate('template:thinking-mode', updated);
   assert.equal(savedEntry.exists, true);
   assert.equal(await readFile(`${savedEntry.path}.bak`, 'utf8'), 'my modes\nline two\n');
-  assert.equal((await readTemplate('template:thinking-modes')).content, updated);
+  assert.equal((await readTemplate('template:thinking-mode')).content, updated);
   assert.equal((await readAgentEnvFile('codex-instructions', home)).content, 'existing global instructions\n');
   assert.equal((await readAgentEnvFile(`project:${projectId}:agents`, home)).content, 'existing project instructions\n');
 
   await assert.rejects(() => writeTemplate('template:../../AGENTS', 'bad'), /unknown agent config entry/);
-  await assert.rejects(() => writeTemplate('template:thinking-modes', {}), /content must be a string/);
-  await assert.rejects(() => writeTemplate('template:thinking-modes', 'x'.repeat(1_000_001)), /content too large/);
-  assert.equal((await readTemplate('template:thinking-modes')).content, updated);
+  await assert.rejects(() => writeTemplate('template:thinking-mode', {}), /content must be a string/);
+  await assert.rejects(() => writeTemplate('template:thinking-mode', 'x'.repeat(1_000_001)), /content too large/);
+  assert.equal((await readTemplate('template:thinking-mode')).content, updated);
   assert.equal(await readFile(path.join(legacyDir, 'thinking-modes.md'), 'utf8'), 'legacy personal copy\n');
-  assert.ok(!existsSync(path.join(legacyDir, 'vault-operations.md')));
+  assert.ok(!existsSync(path.join(legacyDir, 'vault-operation.md')));
+
+  const localAgent = await readTemplate('template:local-agent');
+  assert.match(localAgent.content, /Prefer Nushell syntax/);
+  assert.match(localAgent.content, /direnv exec \. <command>/);
+  assert.match(localAgent.content, /Keep copyable commands on one line/);
 
   await rm(savedEntry.path);
-  await assert.rejects(() => readTemplate('template:thinking-modes'), { code: 'ENOENT' });
+  await assert.rejects(() => readTemplate('template:thinking-mode'), { code: 'ENOENT' });
 });

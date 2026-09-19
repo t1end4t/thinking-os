@@ -1,4 +1,4 @@
-# Project Implementation Rules
+# Coding Mode
 
 Read with the shared behavior file. Applies when the mode is Execute or Verify.
 

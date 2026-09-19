@@ -1,4 +1,4 @@
-# Shared Agent Behavior
+# Shared Behavior
 
 Applies to every mode. Project and directory instructions add to this file; they do not replace it.
 

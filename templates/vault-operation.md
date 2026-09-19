@@ -1,4 +1,4 @@
-# Vault Operations
+# Vault Operation
 
 Save this template as VAULT_OPERATIONS.md at the workspace root, beside AGENTS.md containing the thinking modes. Saving a template in Thinking OS does not install it in a workspace.
 
@@ -61,7 +61,7 @@ Learn Today reads the same boards, so it has no separate collection. Runtime Env
 | Target | `runtime/agent-jobs/targets/` | target name |
 | Link | `research/map/links/<id>.json` | none |
 
-INDEX.md and problem briefs are plain documents with no sidecar. Keep them outside collection directories: snapshot synchronization can delete unrecognized Markdown and JSON files there. Experiment records describe plans and artifacts; experiment source code belongs in the target repository.
+INDEX.md is a plain document with no sidecar. Keep it outside collection directories: snapshot synchronization can delete unrecognized Markdown and JSON files there. Experiment records describe plans and artifacts; experiment source code belongs in the target repository.
 
 ## Before writing
 

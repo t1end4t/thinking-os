@@ -6,7 +6,7 @@ import { mkdtemp, readFile, realpath, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { agentPlugin, isLocalRequest, parseCodexConfig } from './agent.mjs';
+import { agentPlugin, buildTurnMessage, isLocalRequest, parseCodexConfig } from './agent.mjs';
 
 test('local Codex configuration supplies provider choices without exposing credentials', () => {
   const config = parseCodexConfig(`
@@ -94,7 +94,7 @@ test('uploaded images round-trip locally and reach the SDK with text or alone', 
   assert.equal((await post({ ...body, images: [{ ...image, id: `${'f'.repeat(64)}.png` }] })).status, 400);
 });
 
-test('agent, provider, model, and resumed session reach the SDK; only the message is sent', async context => {
+test('agent, provider, model, context, and resumed session reach the SDK', async context => {
   const starts = [];
   const resumes = [];
   const messages = [];
@@ -126,23 +126,33 @@ test('agent, provider, model, and resumed session reach the SDK; only the messag
     providers: [{ id: '9router', label: '9Router', baseUrl: '' }]
   });
 
-  const body = { agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), message: 'hello\nworld', provider: '9router', model: 'combo-codex' };
+  const attached = [{ type: 'node', id: 'claim-1', label: 'Claim one', sourceId: 'claim-1', kind: 'claim' }];
+  const body = { agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), mode: 'chat', message: 'hello\nworld', contexts: attached, provider: '9router', model: 'combo-codex' };
   const events = (await (await post(body)).text()).trim().split('\n').map(line => JSON.parse(line));
   assert.deepEqual(events.map(event => event.type), ['thread.started', 'item.completed', 'item.completed', 'turn.completed']);
-  assert.deepEqual(messages, ['hello\nworld']);
+  assert.deepEqual(messages, [buildTurnMessage('hello\nworld', attached, 'chat')]);
   assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }]);
   assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true, model: 'combo-codex' }]);
+
+  const rawConversation = randomUUID();
+  await (await post({ ...body, conversationId: rawConversation, mode: 'codex' })).text();
+  assert.equal(messages.at(-1), 'hello\nworld', 'Codex mode sends the message unchanged');
+  await (await post({ ...body, conversationId: randomUUID(), mode: undefined, contexts: undefined })).text();
+  assert.equal(messages.at(-1), 'hello\nworld', 'Legacy requests without a mode stay unchanged');
 
   await (await post({ ...body, conversationId: randomUUID(), threadId: 'thread-1' })).text();
   assert.equal(resumes.length, 1);
   assert.equal(resumes[0][0], 'thread-1');
 
+  const startCount = starts.length;
   await (await post({ ...body, conversationId: randomUUID(), model: 'other-model' })).text();
-  assert.equal(starts.length, 2);
-  assert.equal(starts[1].model, 'other-model');
+  assert.equal(starts.length, startCount + 1);
+  assert.equal(starts.at(-1).model, 'other-model');
 
   assert.equal((await post({ ...body, agent: 'other' })).status, 400);
-  assert.equal((await post({ ...body, message: '' })).status, 400);
+  assert.equal((await post({ ...body, message: '', contexts: undefined })).status, 400);
+  assert.equal((await post({ ...body, contexts: [{ ...attached[0], type: 'unknown' }] })).status, 400);
+  assert.equal((await post({ ...body, contexts: Array(13).fill(attached[0]) })).status, 400);
   assert.equal((await post({ ...body, provider: 'bad provider!' })).status, 400);
   assert.equal((await post({ ...body, dir: '/nonexistent-thinking-os-folder' })).status, 400);
   assert.equal((await post({ ...body, message: 'x'.repeat(65_536) })).status, 413);

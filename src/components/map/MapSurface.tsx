@@ -410,18 +410,6 @@ export const MapSurface: React.FC = () => {
               Detail
             </button>
           </nav>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveView('detail');
-              setCreating(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-mono font-semibold shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New
-          </button>
-
         {/* Link Status Filter Bar */}
         {activeView === 'map' && <nav aria-label="Link Filter" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs overflow-x-auto max-w-full">
           <span className="text-[0.6875rem] font-mono font-semibold uppercase tracking-wider text-[var(--color-ink-muted)] px-2">
@@ -493,6 +481,17 @@ export const MapSurface: React.FC = () => {
             </button>
           )}
         </nav>}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveView('detail');
+              setCreating(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-mono font-semibold shadow-xs shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            New
+          </button>
         </div>
       </header>
 

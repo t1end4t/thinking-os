@@ -17,8 +17,14 @@ One or two sentences: what this directory is responsible for, and what it is not
 
 ## Commands
 
-```bash
-# local test / lint command
+- Prefer Nushell syntax for user-facing commands.
+- Keep copyable commands on one line.
+- Do not use Bash-only forms such as `&&`, `||`, `export`, or `source` without labeling them as Bash and giving a Nushell form.
+- In Nix projects with direnv, run environment-dependent checks through `direnv exec . <command>` when the current process may not inherit the project shell.
+- For Playwright, use the browser package and `PLAYWRIGHT_BROWSERS_PATH` supplied by the project dev shell. Do not recommend global browser-library installation when the project shell already provides them.
+
+```nu
+# one-line local test, lint, or build command
 ```
 
 ## Gotchas

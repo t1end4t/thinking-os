@@ -10,13 +10,12 @@ const MAX_CONTENT_BYTES = 1_000_000;
 export const TEMPLATE_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../templates');
 
 export const AGENT_TEMPLATES = [
-  ['shared-core', 'Shared behavior'],
-  ['thinking-modes', 'Thinking modes'],
-  ['vault-operations', 'Vault operations'],
-  ['coding-project', 'Project implementation'],
-  ['directory-context', 'Directory AGENTS.md'],
-  ['index', 'INDEX.md'],
-  ['problem-brief', 'Problem brief']
+  ['shared-behavior', 'Shared behavior'],
+  ['thinking-mode', 'Thinking mode'],
+  ['coding-mode', 'Coding mode'],
+  ['vault-operation', 'Vault operation'],
+  ['local-agent', 'Local AGENTS.md'],
+  ['index', 'INDEX.md']
 ];
 
 const registryPath = home => path.join(home, '.thinking-os/agent-projects.json');

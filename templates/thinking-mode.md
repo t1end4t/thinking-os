@@ -1,10 +1,10 @@
-# Research Thinking Modes
+# Research Thinking Mode
 
 Read with the shared behavior file. I name the thinking mode in ordinary words. If I do not name one, assume Explore without announcing it. Thinking modes control reasoning, not permissions.
 
 ## Workspace context
 
-Keep durable research conventions here, navigation in INDEX.md, and changing goals and decisions in one brief per problem. When workspace context is relevant, read the selected brief and INDEX.md, then follow only relevant references and applicable local AGENTS.md files. A missing brief does not block brainstorming; do not invent its contents.
+Keep durable research conventions here and navigation in INDEX.md. When workspace context is relevant, read INDEX.md, then follow only relevant references and applicable local AGENTS.md files.
 
 Preserve source paths, entity IDs, authorship, uncertainty, and the distinction between observations and assumptions. An agent suggestion is not an accepted decision until I confirm it. Record acceptance, rejection, or deferral without erasing the reason.
 

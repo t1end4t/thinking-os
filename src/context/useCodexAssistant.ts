@@ -2,6 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import type { ThreadEvent } from '@openai/codex-sdk';
 
 export interface AssistantImage { id: string; name: string }
+export type AssistantMode = 'chat' | 'codex';
+
+export interface AssistantTurnContext {
+  type: string;
+  id: string;
+  label: string;
+  secondaryLabel?: string;
+  sourceId?: string;
+  kind?: string;
+  excerpt?: string;
+}
 
 export function isAssistantImage(value: unknown): value is AssistantImage {
   if (!value || typeof value !== 'object') return false;
@@ -19,6 +30,7 @@ export interface ChatEntry {
   state?: 'running' | 'complete' | 'failed' | 'stopped';
   durationMs?: number;
   images?: AssistantImage[];
+  contexts?: AssistantTurnContext[];
 }
 
 export interface AssistantSession {
@@ -28,9 +40,10 @@ export interface AssistantSession {
   threadId?: string;
   provider?: string;
   model?: string;
+  mode?: AssistantMode;
 }
 
-interface Preferences { fontSize: number; provider: string; model: string }
+interface Preferences { fontSize: number; provider: string; model: string; mode: AssistantMode }
 interface Configuration { model: string; provider: string; providers: { id: string; label: string; baseUrl: string }[] }
 interface SessionState { dir: string; selectedId: string; openIds: string[]; sessions: AssistantSession[] }
 
@@ -55,8 +68,12 @@ export function parseSessions(raw: string | null): { selectedId: string; openIds
       !value.sessions.every((session: AssistantSession) => session && typeof session.id === 'string' &&
         typeof session.title === 'string' && Array.isArray(session.messages) &&
         [session.threadId, session.provider, session.model].every(field => field === undefined || typeof field === 'string') &&
+        (session.mode === undefined || ['chat', 'codex'].includes(session.mode)) &&
         session.messages.every(entry => entry && typeof entry.id === 'string' && typeof entry.content === 'string' &&
           (entry.images === undefined || (Array.isArray(entry.images) && entry.images.length <= 4 && entry.images.every(isAssistantImage))) &&
+          (entry.contexts === undefined || (Array.isArray(entry.contexts) && entry.contexts.length <= 12 && entry.contexts.every(context =>
+            context && typeof context.type === 'string' && typeof context.id === 'string' && typeof context.label === 'string' &&
+            [context.secondaryLabel, context.sourceId, context.kind, context.excerpt].every(field => field === undefined || typeof field === 'string')))) &&
           ['user', 'assistant'].includes(entry.role) &&
           (entry.kind === undefined || ['reasoning', 'command', 'tool', 'warning', 'plan', 'files'].includes(entry.kind)) &&
           (entry.label === undefined || typeof entry.label === 'string') &&
@@ -67,7 +84,7 @@ export function parseSessions(raw: string | null): { selectedId: string; openIds
   const ids = value.sessions.map((session: AssistantSession) => session.id);
   const openIds = [...new Set<string>(value.openIds === undefined ? ids : value.openIds.filter((id: string) => ids.includes(id)))];
   return { ...value, selectedId: openIds.includes(value.selectedId) ? value.selectedId : openIds[0] || '', openIds,
-    sessions: value.sessions.map(({ mode: _mode, ...session }: AssistantSession & { mode?: unknown }) => ({ ...session, messages: session.messages.map(entry => entry.state === 'running' ? { ...entry, state: 'stopped' } : entry) })) };
+    sessions: value.sessions.map((session: AssistantSession) => ({ ...session, messages: session.messages.map(entry => entry.state === 'running' ? { ...entry, state: 'stopped' } : entry) })) };
 }
 
 export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir: string) => Promise<(() => Promise<void>) | undefined>) {
@@ -89,8 +106,8 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
   const [preferences, setPreferences] = useState<Preferences>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(preferencesKey) || '{}');
-      return { fontSize: Math.min(24, Math.max(11, Number(stored.fontSize) || 14)), provider: typeof stored.provider === 'string' ? stored.provider : '', model: typeof stored.model === 'string' ? stored.model : '' };
-    } catch { return { fontSize: 14, provider: '', model: '' }; }
+      return { fontSize: Math.min(24, Math.max(11, Number(stored.fontSize) || 14)), provider: typeof stored.provider === 'string' ? stored.provider : '', model: typeof stored.model === 'string' ? stored.model : '', mode: stored.mode === 'codex' ? 'codex' : 'chat' };
+    } catch { return { fontSize: 14, provider: '', model: '', mode: 'chat' }; }
   });
   const request = useRef<AbortController | null>(null);
   const invalidStorage = useRef(false);
@@ -168,7 +185,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
   function newConversation() {
     if (request.current) return;
     if (!crypto.randomUUID) { setError('Open the app on localhost to use the assistant.'); return; }
-    const created: AssistantSession = { id: crypto.randomUUID(), title: 'New conversation', messages: [], provider: preferences.provider.trim() || undefined, model: preferences.model.trim() || undefined };
+    const created: AssistantSession = { id: crypto.randomUUID(), title: 'New conversation', messages: [], provider: preferences.provider.trim() || undefined, model: preferences.model.trim() || undefined, mode: preferences.mode };
     setState(previous => ({ ...previous, selectedId: created.id, openIds: [created.id, ...previous.openIds], sessions: [created, ...previous.sessions] }));
     setError(null);
     return created;
@@ -198,8 +215,15 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
     setState(previous => ({ ...previous, sessions: previous.sessions.filter(entry => entry.id !== id) }));
   }
 
-  async function send(message: string, images: AssistantImage[] = []) {
-    if (request.current || (!message.trim() && !images.length)) return;
+  function setMode(mode: AssistantMode) {
+    if (request.current) return;
+    setPreferences(previous => ({ ...previous, mode }));
+    if (session) setState(previous => ({ ...previous, sessions: previous.sessions.map(entry => entry.id === session.id ? { ...entry, mode } : entry) }));
+  }
+
+  async function send(message: string, images: AssistantImage[] = [], contexts: AssistantTurnContext[] = []) {
+    const mode = session?.mode ?? (session ? 'codex' : preferences.mode);
+    if (request.current || (!message.trim() && !images.length && !(mode === 'chat' && contexts.length))) return;
     const current = session ?? newConversation();
     if (!current) return;
     const controller = new AbortController();
@@ -211,10 +235,10 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
     }));
     const upsert = (entry: ChatEntry) => update(previous => ({ ...previous, messages: previous.messages.some(item => item.id === entry.id)
       ? previous.messages.map(item => item.id === entry.id ? entry : item) : [...previous.messages, entry] }));
-    update(previous => ({ ...previous, title: previous.messages.length ? previous.title : (message || images[0]?.name || 'Image').slice(0, 64), messages: [...previous.messages, { id: turnId, role: 'user', content: message, state: 'running', ...(images.length ? { images } : {}) }] }));
+    update(previous => ({ ...previous, title: previous.messages.length ? previous.title : (message || contexts[0]?.label || images[0]?.name || 'Image').slice(0, 64), messages: [...previous.messages, { id: turnId, role: 'user', content: message, state: 'running', ...(images.length ? { images } : {}), ...(contexts.length ? { contexts } : {}) }] }));
     setRunning(true);
     setError(null);
-    setStatus('Connecting to Codex…');
+    setStatus(mode === 'chat' ? 'Opening workspace…' : 'Connecting to Codex…');
     let completed = false;
     let afterTurn: (() => Promise<void>) | undefined;
 
@@ -252,10 +276,10 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
       setStatus('Saving workspace…');
       afterTurn = await beforeTurn?.(workspaceDir);
       if (controller.signal.aborted) throw new Error('Stopped.');
-      setStatus('Connecting to Codex…');
+      setStatus(mode === 'chat' ? 'Working with your vault…' : 'Connecting to Codex…');
       const response = await fetch('/api/assistant', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ agent: 'codex', dir: workspaceDir, conversationId: current.id, threadId: current.threadId, provider: current.provider, model: current.model, message, ...(images.length ? { images } : {}) }),
+        body: JSON.stringify({ agent: 'codex', dir: workspaceDir, conversationId: current.id, threadId: current.threadId, provider: current.provider, model: current.model, mode, message, ...(images.length ? { images } : {}), ...(mode === 'chat' && contexts.length ? { contexts } : {}) }),
         signal: controller.signal
       });
       if (!response.ok) throw new Error((await response.json()).error || `Assistant request failed (${response.status}).`);
@@ -279,7 +303,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
       const turnState = completed ? 'complete' : controller.signal.aborted ? 'stopped' : 'failed';
       controller.abort();
       if (afterTurn) {
-        setStatus('Refreshing workspace…');
+        setStatus(mode === 'chat' ? 'Refreshing your workspace…' : 'Refreshing workspace…');
         try { await afterTurn(); }
         catch (caught) { setError(`Workspace refresh failed: ${caught instanceof Error ? caught.message : String(caught)}`); }
       }
@@ -295,5 +319,5 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
     }
   }
 
-  return { projects, projectDir: workspaceDir, projectWarning: projectState.error, selectProject, addProject, removeProject, sessions: state.sessions, openSessions: state.openIds.map(id => state.sessions.find(entry => entry.id === id)).filter((entry): entry is AssistantSession => Boolean(entry)), session, messages: session?.messages ?? [], running, status, error, storageWarning, send, newConversation, selectSession, closeSession, deleteSession, stop: () => request.current?.abort(), preferences, setPreferences, configuration, configurationError, reloadConfiguration };
+  return { projects, projectDir: workspaceDir, projectWarning: projectState.error, selectProject, addProject, removeProject, sessions: state.sessions, openSessions: state.openIds.map(id => state.sessions.find(entry => entry.id === id)).filter((entry): entry is AssistantSession => Boolean(entry)), session, messages: session?.messages ?? [], running, status, error, storageWarning, send, newConversation, selectSession, closeSession, deleteSession, mode: session?.mode ?? (session ? 'codex' : preferences.mode), setMode, stop: () => request.current?.abort(), preferences, setPreferences, configuration, configurationError, reloadConfiguration };
 }

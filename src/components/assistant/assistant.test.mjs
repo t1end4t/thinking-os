@@ -74,13 +74,13 @@ try {
   const input = page.getByRole('textbox', { name: 'Message the assistant' });
   const send = page.getByRole('button', { name: 'Send message', exact: true });
   await expect(panel).toBeVisible();
-  await expect(panel.locator('details.assistant-mode-menu')).toHaveCount(0);
+  await expect(panel.locator('details.assistant-mode-menu')).toHaveCount(1);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
-      await expect(panel.getByText('Inspect files, make changes, and check the result.')).toBeVisible();
-      await expect(panel.getByRole('button', { name: 'Explore this folder', exact: true })).toBeVisible();
+      await expect(panel.getByText('Think with your vault, test ideas, and update research objects.')).toBeVisible();
+      await expect(panel.getByRole('button', { name: 'Find the open question', exact: true })).toBeVisible();
       await panel.screenshot({ path: `/tmp/thinking-os-codex-${width}-${theme}.png` });
       const empty = await panel.getByText('Start a conversation').evaluate(element => {
         const bounds = element.parentElement.getBoundingClientRect();
@@ -142,6 +142,14 @@ try {
   await panel.dispatchEvent('drop', { dataTransfer: imageTransfer });
   await expect(panel.getByRole('button', { name: 'Remove image pasted.png' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Remove Private claim' })).toBeVisible();
+  const modeMenu = panel.locator('details.assistant-mode-menu');
+  await expect(modeMenu.locator('summary')).toHaveAttribute('aria-label', 'Assistant mode: Chat');
+  await modeMenu.locator('summary').click();
+  await expect(modeMenu.getByRole('navigation', { name: 'Assistant modes' })).toBeVisible();
+  await modeMenu.getByRole('button', { name: /^Codex/ }).click();
+  await expect(modeMenu.getByRole('navigation', { name: 'Assistant modes' })).toBeHidden();
+  await expect(modeMenu.locator('summary')).toHaveAttribute('aria-label', 'Assistant mode: Codex');
+  await expect(panel.getByRole('button', { name: 'Remove Private claim' })).toHaveCount(0);
   await panel.getByRole('button', { name: 'Remove image pasted.png' }).click();
   await panel.getByLabel('Choose images').setInputFiles({ name: 'diagram.png', mimeType: 'image/png', buffer: png });
   await expect(panel.getByRole('button', { name: 'Remove image diagram.png' })).toBeVisible();
@@ -228,12 +236,11 @@ try {
   await expect(transcript.getByRole('img', { name: 'diagram.png' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Remove image diagram.png' })).toHaveCount(0);
   await panel.getByRole('button', { name: /Ran pwd/ }).click();
-  await expect(transcript.getByText('Shell', { exact: true })).toBeVisible();
   await expect(transcript.getByText('Success', { exact: true })).toBeVisible();
-  assert.match(await transcript.locator('.assistant-activity-shell-output').innerText(), /^\$ pwd\n\n\/tmp\/assistant-ui-test$/);
+  assert.equal(await transcript.locator('.assistant-activity-shell-output').innerText(), '/tmp/assistant-ui-test');
   assert.equal(await page.getByRole('alert').count(), 0);
   const request = await page.evaluate(() => window.assistantRequests[0]);
-  assert.equal('mode' in request, false);
+  assert.equal(request.mode, 'codex');
   assert.equal(request.message, 'Render Markdown');
   assert.equal(JSON.stringify(request).includes('never-send-this'), false);
   assert.equal(JSON.stringify(request).includes('private-claim'), false);
@@ -266,7 +273,7 @@ try {
   await expect(send).toBeVisible({ timeout: 15000 });
   const selectedId = await tabs.getByRole('tab', { name: firstTitle, exact: true }).evaluate(element => element.id.replace('assistant-tab-', ''));
   assert.equal((await page.evaluate(() => window.assistantRequests[0])).threadId, `thread-${selectedId}`);
-  assert.equal('mode' in (await page.evaluate(() => window.assistantRequests[0])), false);
+  assert.equal((await page.evaluate(() => window.assistantRequests[0])).mode, 'codex');
 
   await firstTab.focus();
   await page.keyboard.press('End');

@@ -8,12 +8,11 @@ The files below are not active assistant prompts and are never automatically ins
 
 | Template | Intended destination |
 | --- | --- |
-| shared-core.md | Agent's global instructions |
-| thinking-modes.md | Research workspace AGENTS.md |
-| vault-operations.md | Research workspace VAULT_OPERATIONS.md, read before record changes |
-| coding-project.md | Experiment-code repository AGENTS.md |
-| directory-context.md | AGENTS.md in a directory needing distinct rules |
+| shared-behavior.md | Agent's global instructions |
+| thinking-mode.md | Research workspace AGENTS.md |
+| coding-mode.md | Coding repository AGENTS.md |
+| vault-operation.md | Research workspace VAULT_OPERATIONS.md, read before record changes |
+| local-agent.md | AGENTS.md in a directory needing distinct rules; includes Nushell and direnv command guidance |
 | index.md | INDEX.md for navigation |
-| problem-brief.md | One document per problem, outside vault collection directories |
 
 Adapt templates to the destination. Merge with existing instructions rather than overwriting them. The workspace and target repository have separate responsibilities. Backups from editor saves use .bak files beside the templates and are ignored by Git.

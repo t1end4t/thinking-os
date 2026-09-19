@@ -11,8 +11,7 @@ import {
   ChevronLeft,
   Bot,
   Cpu,
-  Check,
-  Database
+  Check
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, WorkspaceDirListing } from '../../vaultClient';
@@ -92,17 +91,6 @@ export const TopBar: React.FC = () => {
               }`}
             />
             {tildePath(workspaceDir)}
-          </button>
-
-          <button
-            id="topbar-load-sample-btn"
-            type="button"
-            onClick={() => void loadSampleData()}
-            title="Populate or reset workspace with research sample data (questions, claims, evidence, tasks, papers, runs)"
-            className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-mono text-[0.6875rem] font-medium transition-colors cursor-pointer shrink-0"
-          >
-            <Database className="w-3 h-3 text-indigo-500" />
-            <span>Load Sample Data</span>
           </button>
         </div>
       </div>

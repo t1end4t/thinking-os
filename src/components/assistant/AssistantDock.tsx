@@ -8,8 +8,9 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { AssistantContextObject } from '../../types';
 import { MarkdownPreview } from '../runtime/MarkdownPreview';
 import { CopyButton } from '../runtime/CopyButton';
-import { isAssistantImage, type AssistantImage, type ChatEntry } from '../../context/useCodexAssistant';
+import { isAssistantImage, type AssistantImage, type AssistantTurnContext, type ChatEntry } from '../../context/useCodexAssistant';
 import { AssistantProjects } from './AssistantProjects';
+import { AssistantModeMenu } from './AssistantModeMenu';
 import './assistant.css';
 
 const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, className = 'w-3 h-3' }) => {
@@ -20,6 +21,23 @@ const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, cla
   if (type === 'survey') return <Layers className={className} />;
   return <FileText className={className} />;
 };
+
+function turnContext(context: AssistantContextObject): AssistantTurnContext {
+  const metadata = context.metadata;
+  const sourceId = [metadata?.nodeId, metadata?.linkId, metadata?.paperId, metadata?.taskId, metadata?.unitId]
+    .find((value): value is string => typeof value === 'string' && Boolean(value.trim()));
+  const excerpt = [metadata?.passage, metadata?.latex]
+    .find((value): value is string => typeof value === 'string' && Boolean(value.trim()));
+  return {
+    type: context.type,
+    id: context.id,
+    label: context.label,
+    ...(context.secondaryLabel ? { secondaryLabel: context.secondaryLabel } : {}),
+    ...(sourceId ? { sourceId } : {}),
+    ...(typeof metadata?.nodeType === 'string' ? { kind: metadata.nodeType } : {}),
+    ...(excerpt ? { excerpt: excerpt.slice(0, 4_000) } : {})
+  };
+}
 
 export function shellCommand(command: string): string {
   const text = command.trim();
@@ -93,19 +111,21 @@ const ActivityEntry: React.FC<{ entry: ChatEntry }> = ({ entry }) => {
   );
 };
 
-const ActivityGroup: React.FC<{ entries: ChatEntry[]; prompt?: ChatEntry }> = ({ entries, prompt }) => {
-  if (!entries.length) return null;
-  const label = prompt?.state === 'running' ? 'View steps'
+const ActivityGroup: React.FC<{ entries: ChatEntry[]; prompt?: ChatEntry; mode: 'chat' | 'codex' }> = ({ entries, prompt, mode }) => {
+  const visibleEntries = mode === 'chat' ? entries.filter(entry => !entry.kind || entry.kind === 'warning') : entries;
+  if (!visibleEntries.length) return null;
+  const label = prompt?.state === 'running' ? (mode === 'chat' ? 'Thinking' : 'View steps')
     : prompt?.state === 'stopped' ? 'Stopped'
     : prompt?.state === 'failed' ? 'Failed'
-    : prompt?.durationMs === undefined ? 'View steps' : `Worked for ${Math.max(1, Math.round(prompt.durationMs / 1000))}s`;
+    : prompt?.durationMs === undefined ? (mode === 'chat' ? 'Thought process' : 'View steps')
+      : `${mode === 'chat' ? 'Thought' : 'Worked'} for ${Math.max(1, Math.round(prompt.durationMs / 1000))}s`;
   return (
     <details open={prompt?.state === 'running'} className="assistant-activity-group text-[0.75rem] text-[var(--color-ink-muted)]">
       <summary>
         {label}<ChevronDown className="w-3 h-3" aria-hidden />
       </summary>
       <div className="flex min-w-0 flex-col gap-4 pt-4">
-        {entries.map(entry => entry.kind
+        {visibleEntries.map(entry => entry.kind
           ? <ActivityEntry key={entry.id} entry={entry} />
           : <MarkdownPreview key={entry.id} content={entry.content} className="assistant-markdown" />
         )}
@@ -121,7 +141,7 @@ export const AssistantDock: React.FC = () => {
   } = useWorkspace();
   const {
     sessions, openSessions, session, messages, running, status, error, storageWarning,
-    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir
+    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir, mode
   } = codexAssistant;
 
   const [input, setInput] = useState('');
@@ -177,12 +197,14 @@ export const AssistantDock: React.FC = () => {
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    if ((!input.trim() && !images.length) || running || uploading || workspaceLoading) return;
+    const contexts = mode === 'chat' ? attachedContexts.map(turnContext) : [];
+    if ((!input.trim() && !images.length && !contexts.length) || running || uploading || workspaceLoading) return;
     followTranscript.current = true;
-    void send(input.trim(), images);
+    void send(input.trim(), images, contexts);
     setInput('');
     setImages([]);
     setAttachmentError('');
+    if (contexts.length) clearAttachedContexts();
   }
 
   function editQuestion(prompt: ChatEntry) {
@@ -257,6 +279,7 @@ export const AssistantDock: React.FC = () => {
     if (event.dataTransfer.files.length) { void attachImages(Array.from(event.dataTransfer.files)); return; }
     const payload = event.dataTransfer.getData('application/json');
     if (payload) {
+      if (mode === 'codex') { setToast('Switch to Chat to attach app objects.'); return; }
       try {
         const parsed: AssistantContextObject = JSON.parse(payload);
         if (!parsed || typeof parsed !== 'object' || typeof parsed.id !== 'string' || !parsed.id.trim() || typeof parsed.label !== 'string' || !parsed.label.trim() || typeof parsed.type !== 'string') throw new Error('Invalid attachment');
@@ -365,12 +388,12 @@ export const AssistantDock: React.FC = () => {
           <div className="my-auto shrink-0 py-6 text-center text-[var(--color-ink-muted)]">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)]"><Sparkles className="w-5 h-5" /></div>
             <p className="mb-1 text-xs font-semibold text-[var(--color-ink)]">Start a conversation</p>
-            <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">Inspect files, make changes, and check the result.</p>
+            <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">{mode === 'chat' ? 'Think with your vault, test ideas, and update research objects.' : 'Inspect files, make changes, and check the result.'}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={() => setInput('Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">Explore this folder</button>
-              <button type="button" onClick={() => setInput('Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">Plan a task</button>
+              <button type="button" onClick={() => setInput(mode === 'chat' ? 'Review my current research and identify the most important open question.' : 'Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Find the open question' : 'Explore this folder'}</button>
+              <button type="button" onClick={() => setInput(mode === 'chat' ? 'Help me decide the smallest useful next step.' : 'Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Choose next step' : 'Plan a task'}</button>
             </div>
-            <p className="mt-4 text-[0.6875rem]">Drop objects here for reference. Only typed messages are sent.</p>
+            <p className="mt-4 text-[0.6875rem]">{mode === 'chat' ? 'Drop an object here. Chat searches its vault record before responding.' : 'Codex receives your prompt unchanged.'}</p>
           </div>
         )}
 
@@ -383,13 +406,20 @@ export const AssistantDock: React.FC = () => {
                   <img src={`/api/assistant/images/${image.id}`} alt={image.name} loading="lazy" />
                 </a>)}
               </div> : null}
+              {turn.prompt.contexts?.length ? <div className="assistant-images" aria-label="Sent context">
+                {turn.prompt.contexts.map(context => <div key={`${context.type}:${context.id}`} className="assistant-context-card" title={context.secondaryLabel ? `${context.label} · ${context.secondaryLabel}` : context.label}>
+                  <ContextIcon type={context.type} className="w-3.5 h-3.5 shrink-0 text-[var(--accent-indigo)]" />
+                  <span className="assistant-context-card-label">{context.label}</span>
+                  {context.secondaryLabel && <span className="assistant-context-card-meta">{context.secondaryLabel}</span>}
+                </div>)}
+              </div> : null}
               {turn.prompt.content && <p className="assistant-user-message max-w-[92%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-2xl rounded-tr-xs px-3 py-2 text-xs leading-relaxed">{turn.prompt.content}</p>}
               <div className="flex items-center gap-1">
                 <CopyButton value={turn.prompt.content} label="Copy question" />
                 <button type="button" aria-label="Edit question" title="Edit a copy of this question" disabled={running || uploading} className={iconButton} onClick={() => editQuestion(turn.prompt!)}><Pencil className="w-3.5 h-3.5" /></button>
               </div>
             </div>}
-            <ActivityGroup entries={turn.entries.filter(entry => entry !== turn.reply)} prompt={turn.prompt} />
+            <ActivityGroup entries={turn.entries.filter(entry => entry !== turn.reply)} prompt={turn.prompt} mode={mode} />
             {turn.reply && (
               <div className="w-full min-w-0 px-1 [&_*]:break-words [&_*]:[overflow-wrap:anywhere]">
                 <MarkdownPreview content={turn.reply.content} className="assistant-markdown" />
@@ -415,29 +445,22 @@ export const AssistantDock: React.FC = () => {
       )}
 
       <form onSubmit={submit} className="flex flex-col gap-2 border-t border-[var(--color-rule)] p-3">
-        {images.length > 0 && <div className="assistant-images" aria-label="Image attachments">
+        {(images.length > 0 || attachedContexts.length > 0) && <div className="assistant-images" aria-label="Attachments">
           {images.map(image => <div key={image.id} className="relative">
             <img src={`/api/assistant/images/${image.id}`} alt={image.name} />
             <button type="button" className="absolute right-0 top-0 rounded bg-[var(--color-surface)] p-1" aria-label={`Remove image ${image.name}`} onClick={() => setImages(previous => previous.filter(entry => entry.id !== image.id))}><X className="w-3 h-3" /></button>
           </div>)}
+          {attachedContexts.map(context => (
+            <div key={context.id} className="assistant-context-card" title={context.secondaryLabel ? `${context.label} · ${context.secondaryLabel}` : context.label}>
+              <ContextIcon type={context.type} className="w-3.5 h-3.5 shrink-0 text-[var(--accent-indigo)]" />
+              <span className="assistant-context-card-label">{context.label}</span>
+              {context.secondaryLabel && <span className="assistant-context-card-meta">{context.secondaryLabel}</span>}
+              <button type="button" onClick={() => removeAttachedContext(context.id)} aria-label={`Remove ${context.label}`} className="assistant-context-card-remove"><X className="w-3 h-3" /></button>
+            </div>
+          ))}
         </div>}
         {uploading && <p role="status" className="text-[0.75rem] text-[var(--color-ink-muted)]">Uploading images…</p>}
         {attachmentError && <p role="alert" className="text-[0.75rem] text-[var(--color-ink)]">{attachmentError}</p>}
-        {attachedContexts.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)]/60 p-2">
-            {attachedContexts.map(context => (
-              <span key={context.id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-surface)] px-2 py-0.5 text-[0.75rem]">
-                <ContextIcon type={context.type} className="w-3 h-3 shrink-0 text-[var(--accent-indigo)]" />
-                <span className="truncate" title={context.label}>{context.label}</span>
-                <button type="button" onClick={() => removeAttachedContext(context.id)} aria-label={`Remove ${context.label}`} className="rounded p-0.5 text-[var(--color-ink-muted)] hover:text-[var(--color-missing)]"><X className="w-3 h-3" /></button>
-              </span>
-            ))}
-            {attachedContexts.length > 1 && (
-              <button type="button" onClick={clearAttachedContexts} className="ml-auto px-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-missing)] hover:underline">Clear all</button>
-            )}
-            <p className="w-full text-[0.625rem] text-[var(--color-ink-muted)]">Research context is reference only. Image attachments are sent.</p>
-          </div>
-        )}
 
         <div className="relative overflow-hidden rounded-xl border border-[var(--color-rule)] bg-[var(--color-paper)] focus-within:border-[var(--accent-indigo)]">
           <textarea
@@ -451,20 +474,21 @@ export const AssistantDock: React.FC = () => {
               if (files.length) { event.preventDefault(); void attachImages(files); }
             }}
             onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) submit(event); }}
-            placeholder="What should change? (Enter to send)"
+            placeholder={mode === 'chat' ? 'Ask about your research, or describe a change (Enter to send)' : 'What should change? (Enter to send)'}
             className="w-full resize-none bg-transparent p-2.5 pr-10 text-xs text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none"
           />
           {running ? (
             <button type="button" onClick={stop} title="Stop" aria-label="Stop" className="absolute bottom-2 right-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] p-1.5 text-[var(--color-ink)]"><Square className="w-3.5 h-3.5" /></button>
           ) : (
-            <button type="submit" disabled={(!input.trim() && !images.length) || uploading || workspaceLoading} title="Send message (Enter)" aria-label="Send message" className="absolute bottom-2 right-2 rounded-lg bg-[var(--accent-indigo)] p-1.5 text-white disabled:opacity-40"><CornerDownLeft className="w-3.5 h-3.5" /></button>
+            <button type="submit" disabled={(!input.trim() && !images.length && !(mode === 'chat' && attachedContexts.length)) || uploading || workspaceLoading} title="Send message (Enter)" aria-label="Send message" className="absolute bottom-2 right-2 rounded-lg bg-[var(--accent-indigo)] p-1.5 text-white disabled:opacity-40"><CornerDownLeft className="w-3.5 h-3.5" /></button>
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
           <div className="flex items-center">
           <input ref={imagePicker} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" aria-label="Choose images" disabled={running || uploading || workspaceLoading} onChange={event => { void attachImages(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
           <button type="button" className={iconButton} disabled={running || uploading || workspaceLoading} aria-label="Attach images" title="Attach images (PNG, JPEG, WebP; 5 MiB each)" onClick={() => imagePicker.current?.click()}><ImagePlus className="w-3.5 h-3.5" /></button>
-          <button type="button" className={iconButton} disabled={!activeContext || activeContext.type === 'graph'} aria-label="Attach current selection" title="Attach current selection (reference only)" onClick={() => { if (activeContext) addAttachedContext(activeContext); }}><Paperclip className="w-3.5 h-3.5" /></button>
+          <button type="button" className={iconButton} disabled={mode === 'codex' || !activeContext || activeContext.type === 'graph'} aria-label="Attach current selection" title={mode === 'chat' ? 'Attach current selection' : 'Switch to Chat to attach app objects'} onClick={() => { if (activeContext) addAttachedContext(activeContext); }}><Paperclip className="w-3.5 h-3.5" /></button>
+          <AssistantModeMenu onSelect={nextMode => { if (nextMode === 'codex') clearAttachedContexts(); }} />
           </div>
           <span>Enter to send · Shift+Enter for newline</span>
         </div>
