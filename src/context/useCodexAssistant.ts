@@ -44,8 +44,7 @@ export interface AssistantSession {
   mode?: AssistantMode;
 }
 
-interface Preferences { fontSize: number; provider: string; model: string; baseUrl: string; mode: AssistantMode }
-interface Configuration { model: string; provider: string; providers: { id: string; label: string; baseUrl: string }[] }
+interface Preferences { fontSize: number; mode: AssistantMode }
 interface SessionState { dir: string; selectedId: string; openIds: string[]; sessions: AssistantSession[] }
 
 const storageKey = (dir: string) => `thinking_os_assistant_sessions_v1:${dir}`;
@@ -102,16 +101,11 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [storageWarning, setStorageWarning] = useState('');
-  const [configuration, setConfiguration] = useState<Configuration>({ model: '', provider: '', providers: [] });
-  const [configurationError, setConfigurationError] = useState('');
-  const [customModels, setCustomModels] = useState<string[]>([]);
-  const [customModelsError, setCustomModelsError] = useState('');
-  const [customModelsLoading, setCustomModelsLoading] = useState(false);
   const [preferences, setPreferences] = useState<Preferences>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(preferencesKey) || '{}');
-      return { fontSize: Math.min(24, Math.max(11, Number(stored.fontSize) || 14)), provider: typeof stored.provider === 'string' ? stored.provider : '', model: typeof stored.model === 'string' ? stored.model : '', baseUrl: typeof stored.baseUrl === 'string' ? stored.baseUrl : '', mode: stored.mode === 'codex' ? 'codex' : 'chat' };
-    } catch { return { fontSize: 14, provider: '', model: '', baseUrl: '', mode: 'chat' }; }
+      return { fontSize: Math.min(24, Math.max(11, Number(stored.fontSize) || 14)), mode: stored.mode === 'codex' ? 'codex' : 'chat' };
+    } catch { return { fontSize: 14, mode: 'chat' }; }
   });
   const request = useRef<AbortController | null>(null);
   const invalidStorage = useRef(false);
@@ -147,48 +141,6 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
     saveProjects(projectState.dirs.filter(entry => entry !== dir));
   }
 
-  async function reloadConfiguration() {
-    try {
-      const response = await fetch('/api/assistant');
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error);
-      setConfiguration(payload);
-      setConfigurationError('');
-    } catch (caught) { setConfigurationError(caught instanceof Error ? caught.message : String(caught)); }
-  }
-
-  async function reloadCustomModels() {
-    const baseUrl = preferences.baseUrl.trim();
-    if (!baseUrl) {
-      setCustomModels([]);
-      setCustomModelsError('Enter a base URL first.');
-      return;
-    }
-    setCustomModelsLoading(true);
-    setCustomModelsError('');
-    try {
-      const response = await fetch(`/api/assistant/models?baseUrl=${encodeURIComponent(baseUrl)}`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Could not load models.');
-      if (!Array.isArray(payload.models) || !payload.models.every((model: unknown) => typeof model === 'string')) throw new Error('The model endpoint returned an invalid list.');
-      setCustomModels(payload.models);
-      if (!payload.models.length) setCustomModelsError('The endpoint returned no models. You can still enter a model ID manually.');
-    } catch (caught) {
-      setCustomModels([]);
-      setCustomModelsError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      setCustomModelsLoading(false);
-    }
-  }
-
-  function setCustomBaseUrl(baseUrl: string) {
-    setPreferences(previous => ({ ...previous, baseUrl, provider: baseUrl.trim() ? '' : previous.provider }));
-    setCustomModels([]);
-    setCustomModelsError('');
-  }
-
-  useEffect(() => { void reloadConfiguration(); }, []);
-
   useEffect(() => {
     request.current?.abort();
     request.current = null;
@@ -219,8 +171,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
   function newConversation() {
     if (request.current) return;
     if (!crypto.randomUUID) { setError('Open the app on localhost to use the assistant.'); return; }
-    const baseUrl = preferences.baseUrl.trim() || undefined;
-    const created: AssistantSession = { id: crypto.randomUUID(), title: 'New conversation', messages: [], provider: baseUrl ? undefined : preferences.provider.trim() || undefined, model: preferences.model.trim() || undefined, baseUrl, mode: preferences.mode };
+    const created: AssistantSession = { id: crypto.randomUUID(), title: 'New conversation', messages: [], mode: preferences.mode };
     setState(previous => ({ ...previous, selectedId: created.id, openIds: [created.id, ...previous.openIds], sessions: [created, ...previous.sessions] }));
     setError(null);
     return created;
@@ -314,7 +265,7 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
       setStatus(mode === 'chat' ? 'Working with your vault…' : 'Connecting to Codex…');
       const response = await fetch('/api/assistant', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ agent: 'codex', dir: workspaceDir, conversationId: current.id, threadId: current.threadId, provider: current.provider, model: current.model, baseUrl: current.baseUrl, mode, message, ...(images.length ? { images } : {}), ...(mode === 'chat' && contexts.length ? { contexts } : {}) }),
+        body: JSON.stringify({ agent: 'codex', dir: workspaceDir, conversationId: current.id, threadId: current.threadId, mode, message, ...(images.length ? { images } : {}), ...(mode === 'chat' && contexts.length ? { contexts } : {}) }),
         signal: controller.signal
       });
       if (!response.ok) throw new Error((await response.json()).error || `Assistant request failed (${response.status}).`);
@@ -354,5 +305,5 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
     }
   }
 
-  return { projects, projectDir: workspaceDir, projectWarning: projectState.error, selectProject, addProject, removeProject, sessions: state.sessions, openSessions: state.openIds.map(id => state.sessions.find(entry => entry.id === id)).filter((entry): entry is AssistantSession => Boolean(entry)), session, messages: session?.messages ?? [], running, status, error, storageWarning, send, newConversation, selectSession, closeSession, deleteSession, mode: session?.mode ?? (session ? 'codex' : preferences.mode), setMode, stop: () => request.current?.abort(), preferences, setPreferences, configuration, configurationError, reloadConfiguration, customModels, customModelsError, customModelsLoading, reloadCustomModels, setCustomBaseUrl };
+  return { projects, projectDir: workspaceDir, projectWarning: projectState.error, selectProject, addProject, removeProject, sessions: state.sessions, openSessions: state.openIds.map(id => state.sessions.find(entry => entry.id === id)).filter((entry): entry is AssistantSession => Boolean(entry)), session, messages: session?.messages ?? [], running, status, error, storageWarning, send, newConversation, selectSession, closeSession, deleteSession, mode: session?.mode ?? (session ? 'codex' : preferences.mode), setMode, stop: () => request.current?.abort(), preferences, setPreferences };
 }

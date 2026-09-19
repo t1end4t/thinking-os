@@ -2,31 +2,11 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, realpath, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { agentPlugin, buildTurnMessage, isLocalRequest, normalizeOpenAIBaseUrl, parseCodexConfig } from './agent.mjs';
-
-test('local Codex configuration supplies provider choices without exposing credentials', () => {
-  const config = parseCodexConfig(`
-model = "combo-codex"
-model_provider = "9router"
-
-[model_providers.9router]
-name = "9Router"
-base_url = "http://127.0.0.1:20128/v1"
-env_key = "SECRET_TOKEN"
-`);
-  assert.deepEqual(config, {
-    model: 'combo-codex',
-    provider: '9router',
-    providers: [{ id: '9router', label: '9Router', baseUrl: 'http://127.0.0.1:20128/v1' }]
-  });
-  assert.deepEqual(parseCodexConfig('model_provider = "only-declared"').providers, [{ id: 'only-declared', label: 'only-declared', baseUrl: '' }]);
-  assert.deepEqual(parseCodexConfig(''), { model: '', provider: '', providers: [] });
-  assert.equal(parseCodexConfig('[model_providers."quoted.name"]\nname = \'Provider\'\nbase_url = "https://user:password@example.com/v1?token=secret"').providers[0].baseUrl, 'https://example.com/v1');
-});
+import { agentPlugin, buildTurnMessage, isLocalRequest } from './agent.mjs';
 
 test('the assistant endpoint stays same-origin and loopback only', () => {
   const request = { socket: { remoteAddress: '127.0.0.1' }, headers: { host: 'localhost:3000', origin: 'http://localhost:3000' } };
@@ -36,18 +16,11 @@ test('the assistant endpoint stays same-origin and loopback only', () => {
   assert.equal(isLocalRequest({ ...request, headers: { ...request.headers, origin: 'https://evil.example' } }), false);
 });
 
-test('custom model URLs stay on loopback and normalize trailing slashes', () => {
-  assert.equal(normalizeOpenAIBaseUrl(' http://localhost:20128/v1/ '), 'http://localhost:20128/v1');
-  assert.equal(normalizeOpenAIBaseUrl('https://127.0.0.1:8443/v1'), 'https://127.0.0.1:8443/v1');
-  assert.throws(() => normalizeOpenAIBaseUrl('https://example.com/v1'), /must use localhost/);
-  assert.throws(() => normalizeOpenAIBaseUrl('http://user:secret@localhost:20128/v1'), /valid OpenAI-compatible/);
-});
-
-async function fixture(context, codex, codexHome, clientOptions = [], imageDir, fetchImpl) {
+async function fixture(context, codex, codexHome, clientOptions = [], imageDir) {
   const server = createServer();
   const previousHome = process.env.CODEX_HOME;
   if (codexHome) process.env.CODEX_HOME = codexHome;
-  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir, fetchImpl).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   context.after(() => {
@@ -62,21 +35,6 @@ async function fixture(context, codex, codexHome, clientOptions = [], imageDir, 
     post: (body, options = {}) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), ...options })
   };
 }
-
-test('model discovery returns OpenAI-compatible loopback model IDs', async context => {
-  const requests = [];
-  const { url } = await fixture(context, {}, undefined, [], undefined, async (requestUrl, options) => {
-    requests.push([requestUrl, options.headers.accept]);
-    return new Response(JSON.stringify({ data: [
-      { id: 'cx/gpt-6-astra' }, { id: 'cc/claude-opus5' }, { id: 'cx/gpt-6-astra' }, { id: 'bad model' }
-    ] }), { headers: { 'content-type': 'application/json' } });
-  });
-  const response = await fetch(`${url}/models?baseUrl=${encodeURIComponent('http://localhost:20128/v1/')}`);
-  assert.deepEqual(await response.json(), { models: ['cc/claude-opus5', 'cx/gpt-6-astra'] });
-  assert.deepEqual(requests, [['http://localhost:20128/v1/models', 'application/json']]);
-  assert.equal((await fetch(`${url}/models?baseUrl=${encodeURIComponent('https://example.com/v1')}`)).status, 400);
-  assert.equal(requests.length, 1);
-});
 
 test('uploaded images round-trip locally and reach the SDK with text or alone', async context => {
   const imageDir = await mkdtemp(path.join(tmpdir(), 'thinking-os-images-'));
@@ -116,7 +74,7 @@ test('uploaded images round-trip locally and reach the SDK with text or alone', 
   assert.equal((await post({ ...body, images: [{ ...image, id: `${'f'.repeat(64)}.png` }] })).status, 400);
 });
 
-test('agent, provider, model, context, and resumed session reach the SDK', async context => {
+test('agent, fixed 9router provider, context, and resumed session reach the SDK', async context => {
   const starts = [];
   const resumes = [];
   const messages = [];
@@ -132,29 +90,21 @@ test('agent, provider, model, context, and resumed session reach the SDK', async
       })() };
     }
   };
-  const home = await mkdtemp(path.join(tmpdir(), 'thinking-os-codex-home-'));
-  context.after(() => rm(home, { recursive: true, force: true }));
   const clientOptions = [];
-  await writeFile(path.join(home, 'config.toml'), 'model = "combo-codex"\nmodel_provider = "9router"\n\n[model_providers.9router]\nname = "9Router"\n');
   const { get, post } = await fixture(context, {
     startThread: options => { starts.push(options); return thread; },
     resumeThread: (id, options) => { resumes.push([id, options]); return thread; }
-  }, home, clientOptions);
+  }, undefined, clientOptions);
 
-  assert.deepEqual(await (await get()).json(), {
-    agents: [{ id: 'codex', label: 'Codex' }],
-    model: 'combo-codex',
-    provider: '9router',
-    providers: [{ id: '9router', label: '9Router', baseUrl: '' }]
-  });
+  assert.deepEqual(await (await get()).json(), { agents: [{ id: 'codex', label: 'Codex' }] });
 
   const attached = [{ type: 'node', id: 'claim-1', label: 'Claim one', sourceId: 'claim-1', kind: 'claim' }];
-  const body = { agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), mode: 'chat', message: 'hello\nworld', contexts: attached, provider: '9router', model: 'combo-codex' };
+  const body = { agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), mode: 'chat', message: 'hello\nworld', contexts: attached };
   const events = (await (await post(body)).text()).trim().split('\n').map(line => JSON.parse(line));
   assert.deepEqual(events.map(event => event.type), ['thread.started', 'item.completed', 'item.completed', 'turn.completed']);
   assert.deepEqual(messages, [buildTurnMessage('hello\nworld', attached, 'chat')]);
   assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }]);
-  assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true, model: 'combo-codex' }]);
+  assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true }]);
 
   const rawConversation = randomUUID();
   await (await post({ ...body, conversationId: rawConversation, mode: 'codex' })).text();
@@ -166,26 +116,14 @@ test('agent, provider, model, context, and resumed session reach the SDK', async
   assert.equal(resumes.length, 1);
   assert.equal(resumes[0][0], 'thread-1');
 
-  const startCount = starts.length;
-  await (await post({ ...body, conversationId: randomUUID(), model: 'other-model' })).text();
-  assert.equal(starts.length, startCount + 1);
-  assert.equal(starts.at(-1).model, 'other-model');
-
-  await (await post({ ...body, conversationId: randomUUID(), provider: undefined, model: 'cx/gpt-6-astra', baseUrl: 'http://localhost:20128/v1/' })).text();
-  assert.deepEqual(clientOptions.at(-1), { config: {
-    model_provider: 'thinking-os-openai-compatible',
-    model_providers: { 'thinking-os-openai-compatible': {
-      name: 'Thinking OS OpenAI-compatible', base_url: 'http://localhost:20128/v1', wire_api: 'responses', requires_openai_auth: false
-    } }
-  } });
-  assert.equal(starts.at(-1).model, 'cx/gpt-6-astra');
+  await (await post({ ...body, conversationId: randomUUID(), provider: 'ignored', model: 'ignored', baseUrl: 'https://example.com/v1' })).text();
+  assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }], 'One 9Router client serves every turn');
+  assert.equal(starts.at(-1).model, undefined, 'Client routing fields never reach the SDK');
 
   assert.equal((await post({ ...body, agent: 'other' })).status, 400);
   assert.equal((await post({ ...body, message: '', contexts: undefined })).status, 400);
   assert.equal((await post({ ...body, contexts: [{ ...attached[0], type: 'unknown' }] })).status, 400);
   assert.equal((await post({ ...body, contexts: Array(13).fill(attached[0]) })).status, 400);
-  assert.equal((await post({ ...body, provider: 'bad provider!' })).status, 400);
-  assert.equal((await post({ ...body, baseUrl: 'https://example.com/v1' })).status, 400);
   assert.equal((await post({ ...body, dir: '/nonexistent-thinking-os-folder' })).status, 400);
   assert.equal((await post({ ...body, message: 'x'.repeat(65_536) })).status, 413);
   assert.equal((await post(body, { headers: { 'content-type': 'text/plain' } })).status, 415);

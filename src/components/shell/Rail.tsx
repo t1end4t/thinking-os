@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   GitFork,
-  CalendarCheck,
   Compass,
   BookOpen,
   FileText,
@@ -9,17 +8,11 @@ import {
   ScrollText,
   ListChecks,
   Cpu,
-  GraduationCap,
   ChevronDown,
-  ChevronRight,
-  Lightbulb,
-  Sliders,
-  BookmarkCheck,
-  LayoutGrid
+  ChevronRight
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { SurfaceId } from '../../types';
-import { LearnViewMode } from '../../learnTypes';
 
 interface SurfaceItem {
   id: SurfaceId;
@@ -116,31 +109,6 @@ const RESEARCH_SURFACES: SurfaceItem[] = [
   }
 ];
 
-interface LearnSubTabItem {
-  id: LearnViewMode;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-  activeColor: string;
-}
-
-const LEARN_SUB_TABS: LearnSubTabItem[] = [
-  {
-    id: 'today',
-    label: 'Today',
-    icon: CalendarCheck,
-    description: 'Review queue and your boards',
-    activeColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 ring-1 ring-sky-200/80 dark:ring-sky-800/60 shadow-xs'
-  },
-  {
-    id: 'board',
-    label: 'Board',
-    icon: LayoutGrid,
-    description: 'Visual blocks captured from the active source',
-    activeColor: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 ring-1 ring-indigo-200/80 dark:ring-indigo-800/60 shadow-xs'
-  }
-];
-
 const PRIMARY_SURFACES: SurfaceItem[] = [
   {
     id: 'tasks',
@@ -181,9 +149,7 @@ export const Rail: React.FC = () => {
   const {
     activeSurface,
     setActiveSurface,
-    setActiveContext,
-    activeLearnTab,
-    setActiveLearnTab
+    setActiveContext
   } = useWorkspace();
   const isResearchActive = RESEARCH_SURFACE_IDS.has(activeSurface);
   const [isResearchExpanded, setIsResearchExpanded] = useState<boolean>(() => {
@@ -196,28 +162,12 @@ export const Rail: React.FC = () => {
   });
   const [lastResearchSurface, setLastResearchSurface] = useState<SurfaceId>('map');
 
-  const isLearnActive = activeSurface === 'learn';
-  const [isLearnExpanded, setIsLearnExpanded] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('thinking_os_rail_learn_expanded');
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
-  });
-
   // Persist toggle states so user choices stick across reloads
   useEffect(() => {
     try {
       localStorage.setItem('thinking_os_rail_research_expanded', JSON.stringify(isResearchExpanded));
     } catch {}
   }, [isResearchExpanded]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('thinking_os_rail_learn_expanded', JSON.stringify(isLearnExpanded));
-    } catch {}
-  }, [isLearnExpanded]);
 
   // Track the most recently visited research surface without overriding user toggle preference
   useEffect(() => {
@@ -277,13 +227,6 @@ export const Rail: React.FC = () => {
         label: 'Manuscript Draft',
         secondaryLabel: 'Academic paper synthesis & argumentation'
       });
-    } else if (surfaceId === 'learn') {
-      setActiveContext({
-        type: 'learn',
-        id: 'cognitive-learning',
-        label: 'Learn',
-        secondaryLabel: 'Visual source study and recall'
-      });
     }
   };
 
@@ -292,24 +235,6 @@ export const Rail: React.FC = () => {
     if (!isResearchActive) {
       handleSelectSurface(lastResearchSurface);
     }
-  };
-
-  const handleToggleLearn = () => {
-    setIsLearnExpanded(prev => !prev);
-    if (!isLearnActive) {
-      handleSelectSurface('learn');
-    }
-  };
-
-  const handleSelectLearnSubTab = (tabId: LearnViewMode) => {
-    setActiveSurface('learn');
-    setActiveLearnTab(tabId);
-    setActiveContext({
-      type: 'learn',
-      id: `learn-${tabId}`,
-      label: `Learn / ${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`,
-      secondaryLabel: 'Visual source study'
-    });
   };
 
   return (
@@ -409,78 +334,6 @@ export const Rail: React.FC = () => {
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span className="sr-only">Research / {surface.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Learn Suite Parent Group - framed box just like Research */}
-        <div className="relative flex flex-col items-center w-full p-1 rounded-2xl border border-[var(--color-rule)] bg-[var(--color-paper)]/40 shadow-2xs">
-          <div className="relative w-10 h-10 flex items-center justify-center">
-            <button
-              id="rail-btn-learn"
-              type="button"
-              onClick={handleToggleLearn}
-              title={`Learn — ${isLearnExpanded ? 'Click to collapse sub-tabs' : 'Click to expand sub-tabs'}`}
-              className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 group ${
-                isLearnActive
-                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 ring-1 ring-emerald-200/80 dark:ring-emerald-800/60 shadow-xs shadow-emerald-500/10'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-              }`}
-            >
-              {isLearnActive && (
-                <div className="absolute -left-[5px] top-2 bottom-2 w-1 rounded-r-full bg-emerald-600 dark:bg-emerald-400" />
-              )}
-              <GraduationCap className="w-4 h-4" />
-              <span className="sr-only">Learn</span>
-            </button>
-
-            {/* Subtle collapse / expand chevron indicator button */}
-            <button
-              type="button"
-              id="rail-toggle-learn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsLearnExpanded(prev => !prev);
-              }}
-              title={isLearnExpanded ? 'Click to collapse sub-tabs' : 'Click to expand sub-tabs'}
-              aria-label={isLearnExpanded ? 'Collapse Learn sub-tabs' : 'Expand Learn sub-tabs'}
-              className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--color-surface)] border border-[var(--color-rule)] flex items-center justify-center text-[var(--color-ink-muted)] hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-600 shadow-2xs transition-all z-10 cursor-pointer"
-            >
-              {isLearnExpanded ? (
-                <ChevronDown className="w-2.5 h-2.5 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-transform" />
-              ) : (
-                <ChevronRight className="w-2.5 h-2.5 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-transform" />
-              )}
-            </button>
-          </div>
-
-          {/* Indented Learn Sub-Tabs */}
-          {isLearnExpanded && (
-            <div
-              id="rail-learn-subsurfaces"
-              className="relative flex flex-col items-center w-full pt-1.5 pb-0.5 gap-1.5 animate-fadeIn"
-            >
-              {LEARN_SUB_TABS.map(tab => {
-                const Icon = tab.icon;
-                const isActive = isLearnActive && activeLearnTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`rail-btn-learn-${tab.id}`}
-                    type="button"
-                    onClick={() => handleSelectLearnSubTab(tab.id)}
-                    title={`Learn / ${tab.label} — ${tab.description}`}
-                    className={`relative w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 group ${
-                      isActive
-                        ? `${tab.activeColor} scale-100 font-medium`
-                        : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="sr-only">Learn / {tab.label}</span>
                   </button>
                 );
               })}

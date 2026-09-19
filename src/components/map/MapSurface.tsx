@@ -747,7 +747,7 @@ export const MapSurface: React.FC = () => {
               <GitFork className="w-8 h-8 mx-auto text-[var(--color-ink-muted)] mb-2.5 opacity-60" />
               <h3 className="font-serif text-base font-semibold text-[var(--color-ink)]">Empty Research Graph</h3>
               <p className="text-xs text-[var(--color-ink-muted)] mt-1 leading-relaxed">
-                No questions, claims, or evidence are registered in this vault yet. Capture literature in Survey or Learn to start building the argument chain.
+                No questions, claims, or evidence are registered in this vault yet. Capture literature in Survey or Papers to start building the argument chain.
               </p>
             </div>
           </div>

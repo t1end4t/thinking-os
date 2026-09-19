@@ -1,6 +1,6 @@
 # Assistant Dock
 
-- Agent-neutral surface. Codex is the only implemented backend today. The dock keeps its accessible "Assistant" label; concrete agent/provider/model details live in the project switcher, not an always-visible status row.
+- Agent-neutral surface. Codex is the only implemented backend today. The dock keeps its accessible "Assistant" label; the project switcher identifies the fixed 9Router provider.
 - The composer has two per-conversation modes. Chat is the default for new conversations and adds the Thinking OS vault/research framing. Codex sends the typed prompt unchanged for general folders. Legacy conversations without a mode remain Codex.
 - State and streaming live in `../../context/useCodexAssistant.ts`; the dock renders only.
 - Keep the top to two compact rows: project-name switcher with header actions, then conversation tabs. Full paths and provider/model metadata appear only in the closed-by-default switcher or its tooltip. Do not add extra path/status/project-list rows above the conversation.

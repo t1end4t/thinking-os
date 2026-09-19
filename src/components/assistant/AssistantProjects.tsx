@@ -7,7 +7,7 @@ import { useDetailsMenu } from './useDetailsMenu';
 
 export function AssistantProjects() {
   const { workspaceDir, workspaceLoading, codexAssistant } = useWorkspace();
-  const { projects, projectDir, projectWarning, selectProject, addProject, removeProject, running, configuration, preferences, session } = codexAssistant;
+  const { projects, projectDir, projectWarning, selectProject, addProject, removeProject, running } = codexAssistant;
   const dialog = useRef<HTMLDialogElement>(null);
   const { ref: switcher, dismiss } = useDetailsMenu(() => !!dialog.current?.open);
   const [listing, setListing] = useState<WorkspaceDirListing | null>(null);
@@ -17,11 +17,7 @@ export function AssistantProjects() {
   const disabled = running || workspaceLoading;
   const projectName = (dir: string) => dir.split('/').filter(Boolean).pop() || dir;
   const buttonClass = 'rounded-md px-2 py-1.5 text-[0.75rem] hover:bg-[var(--accent-indigo-soft)]';
-  const model = (session ? session.model : preferences.model) || configuration.model;
-  const baseUrl = session ? session.baseUrl : preferences.baseUrl;
-  const providerId = (session ? session.provider : preferences.provider) || configuration.provider;
-  const provider = configuration.providers.find(entry => entry.id === providerId);
-  const agent = `Codex · ${baseUrl || provider?.label || providerId || 'default'}${model ? ` · ${model}` : ''}`;
+  const agent = 'Codex · 9Router';
 
   async function browse(dir: string) {
     setLoading(true);

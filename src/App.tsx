@@ -12,7 +12,6 @@ import { AssistantDock } from './components/assistant/AssistantDock';
 import { TasksSurface } from './components/tasks/TasksSurface';
 import { RuntimeSurface } from './components/runtime/RuntimeSurface';
 import { ManuscriptSurface } from './components/manuscript/ManuscriptSurface';
-import { LearnSurface } from './components/learn/LearnSurface';
 import { TaskEditorPanel } from './components/shell/TaskEditorPanel';
 
 const WorkspaceShell: React.FC = () => {
@@ -76,7 +75,6 @@ const WorkspaceShell: React.FC = () => {
             {activeSurface === 'manuscript' && <ManuscriptSurface />}
             {activeSurface === 'tasks' && <TasksSurface />}
             {activeSurface === 'runtime' && <RuntimeSurface />}
-            {activeSurface === 'learn' && <LearnSurface />}
           </div>
 
           {/* Bottom Selected-Link Inspector (Opens when a relationship link is selected) */}
