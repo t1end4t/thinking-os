@@ -64,14 +64,30 @@ Keep this product model intact. Prefer features that improve traceability, falsi
 - Never edit generated/dependency state: `node_modules/`, `tsconfig.tsbuildinfo`, `.devenv/`.
 - Do not commit unless explicitly requested.
 
+## Local Shell
+
+- Prefer Nushell syntax for user-facing commands.
+- Keep each copyable command on one line.
+- Do not give Bash-only syntax such as `&&`, `||`, `export`, or `source` without labeling it as Bash and providing a Nushell-compatible command when practical.
+- When a command depends on the Nix/devenv environment, use `direnv exec . <command>` unless the current process is known to be inside the project shell.
+- This repository already provides Playwright browsers through `playwright-driver.browsers` and `PLAYWRIGHT_BROWSERS_PATH` in `flake.nix`. Do not recommend global browser or browser-library installation for this project.
+- Run Playwright checks with `direnv exec . node <test-file>` so the Nix browser path and runtime libraries are available.
+
 ## Validation
 
 Run the smallest relevant check first, then the full build:
 
-```bash
+```nu
 npm run lint
 node --test server/vault.test.mjs
 npm run build
+```
+
+Run assistant browser checks through the project environment:
+
+```nu
+direnv exec . node src/components/assistant/assistant.test.mjs
+direnv exec . node src/components/assistant/workspaceSync.test.mjs
 ```
 
 For UI behavior, run `npm run dev` and verify the affected surface at desktop width and a narrow viewport. Check both themes when styling changes.
