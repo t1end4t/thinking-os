@@ -152,6 +152,7 @@ export const AssistantDock: React.FC = () => {
   const imagePicker = useRef<HTMLInputElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const [resizing, setResizing] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [toast, setToast] = useState('');
   const transcriptEnd = useRef<HTMLDivElement>(null);
@@ -312,17 +313,19 @@ export const AssistantDock: React.FC = () => {
     <aside
       id="instrument-assistant-dock"
       aria-label="Assistant"
-      style={{ width: `min(${dockWidth}px, calc(100vw - 4rem))`, '--assistant-font-size': `${preferences.fontSize}px` } as React.CSSProperties}
+      style={{ width: isFullScreen ? '100vw' : `min(${dockWidth}px, calc(100vw - 4rem))`, '--assistant-font-size': `${preferences.fontSize}px` } as React.CSSProperties}
       onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; if (!dragOver) setDragOver(true); }}
       onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOver(false); }}
       onDrop={drop}
-      className={`assistant-dock relative h-full flex flex-col shrink-0 min-w-0 z-30 bg-[var(--color-surface)] text-[var(--color-ink)] ${dockPosition === 'left' ? 'border-r' : 'border-l'} border-[var(--color-rule)] ${dragOver ? 'ring-2 ring-[var(--accent-indigo)]/40' : ''}`}
+      className={`assistant-dock flex flex-col min-w-0 bg-[var(--color-surface)] text-[var(--color-ink)] ${isFullScreen ? 'fixed inset-0 z-[60] h-screen w-screen' : `relative z-30 h-full shrink-0 ${dockPosition === 'left' ? 'border-r' : 'border-l'} border-[var(--color-rule)]`} ${dragOver ? 'ring-2 ring-[var(--accent-indigo)]/40' : ''}`}
     >
-      <div
-        onMouseDown={event => { event.preventDefault(); setResizing(true); }}
-        title="Drag to resize panel"
-        className={`absolute top-0 bottom-0 w-2 cursor-ew-resize z-40 hover:bg-[var(--accent-indigo)]/30 ${dockPosition === 'left' ? 'right-0' : 'left-0'}`}
-      />
+      {!isFullScreen && (
+        <div
+          onMouseDown={event => { event.preventDefault(); setResizing(true); }}
+          title="Drag to resize panel"
+          className={`absolute top-0 bottom-0 w-2 cursor-ew-resize z-40 hover:bg-[var(--accent-indigo)]/30 ${dockPosition === 'left' ? 'right-0' : 'left-0'}`}
+        />
+      )}
 
       {toast && (
         <div className="absolute top-12 left-3 right-3 z-50 flex items-center gap-1.5 rounded-lg bg-[var(--color-ink)] px-2.5 py-2 text-[0.75rem] text-[var(--color-surface)] shadow-lg">
@@ -336,8 +339,8 @@ export const AssistantDock: React.FC = () => {
         <div className="ml-auto flex shrink-0 items-center">
           <button type="button" className={iconButton} onClick={() => { setHistorySearch(''); historyDialog.current?.showModal(); historyDialog.current?.querySelector('input')?.focus(); }} aria-label="Browse conversations" aria-haspopup="dialog" title="Browse conversations"><History className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} onClick={() => newConversation()} disabled={running} aria-label="New conversation" title="New conversation"><MessageSquarePlus className="w-3.5 h-3.5" /></button>
-          <button type="button" className={iconButton} onClick={() => setDockWidth(dockWidth > 420 ? 360 : 580)} aria-label={dockWidth > 420 ? 'Narrow assistant panel' : 'Expand assistant panel'}>
-            {dockWidth > 420 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          <button type="button" className={iconButton} onClick={() => setIsFullScreen(current => !current)} aria-label={isFullScreen ? 'Exit full screen' : 'Enter full screen'} aria-pressed={isFullScreen} title={isFullScreen ? 'Exit full screen' : 'Enter full screen'}>
+            {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button type="button" id="assistant-dock-close-btn" className={iconButton} onClick={() => setIsDockOpen(false)} aria-label="Close Assistant Panel"><X className="w-4 h-4" /></button>
         </div>
@@ -376,7 +379,7 @@ export const AssistantDock: React.FC = () => {
       </div>
 
       <div id="assistant-conversation-panel" role="tabpanel" aria-labelledby={`assistant-tab-${session?.id ?? 'new'}`} className="flex min-h-0 flex-1 flex-col">
-      <div id="assistant-transcript-list" role="log" aria-label="Assistant conversation" onScroll={event => { const target = event.currentTarget; followTranscript.current = target.scrollHeight - target.scrollTop - target.clientHeight < 64; }} className="assistant-transcript relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 select-text">
+      <div id="assistant-transcript-list" role="log" aria-label="Assistant conversation" onScroll={event => { const target = event.currentTarget; followTranscript.current = target.scrollHeight - target.scrollTop - target.clientHeight < 64; }} className={`assistant-transcript relative flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 select-text ${isFullScreen ? 'assistant-fullscreen-gutters' : ''}`}>
         {dragOver && (
           <div className="pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--accent-indigo)] bg-[var(--color-surface)]/90 p-6 text-center">
             <Sparkles className="w-6 h-6 text-[var(--accent-indigo)]" aria-hidden />
@@ -444,7 +447,7 @@ export const AssistantDock: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={submit} className="flex flex-col gap-2 border-t border-[var(--color-rule)] p-3">
+      <form onSubmit={submit} className={`flex flex-col gap-2 border-t border-[var(--color-rule)] p-3 ${isFullScreen ? 'assistant-fullscreen-gutters' : ''}`}>
         {(images.length > 0 || attachedContexts.length > 0) && <div className="assistant-images" aria-label="Attachments">
           {images.map(image => <div key={image.id} className="relative">
             <img src={`/api/assistant/images/${image.id}`} alt={image.name} />

@@ -284,13 +284,41 @@ export const TopBar: React.FC = () => {
                     Assistant model
                   </div>
                   <p className="mb-2 text-[0.6875rem] text-[var(--color-ink-muted)]">
-                    Providers and credentials come from your local Codex configuration; this only chooses which to use.
+                    Use a local OpenAI-compatible endpoint, or leave it blank to use a provider from your Codex configuration.
                   </p>
-                  <div className="mb-3">
-                    <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)] block mb-1.5">Provider</span>
-                    <div className="space-y-1">
+                  <div className="mb-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] p-3">
+                    <label className="form-field">
+                      <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">API base URL</span>
+                      <input
+                        aria-label="API base URL"
+                        type="url"
+                        value={codexAssistant.preferences.baseUrl}
+                        maxLength={2048}
+                        onChange={event => codexAssistant.setCustomBaseUrl(event.target.value)}
+                        placeholder="http://localhost:20128/v1"
+                        spellCheck={false}
+                      />
+                    </label>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="text-[0.6875rem] text-[var(--color-ink-muted)]">
+                        Loopback URLs only. A custom URL overrides the provider below.
+                      </p>
                       <button
                         type="button"
+                        disabled={codexAssistant.customModelsLoading || !codexAssistant.preferences.baseUrl.trim()}
+                        onClick={() => void codexAssistant.reloadCustomModels()}
+                        className="shrink-0 rounded-md border border-[var(--color-rule)] px-2 py-1 font-mono text-[0.6875rem] text-[var(--color-ink)] hover:border-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {codexAssistant.customModelsLoading ? 'Loading…' : 'Load models'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)] block mb-1.5">Provider</span>
+                    <div className={`space-y-1 ${codexAssistant.preferences.baseUrl.trim() ? 'opacity-50' : ''}`} aria-disabled={Boolean(codexAssistant.preferences.baseUrl.trim())}>
+                      <button
+                        type="button"
+                        disabled={Boolean(codexAssistant.preferences.baseUrl.trim())}
                         onClick={() => codexAssistant.setPreferences(current => ({ ...current, provider: '' }))}
                         className={`w-full flex items-center justify-between p-2 rounded-lg border text-left font-mono text-xs transition-all ${
                           codexAssistant.preferences.provider === ''
@@ -307,6 +335,7 @@ export const TopBar: React.FC = () => {
                           <button
                             key={provider.id}
                             type="button"
+                            disabled={Boolean(codexAssistant.preferences.baseUrl.trim())}
                             onClick={() => codexAssistant.setPreferences(current => ({ ...current, provider: provider.id }))}
                             className={`w-full flex items-center justify-between p-2 rounded-lg border text-left font-mono text-xs transition-all ${
                               isSelected
@@ -325,18 +354,30 @@ export const TopBar: React.FC = () => {
                     <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">Model</span>
                     <input
                       aria-label="Model"
+                      list="assistant-model-options"
                       value={codexAssistant.preferences.model}
                       maxLength={120}
                       onChange={event => codexAssistant.setPreferences(current => ({ ...current, model: event.target.value }))}
                       placeholder={codexAssistant.configuration.model || 'Codex default'}
                       spellCheck={false}
                     />
+                    <datalist id="assistant-model-options">
+                      {codexAssistant.customModels.map(model => <option key={model} value={model} />)}
+                    </datalist>
                   </label>
+                  {codexAssistant.customModels.length > 0 && (
+                    <p className="mt-1 text-[0.6875rem] text-[var(--color-ink-muted)]">
+                      {codexAssistant.customModels.length} models found. Start typing to filter the combo list.
+                    </p>
+                  )}
+                  {codexAssistant.customModelsError && (
+                    <p role="alert" className="mt-2 text-[0.6875rem] text-[var(--color-missing)]">{codexAssistant.customModelsError}</p>
+                  )}
                   {codexAssistant.configurationError && (
                     <p role="alert" className="mt-2 text-[0.6875rem] text-[var(--color-missing)]">{codexAssistant.configurationError}</p>
                   )}
                   <div className="mt-2 flex items-center justify-between gap-2 font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-                    <span>Applies to new conversations.</span>
+                    <span>Applies to new conversations. Manual model IDs are allowed.</span>
                     <button type="button" className="underline" onClick={() => void codexAssistant.reloadConfiguration()}>Reload local config</button>
                   </div>
                 </div>

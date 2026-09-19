@@ -17,6 +17,7 @@ const CONTEXT_TYPES = new Set([
   'task', 'service', 'run', 'model', 'automation', 'target', 'learn', 'unit'
 ]);
 const MODES = new Set(['chat', 'codex']);
+const CUSTOM_PROVIDER_ID = 'thinking-os-openai-compatible';
 const CHAT_INSTRUCTIONS = `You are the Thinking OS research assistant operating inside the user's filesystem vault.
 Treat the current working directory as the complete application state. Do not inspect, mention, or ask to read the Thinking OS source code.
 Help with research and thinking work directly. When the user requests a change, create or edit the supported vault record, follow AGENTS.md and VAULT_OPERATIONS.md, and verify the changed files.
@@ -42,6 +43,19 @@ export function parseCodexConfig(toml = '') {
   });
   if (provider && !providers.some(entry => entry.id === provider)) providers.unshift({ id: provider, label: provider, baseUrl: '' });
   return { model: typeof config.model === 'string' ? config.model : '', provider, providers };
+}
+
+export function normalizeOpenAIBaseUrl(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 2_048) throw new Error('Enter a valid OpenAI-compatible base URL.');
+  const url = new URL(value.trim());
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new Error('Enter a valid OpenAI-compatible base URL.');
+  }
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname.toLowerCase())) {
+    throw new Error('The custom model endpoint must use localhost, 127.0.0.1, or [::1].');
+  }
+  const pathname = url.pathname.replace(/\/+$/, '');
+  return `${url.origin}${pathname}`;
 }
 
 export function isLocalRequest(req) {
@@ -89,9 +103,11 @@ async function readTurnRequest(req) {
       typeof body.dir !== 'string' || !body.dir.trim() || body.dir.includes('\0') ||
       typeof body.conversationId !== 'string' || !/^[\da-f-]{36}$/i.test(body.conversationId) ||
       (body.mode !== undefined && !MODES.has(body.mode)) ||
-      !optional(body.threadId) || !optional(body.model) || !optional(body.provider)) {
+      !optional(body.threadId) || !optional(body.model) || !optional(body.provider) ||
+      (body.baseUrl !== undefined && typeof body.baseUrl !== 'string')) {
     throw new Error('Invalid assistant request.');
   }
+  if (body.baseUrl !== undefined) body.baseUrl = normalizeOpenAIBaseUrl(body.baseUrl);
   return body;
 }
 
@@ -101,15 +117,25 @@ export function buildTurnMessage(message, contexts = [], mode = 'codex') {
   return `${CHAT_INSTRUCTIONS}${attached}\n\nUser request:\n${message.trim() || 'Inspect the attached context and ask one concise question if the intended outcome is unclear.'}`;
 }
 
-export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options }), imageDir = path.join(homedir(), '.local', 'share', 'thinking-os', 'assistant-images')) {
+export function agentPlugin(createCodex = options => new Codex({ codexPathOverride: 'codex', ...options }), imageDir = path.join(homedir(), '.local', 'share', 'thinking-os', 'assistant-images'), fetchImpl = fetch) {
   const threads = new Map();
   const controllers = new Set();
   const clients = new Map();
 
-  function clientFor(provider) {
-    const key = provider ?? '';
+  function clientFor(provider, baseUrl) {
+    const key = `${provider ?? ''}\0${baseUrl ?? ''}`;
     if (!clients.has(key)) {
-      const config = provider ? { model_provider: provider } : undefined;
+      const config = baseUrl ? {
+        model_provider: CUSTOM_PROVIDER_ID,
+        model_providers: {
+          [CUSTOM_PROVIDER_ID]: {
+            name: 'Thinking OS OpenAI-compatible',
+            base_url: baseUrl,
+            wire_api: 'responses',
+            requires_openai_auth: false
+          }
+        }
+      } : provider ? { model_provider: provider } : undefined;
       clients.set(key, createCodex(config ? { config } : {}));
     }
     return clients.get(key);
@@ -131,6 +157,27 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
       if (!isLocalRequest(req)) return send(403, { error: 'The assistant requires a same-origin localhost connection. Open http://localhost:3000.' });
 
       const pathname = new URL(req.originalUrl || req.url, 'http://localhost').pathname;
+      if (pathname === '/api/assistant/models') {
+        if (req.method !== 'GET') return send(405, { error: 'Only GET is supported.' });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5_000);
+        try {
+          const requestUrl = new URL(req.originalUrl || req.url, 'http://localhost');
+          const baseUrl = normalizeOpenAIBaseUrl(requestUrl.searchParams.get('baseUrl'));
+          const response = await fetchImpl(`${baseUrl}/models`, { headers: { accept: 'application/json' }, signal: controller.signal });
+          if (!response.ok) throw new Error(`Model endpoint returned ${response.status}.`);
+          const payload = await response.json();
+          if (!payload || !Array.isArray(payload.data)) throw new Error('Model endpoint did not return an OpenAI-compatible model list.');
+          const models = [...new Set(payload.data.flatMap(entry =>
+            entry && typeof entry.id === 'string' && OPTIONAL_ID.test(entry.id) ? [entry.id] : []
+          ))].sort((left, right) => left.localeCompare(right)).slice(0, 500);
+          return send(200, { models });
+        } catch (error) {
+          return send(400, { error: controller.signal.aborted ? 'Model discovery timed out.' : String(error.message) });
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
       if (pathname.startsWith('/api/assistant/images')) {
         const id = pathname.slice('/api/assistant/images/'.length);
         if (req.method === 'GET' && IMAGE_ID.test(id)) {
@@ -215,7 +262,7 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
       try {
         await withVaultLock(dir, async () => {
           if (controller.signal.aborted) return;
-          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? ''].join('\0');
+          const key = [dir, body.conversationId, body.model ?? '', body.provider ?? '', body.baseUrl ?? ''].join('\0');
           let thread = threads.get(key);
           if (!thread) {
             const options = {
@@ -223,7 +270,7 @@ export function agentPlugin(createCodex = options => new Codex({ codexPathOverri
               skipGitRepoCheck: true,
               ...(body.model ? { model: body.model } : {})
             };
-            const codex = clientFor(body.provider);
+            const codex = clientFor(body.provider, body.baseUrl);
             thread = body.threadId ? codex.resumeThread(body.threadId, options) : codex.startThread(options);
             threads.set(key, thread);
           }

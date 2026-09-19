@@ -59,6 +59,7 @@
 .assistant-markdown pre code { font-size: inherit; }
 .assistant-markdown a { display: inline; }
 .assistant-dock textarea { font: inherit; line-height: 1.6; }
+.assistant-fullscreen-gutters { padding-inline: max(0.75rem, calc((100% - 60rem) / 2)); }
 @media (prefers-reduced-motion: reduce) {
   .assistant-dock .animate-spin { animation: none; }
 }

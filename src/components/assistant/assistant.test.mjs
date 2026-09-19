@@ -21,6 +21,7 @@ try {
   await page.route('**/api/assistant', route => route.fulfill({ json: {
     model: 'combo-codex', provider: '9router', providers: [{ id: '9router', label: '9Router', baseUrl: 'http://127.0.0.1:20128/v1' }]
   } }));
+  await page.route('**/api/assistant/models?*', route => route.fulfill({ json: { models: ['cc/claude-opus5', 'cx/gpt-6-astra'] } }));
   const uploads = [];
   const imageId = `${'a'.repeat(64)}.png`;
   await page.route('**/api/assistant/images', async route => {
@@ -312,8 +313,11 @@ try {
   await page.keyboard.press('Home');
   for (let step = 0; step < 9; step++) await page.keyboard.press('ArrowRight');
   await settings.getByRole('button', { name: '18', exact: true }).click();
-  await settings.getByLabel('Provider', { exact: true }).selectOption('9router');
-  await settings.getByLabel('Model', { exact: true }).fill('another-model');
+  await settings.getByRole('button', { name: /9Router/ }).click();
+  await settings.getByLabel('API base URL', { exact: true }).fill('http://localhost:20128/v1');
+  await settings.getByRole('button', { name: 'Load models', exact: true }).click();
+  await expect(settings.locator('#assistant-model-options option')).toHaveCount(2);
+  await settings.getByLabel('Model', { exact: true }).fill('cx/gpt-6-astra');
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize), '18px');
   assert.equal(await input.evaluate(element => getComputedStyle(element).fontSize), '20px');
   await page.keyboard.press('Escape');
@@ -325,8 +329,9 @@ try {
   await input.press('Enter');
   await expect(send).toBeVisible({ timeout: 15000 });
   const overridden = await page.evaluate(() => window.assistantRequests.at(-1));
-  assert.equal(overridden.provider, '9router');
-  assert.equal(overridden.model, 'another-model');
+  assert.equal(overridden.provider, undefined);
+  assert.equal(overridden.baseUrl, 'http://localhost:20128/v1');
+  assert.equal(overridden.model, 'cx/gpt-6-astra');
 
   for (const width of [1440, 420]) {
     await page.setViewportSize({ width, height: 1000 });

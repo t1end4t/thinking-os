@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Check, ChevronDown, Folder, FolderOpen, Plus, TriangleAlert, X } from 'lucide-react';
+import { ArrowUp, Check, ChevronDown, Folder, FolderOpen, Home, Plus, TriangleAlert, X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, type WorkspaceDirListing } from '../../vaultClient';
 import { tildePath } from '../../utils/paths';
@@ -18,9 +18,10 @@ export function AssistantProjects() {
   const projectName = (dir: string) => dir.split('/').filter(Boolean).pop() || dir;
   const buttonClass = 'rounded-md px-2 py-1.5 text-[0.75rem] hover:bg-[var(--accent-indigo-soft)]';
   const model = (session ? session.model : preferences.model) || configuration.model;
+  const baseUrl = session ? session.baseUrl : preferences.baseUrl;
   const providerId = (session ? session.provider : preferences.provider) || configuration.provider;
   const provider = configuration.providers.find(entry => entry.id === providerId);
-  const agent = `Codex · ${provider?.label || providerId || 'default'}${model ? ` · ${model}` : ''}`;
+  const agent = `Codex · ${baseUrl || provider?.label || providerId || 'default'}${model ? ` · ${model}` : ''}`;
 
   async function browse(dir: string) {
     setLoading(true);
@@ -71,23 +72,20 @@ export function AssistantProjects() {
         </div>
         <div className="flex min-h-0 flex-col gap-3 p-3">
           <p className="text-[0.75rem] text-[var(--color-ink-muted)]">Choose where the assistant works. Your research workspace stays unchanged.</p>
-          <form className="flex gap-2" onSubmit={event => { event.preventDefault(); if (!loading && path.trim()) void browse(path.trim()); }}>
-            <input aria-label="Project folder path" disabled={loading} value={tildePath(path)} onChange={event => setPath(event.target.value)} className="min-w-0 flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 py-1.5 font-mono text-[0.75rem]" />
-            <button type="submit" disabled={loading || !path.trim()} className={buttonClass}>Browse</button>
+          <form className="flex items-center gap-1.5" onSubmit={event => { event.preventDefault(); if (!loading && path.trim()) void browse(path.trim()); }}>
+            <button type="button" aria-label="Parent folder" title="Up one level" disabled={loading || !listing || listing.parent === listing.dir} className={`${buttonClass} grid size-8 shrink-0 place-items-center border border-[var(--color-rule)] p-0`} onClick={() => { if (listing) void browse(listing.parent); }}><ArrowUp className="w-4 h-4" aria-hidden /></button>
+            <button type="button" aria-label="Home folder" title="Home folder" disabled={loading || !listing || listing.home === listing.dir} className={`${buttonClass} grid size-8 shrink-0 place-items-center border border-[var(--color-rule)] p-0`} onClick={() => { if (listing) void browse(listing.home); }}><Home className="w-4 h-4" aria-hidden /></button>
+            <input aria-label="Project folder path" disabled={loading} value={tildePath(path)} onChange={event => setPath(event.target.value)} className="h-8 min-w-0 flex-1 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] px-2 font-mono text-[0.75rem]" />
           </form>
-          <div className="flex gap-2">
-            <button type="button" disabled={loading || !listing} className={buttonClass} onClick={() => { if (listing) void browse(listing.parent); }}>Parent folder</button>
-            <button type="button" disabled={loading || !listing} className={buttonClass} onClick={() => { if (listing) void browse(listing.home); }}>Home folder</button>
-          </div>
-          <div aria-label="Project folders" aria-busy={loading} className="min-h-24 max-h-60 overflow-y-auto rounded border border-[var(--color-rule)] p-1">
+          <div aria-label="Project folders" aria-busy={loading} className="min-h-24 max-h-60 overflow-y-auto rounded border border-[var(--color-rule)] bg-[var(--color-paper)] p-1">
             {loading && <p role="status" className="p-2 text-[0.75rem]">Loading folders…</p>}
-            {listing?.entries.map(name => <button type="button" key={name} className={`${buttonClass} flex w-full items-center gap-2 text-left`} onClick={() => void browse(`${listing.dir}/${name}`)}><Folder className="w-3.5 h-3.5 shrink-0" aria-hidden /><span className="truncate">{name}</span></button>)}
+            {listing?.entries.map(name => <button type="button" key={name} className={`${buttonClass} flex w-full items-center gap-2 py-2 text-left focus-visible:bg-[var(--accent-indigo-soft)]`} onClick={() => void browse(`${listing.dir}/${name}`)}><Folder className="w-3.5 h-3.5 shrink-0 text-[var(--color-ink-muted)]" aria-hidden /><span className="truncate">{name}</span></button>)}
             {listing?.exists && !listing.entries.length && <p className="p-2 text-[0.75rem] text-[var(--color-ink-muted)]">No subfolders</p>}
           </div>
           {error && <p role="alert" className="text-[0.75rem] text-[var(--color-ink-muted)]">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={buttonClass} onClick={() => dialog.current?.close()}>Cancel</button>
-            <button type="button" disabled={disabled || loading || !listing?.exists || tildePath(path) !== tildePath(listing.dir)} className={`${buttonClass} border border-[var(--color-rule)]`} onClick={() => { if (listing && addProject(listing.dir)) dialog.current?.close(); else setError('Project could not be saved. Check browser storage and try again.'); }}>Choose this folder</button>
+            <button type="button" disabled={disabled || loading || !listing?.exists || tildePath(path) !== tildePath(listing.dir)} className={`${buttonClass} bg-[var(--accent-indigo)] px-3 font-medium text-white hover:opacity-90`} onClick={() => { if (listing && addProject(listing.dir)) dialog.current?.close(); else setError('Project could not be saved. Check browser storage and try again.'); }}>Choose this folder</button>
           </div>
         </div>
       </dialog>

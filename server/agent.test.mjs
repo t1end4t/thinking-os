@@ -6,7 +6,7 @@ import { mkdtemp, readFile, realpath, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { agentPlugin, buildTurnMessage, isLocalRequest, parseCodexConfig } from './agent.mjs';
+import { agentPlugin, buildTurnMessage, isLocalRequest, normalizeOpenAIBaseUrl, parseCodexConfig } from './agent.mjs';
 
 test('local Codex configuration supplies provider choices without exposing credentials', () => {
   const config = parseCodexConfig(`
@@ -36,11 +36,18 @@ test('the assistant endpoint stays same-origin and loopback only', () => {
   assert.equal(isLocalRequest({ ...request, headers: { ...request.headers, origin: 'https://evil.example' } }), false);
 });
 
-async function fixture(context, codex, codexHome, clientOptions = [], imageDir) {
+test('custom model URLs stay on loopback and normalize trailing slashes', () => {
+  assert.equal(normalizeOpenAIBaseUrl(' http://localhost:20128/v1/ '), 'http://localhost:20128/v1');
+  assert.equal(normalizeOpenAIBaseUrl('https://127.0.0.1:8443/v1'), 'https://127.0.0.1:8443/v1');
+  assert.throws(() => normalizeOpenAIBaseUrl('https://example.com/v1'), /must use localhost/);
+  assert.throws(() => normalizeOpenAIBaseUrl('http://user:secret@localhost:20128/v1'), /valid OpenAI-compatible/);
+});
+
+async function fixture(context, codex, codexHome, clientOptions = [], imageDir, fetchImpl) {
   const server = createServer();
   const previousHome = process.env.CODEX_HOME;
   if (codexHome) process.env.CODEX_HOME = codexHome;
-  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  agentPlugin(options => { clientOptions.push(options); return codex; }, imageDir, fetchImpl).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   context.after(() => {
@@ -55,6 +62,21 @@ async function fixture(context, codex, codexHome, clientOptions = [], imageDir) 
     post: (body, options = {}) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), ...options })
   };
 }
+
+test('model discovery returns OpenAI-compatible loopback model IDs', async context => {
+  const requests = [];
+  const { url } = await fixture(context, {}, undefined, [], undefined, async (requestUrl, options) => {
+    requests.push([requestUrl, options.headers.accept]);
+    return new Response(JSON.stringify({ data: [
+      { id: 'cx/gpt-6-astra' }, { id: 'cc/claude-opus5' }, { id: 'cx/gpt-6-astra' }, { id: 'bad model' }
+    ] }), { headers: { 'content-type': 'application/json' } });
+  });
+  const response = await fetch(`${url}/models?baseUrl=${encodeURIComponent('http://localhost:20128/v1/')}`);
+  assert.deepEqual(await response.json(), { models: ['cc/claude-opus5', 'cx/gpt-6-astra'] });
+  assert.deepEqual(requests, [['http://localhost:20128/v1/models', 'application/json']]);
+  assert.equal((await fetch(`${url}/models?baseUrl=${encodeURIComponent('https://example.com/v1')}`)).status, 400);
+  assert.equal(requests.length, 1);
+});
 
 test('uploaded images round-trip locally and reach the SDK with text or alone', async context => {
   const imageDir = await mkdtemp(path.join(tmpdir(), 'thinking-os-images-'));
@@ -149,11 +171,21 @@ test('agent, provider, model, context, and resumed session reach the SDK', async
   assert.equal(starts.length, startCount + 1);
   assert.equal(starts.at(-1).model, 'other-model');
 
+  await (await post({ ...body, conversationId: randomUUID(), provider: undefined, model: 'cx/gpt-6-astra', baseUrl: 'http://localhost:20128/v1/' })).text();
+  assert.deepEqual(clientOptions.at(-1), { config: {
+    model_provider: 'thinking-os-openai-compatible',
+    model_providers: { 'thinking-os-openai-compatible': {
+      name: 'Thinking OS OpenAI-compatible', base_url: 'http://localhost:20128/v1', wire_api: 'responses', requires_openai_auth: false
+    } }
+  } });
+  assert.equal(starts.at(-1).model, 'cx/gpt-6-astra');
+
   assert.equal((await post({ ...body, agent: 'other' })).status, 400);
   assert.equal((await post({ ...body, message: '', contexts: undefined })).status, 400);
   assert.equal((await post({ ...body, contexts: [{ ...attached[0], type: 'unknown' }] })).status, 400);
   assert.equal((await post({ ...body, contexts: Array(13).fill(attached[0]) })).status, 400);
   assert.equal((await post({ ...body, provider: 'bad provider!' })).status, 400);
+  assert.equal((await post({ ...body, baseUrl: 'https://example.com/v1' })).status, 400);
   assert.equal((await post({ ...body, dir: '/nonexistent-thinking-os-folder' })).status, 400);
   assert.equal((await post({ ...body, message: 'x'.repeat(65_536) })).status, 413);
   assert.equal((await post(body, { headers: { 'content-type': 'text/plain' } })).status, 415);
