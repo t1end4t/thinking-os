@@ -1,6 +1,6 @@
-import type { ScoutBrief, ScoutBriefInput, ScoutDecision, ScoutDismissalReason, ScoutReport, ScoutRun, ScoutRunState, ScoutSnapshot } from './scoutTypes';
+import type { ScoutBrief, ScoutBriefInput, ScoutDecision, ScoutDismissalReason, ScoutReport, ScoutRun, ScoutRunState, ScoutSnapshot, TopicWatch, TopicWatchInput } from './scoutTypes';
 import { parseScoutReport, parseScoutSnapshot } from './scoutReportParsers';
-import { parseBrief, parseRun } from './scoutValueParsers';
+import { parseBrief, parseRun, parseWatch } from './scoutValueParsers';
 import { record } from './scoutValueParsers';
 
 export type ScoutMutation =
@@ -15,7 +15,7 @@ export type ScoutMutation =
     }
   | { readonly action: 'request-inspection'; readonly reportId: string; readonly candidateId: string };
 
-export type ScoutControlAction = ScoutMutation['action'] | 'save-brief' | 'start-run' | 'cancel-run';
+export type ScoutControlAction = ScoutMutation['action'] | 'save-brief' | 'save-watch' | 'delete-watch' | 'start-run' | 'cancel-run';
 
 async function request(dir: string, signal: AbortSignal, mutation?: ScoutMutation): Promise<Record<string, unknown>> {
   const response = await fetch(`/api/scouts?${new URLSearchParams({ dir })}`, {
@@ -55,8 +55,16 @@ export async function saveScoutBriefRequest(dir: string, id: string, brief: Scou
   return parseBrief((await controlRequest(dir, signal, { action: 'save-brief', id, brief })).brief);
 }
 
-export async function startScoutRunRequest(dir: string, id: string, signal: AbortSignal): Promise<ScoutRun> {
-  return parseRun((await controlRequest(dir, signal, { action: 'start-run', id })).run);
+export async function saveTopicWatchRequest(dir: string, id: string | undefined, watch: TopicWatchInput, signal: AbortSignal): Promise<TopicWatch> {
+  return parseWatch((await controlRequest(dir, signal, { action: 'save-watch', ...(id ? { id } : {}), watch })).watch);
+}
+
+export async function deleteTopicWatchRequest(dir: string, id: string, signal: AbortSignal): Promise<void> {
+  await controlRequest(dir, signal, { action: 'delete-watch', id });
+}
+
+export async function startScoutRunRequest(dir: string, id: string, signal: AbortSignal, kind: 'brief' | 'watch' = 'brief'): Promise<ScoutRun> {
+  return parseRun((await controlRequest(dir, signal, { action: 'start-run', id, kind })).run);
 }
 
 export async function cancelScoutRunRequest(dir: string, id: string, signal: AbortSignal): Promise<ScoutRun> {

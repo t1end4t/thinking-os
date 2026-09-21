@@ -57,3 +57,5 @@ Thinking OS is a dense, quiet research instrument. Compact controls, restrained 
 - Scout reports use a compact history rail plus a single reading column. Candidate cards expose relevance, reading value, assessment evidence, and limitations before expandable abstract and provenance details.
 - Scout decisions remain explicit actions. Dismissal and comparison use native dialogs with keyboard dismissal, focus restoration, and horizontal table scrolling on narrow screens.
 - Assistant scout briefs use a bordered compact card. The card shows scope, exclusions, search direction count, screening standard, and recommendation cap before any external request. Run and cancel remain explicit controls; stage progress uses named states rather than percentages.
+- Topic watches live in Discovery beside durable scout reports. Their compact controls expose schedule, time zone, pause/resume, run-now, edit, and delete behavior.
+- Screened scouts are the primary Discovery workflow. Legacy Crossref and arXiv retrieval stays behind an advanced disclosure for exact-query control, and legacy monitoring jobs remain managed in Runtime / Agent Jobs.

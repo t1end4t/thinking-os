@@ -155,12 +155,13 @@ export async function retrieveScoutCandidates(brief, { fetchImpl = fetch, now = 
   const attempts = [];
   const limitations = [];
   const candidates = [];
+  const subject = brief.question ?? brief.topic;
   const searchDirections = brief.searchDirections.slice(0, MAX_LEXICAL_LANES);
   if (brief.searchDirections.length > searchDirections.length) limitations.push(`Only the first ${MAX_LEXICAL_LANES} search directions were executed within the initial provider budget.`);
   const lanes = [
     ...searchDirections.map(direction => ({ provider: 'OpenAlex', lane: 'lexical', query: direction.query, parameter: 'search' })),
-    { provider: 'OpenAlex', lane: 'semantic', query: brief.question, parameter: 'search.semantic' },
-    { provider: 'arXiv', lane: 'recent-preprint', query: brief.searchDirections[0]?.query ?? brief.question }
+    { provider: 'OpenAlex', lane: 'semantic', query: subject, parameter: 'search.semantic' },
+    { provider: 'arXiv', lane: 'recent-preprint', query: brief.searchDirections[0]?.query ?? subject }
   ];
   let previousOpenAlexAt = 0;
   for (const lane of lanes) {
@@ -168,8 +169,9 @@ export async function retrieveScoutCandidates(brief, { fetchImpl = fetch, now = 
     let attemptCount = 1;
     try {
       if (lane.provider === 'OpenAlex' && previousOpenAlexAt) await sleep(1000, signal);
+      const recentFilter = brief.recencyPolicy === 'recent' ? `${new Date(now()).getUTCFullYear() - 2}-01-01` : undefined;
       const url = lane.provider === 'OpenAlex'
-        ? new URL(`https://api.openalex.org/works?${new URLSearchParams({ [lane.parameter]: lane.query, 'per-page': String(budget.perLane) })}`)
+        ? new URL(`https://api.openalex.org/works?${new URLSearchParams({ [lane.parameter]: lane.query, 'per-page': String(budget.perLane), ...(recentFilter ? { filter: `from_publication_date:${recentFilter}` } : {}) })}`)
         : new URL(`https://export.arxiv.org/api/query?${new URLSearchParams({ search_query: `all:"${lane.query}"`, start: '0', max_results: String(budget.perLane), sortBy: 'submittedDate', sortOrder: 'descending' })}`);
       const { response, attempt } = await request(url, `${lane.provider} ${lane.lane}`, { fetchImpl, signal, sleep });
       attemptCount = attempt;

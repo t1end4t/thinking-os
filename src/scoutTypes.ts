@@ -46,6 +46,8 @@ export type TopicWatchInput = {
   readonly exclusions: readonly string[];
   readonly searchDirections: readonly ScoutSearchDirection[];
   readonly qualityPolicy: readonly string[];
+  readonly recencyPolicy: 'recent' | 'mixed' | 'foundational-gap';
+  readonly qualityThreshold: ScoutQualityConfidence;
   readonly schedule: {
     readonly cadence: 'daily' | 'manual';
     readonly localTime: string;
@@ -55,6 +57,7 @@ export type TopicWatchInput = {
   readonly maxRecommendations: number;
   readonly providerBudget: number;
   readonly knownPaperIds: readonly string[];
+  readonly createdFrom: ScoutSourceContext;
   readonly author: ScoutAuthor;
 };
 

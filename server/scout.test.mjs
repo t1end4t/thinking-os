@@ -29,8 +29,10 @@ const briefInput = {
 const watchInput = {
   name: 'Tiny training', topic: 'On-device neural-network training', purpose: 'Track methods worth reproducing.',
   scope: ['Microcontrollers'], exclusions: [], searchDirections: briefInput.searchDirections,
-  qualityPolicy: ['Observable evaluation'], schedule: { cadence: 'daily', localTime: '09:00', timeZone: 'Asia/Ho_Chi_Minh' },
-  enabled: true, maxRecommendations: 3, providerBudget: 30, knownPaperIds: [], author: 'user'
+  qualityPolicy: ['Observable evaluation'], recencyPolicy: 'mixed', qualityThreshold: 'medium',
+  schedule: { cadence: 'daily', localTime: '09:00', timeZone: 'Asia/Ho_Chi_Minh' },
+  enabled: true, maxRecommendations: 3, providerBudget: 30, knownPaperIds: [],
+  createdFrom: { kind: 'user', reference: 'test watch' }, author: 'user'
 };
 
 test('briefs, watches, runs, and reports round-trip without deleting history', async () => {
@@ -224,6 +226,61 @@ test('active manual runs can be cancelled without later completing', async conte
   assert.equal((await post({ action: 'cancel-run', id: started.run.id })).status, 202);
   const { snapshot } = await waitForRun(endpoint, origin, started.run.id, 'cancelled');
   assert.equal(snapshot.reports.length, 0);
+});
+
+test('topic watch reruns omit candidates already surfaced by the same watch', async context => {
+  const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-scout-watch-repeat-'));
+  const server = createServer();
+  const candidate = { id: 'candidate-repeat', title: 'Repeated paper', authors: 'Ada Author', year: 2026,
+    identities: [{ kind: 'doi', value: '10.1000/repeat', source: 'OpenAlex', canonical: true }], matchingQueries: ['query'], sources: ['OpenAlex'],
+    provenance: [{ provider: 'OpenAlex', lane: 'lexical', query: 'query', retrievedAt: 2 }], metadataConflicts: [], limitations: [], assessmentState: 'unscreened' };
+  scoutPlugin({ now: (() => { let value = Date.parse('2026-09-21T00:00:00Z'); return () => ++value; })(), retrieve: async () => ({
+    candidates: [candidate], attempts: [{ provider: 'OpenAlex', lane: 'lexical', query: 'query', status: 'completed', attempts: 1, resultCount: 1, startedAt: 1, completedAt: 2, truncated: false }],
+    limitations: [], partial: false, executedQueries: ['query']
+  }), screen: async () => ({ assessed: [{ ...candidate, relevance: 'direct', evidenceExcerpt: candidate.title,
+    relevanceAssessment: 'Direct.', expectedValue: 'Useful.', qualityConfidence: 'medium', qualityEvidence: [candidate.title], limitations: [],
+    outcome: 'recommend', recommendationReason: 'Useful.', coverageTags: ['method'], suggestedNextAction: 'save', assessmentState: 'screened' }],
+    unscreened: [], failures: [], model: 'fixture', instructionsVersion: 'fixture-v1' })
+  }).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  context.after(async () => { server.closeAllConnections(); server.close(); await rm(root, { recursive: true, force: true }); });
+  const endpoint = `http://127.0.0.1:${server.address().port}/api/scouts?${new URLSearchParams({ dir: root })}`;
+  const origin = new URL(endpoint).origin;
+  const post = body => fetch(endpoint, { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const created = await (await post({ action: 'save-watch', watch: { ...watchInput, schedule: { ...watchInput.schedule, cadence: 'manual' }, enabled: false } })).json();
+  const first = await (await post({ action: 'start-run', kind: 'watch', id: created.watch.id })).json();
+  await waitForRun(endpoint, origin, first.run.id, 'completed');
+  const second = await (await post({ action: 'start-run', kind: 'watch', id: created.watch.id })).json();
+  const { snapshot } = await waitForRun(endpoint, origin, second.run.id, 'completed');
+  const secondReport = snapshot.reports.find(report => report.id === second.run.id);
+  assert.equal(secondReport.recommendations.length, 0);
+  assert.match(secondReport.limitations.join(' '), /previously surfaced candidate/);
+});
+
+test('daily watch scheduling performs one catch-up run and advances to the next future slot', async context => {
+  const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-scout-watch-schedule-'));
+  const server = createServer();
+  let clock = Date.parse('2026-09-21T00:00:00Z');
+  scoutPlugin({ now: () => clock, intervalMs: 5, retrieve: async () => ({ candidates: [], attempts: [], limitations: [], partial: false, executedQueries: ['query'] }),
+    screen: async () => ({ assessed: [], unscreened: [], failures: [], model: 'fixture', instructionsVersion: 'fixture-v1' })
+  }).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  context.after(async () => { server.closeAllConnections(); server.close(); await rm(root, { recursive: true, force: true }); });
+  const endpoint = `http://127.0.0.1:${server.address().port}/api/scouts?${new URLSearchParams({ dir: root })}`;
+  const origin = new URL(endpoint).origin;
+  const created = await (await fetch(endpoint, { method: 'POST', headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'save-watch', watch: watchInput }) })).json();
+  clock = created.watch.nextRunAt + 3 * 24 * 60 * 60 * 1000;
+  let snapshot;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    snapshot = await (await fetch(endpoint, { headers: { origin } })).json();
+    if (snapshot.runs.some(run => run.source.kind === 'watch' && run.state === 'completed')) break;
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  assert.equal(snapshot.runs.filter(run => run.source.kind === 'watch').length, 1);
+  assert.ok(snapshot.watches[0].nextRunAt > clock);
 });
 
 test('candidate decisions and deeper-inspection requests persist in reports', async context => {

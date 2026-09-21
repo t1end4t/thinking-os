@@ -28,6 +28,11 @@ const texts = (value, name, maximum = 32) => {
   return value.map((item, index) => text(item, `${name}[${index}]`, 1000));
 };
 const optional = (value, parse) => value === undefined ? undefined : parse(value);
+const literal = (value, values, fallback, name) => {
+  const candidate = value === undefined ? fallback : value;
+  if (!values.includes(candidate)) throw new Error(`Invalid ${name}.`);
+  return candidate;
+};
 
 function author(value) {
   const parsed = text(value, 'author', 120);
@@ -64,13 +69,19 @@ export function parseScoutBrief(value) {
 export function parseTopicWatchInput(value) {
   const input = object(value, 'watch');
   const schedule = object(input.schedule, 'schedule');
+  const createdFrom = input.createdFrom === undefined ? { kind: 'imported', reference: 'legacy topic watch' } : object(input.createdFrom, 'createdFrom');
+  if (!['user', 'assistant', 'imported'].includes(createdFrom.kind)) throw new Error('Invalid createdFrom.kind.');
   if (!['daily', 'manual'].includes(schedule.cadence) || !TIME.test(schedule.localTime) || typeof input.enabled !== 'boolean') throw new Error('Invalid watch schedule.');
   return {
     name: text(input.name, 'name', 200), topic: text(input.topic, 'topic', 8000), purpose: text(input.purpose, 'purpose', 8000),
     scope: texts(input.scope, 'scope'), exclusions: texts(input.exclusions, 'exclusions'), searchDirections: directions(input.searchDirections),
-    qualityPolicy: texts(input.qualityPolicy, 'qualityPolicy'), schedule: { cadence: schedule.cadence, localTime: schedule.localTime, timeZone: text(schedule.timeZone, 'timeZone', 100) },
+    qualityPolicy: texts(input.qualityPolicy, 'qualityPolicy'),
+    recencyPolicy: literal(input.recencyPolicy, ['recent', 'mixed', 'foundational-gap'], 'mixed', 'recencyPolicy'),
+    qualityThreshold: literal(input.qualityThreshold, ['high', 'medium', 'low'], 'medium', 'qualityThreshold'),
+    schedule: { cadence: schedule.cadence, localTime: schedule.localTime, timeZone: text(schedule.timeZone, 'timeZone', 100) },
     enabled: input.enabled, maxRecommendations: integer(input.maxRecommendations, 'maxRecommendations', 1, 3),
-    providerBudget: integer(input.providerBudget, 'providerBudget', 1, 1000), knownPaperIds: texts(input.knownPaperIds, 'knownPaperIds', 1000), author: author(input.author)
+    providerBudget: integer(input.providerBudget, 'providerBudget', 1, 1000), knownPaperIds: texts(input.knownPaperIds, 'knownPaperIds', 1000),
+    createdFrom: { kind: createdFrom.kind, reference: text(createdFrom.reference, 'createdFrom.reference', 500) }, author: author(input.author)
   };
 }
 

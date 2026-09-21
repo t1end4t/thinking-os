@@ -17,7 +17,7 @@ const dismissalReasons: readonly { readonly value: ScoutDismissalReason; readonl
 ];
 
 function reportLabel(report: ScoutReport): string {
-  return 'question' in report.inputSnapshot ? report.inputSnapshot.question : report.inputSnapshot.topic;
+  return 'question' in report.inputSnapshot ? report.inputSnapshot.question : report.inputSnapshot.name;
 }
 
 function paperData(candidate: ScoutCandidate, context: PaperDiscoveryContext): Omit<Paper, 'id'> {
@@ -184,12 +184,12 @@ export function ScoutReportsPanel() {
       <aside className="scout-report-history" aria-label="Scout report history">
         <div className="scout-report-history-heading"><span><History size={14} />Reports</span><button type="button" onClick={() => void scouts.refresh()} aria-label="Refresh scout reports"><RefreshCw size={13} /></button></div>
         {reports.map(item => <button key={item.id} type="button" aria-current={item.id === report?.id} onClick={() => { setSelectedReportId(item.id); setCompareIds([]); }}>
-          <strong>{reportLabel(item)}</strong><span>{new Date(item.createdAt).toLocaleString()} · {item.recommendations.length} recommended</span>
+          <strong>{reportLabel(item)}</strong><span>{item.source.kind === 'watch' ? 'Daily digest · ' : ''}{new Date(item.createdAt).toLocaleString()} · {item.recommendations.length} recommended</span>
         </button>)}
       </aside>
       {report && <div className="scout-report-main">
         <header className="scout-report-header">
-          <div><span className="scout-report-kicker">{report.status} · {report.screening.model}</span><h3>{reportLabel(report)}</h3><p>{report.summary}</p></div>
+          <div><span className="scout-report-kicker">{report.source.kind === 'watch' ? 'Topic watch digest · ' : ''}{report.status} · {report.screening.model}</span><h3>{reportLabel(report)}</h3><p>{report.summary}</p></div>
           <button type="button" className="survey-btn" disabled={compared.length < 2} onClick={() => compareDialog.current?.showModal()}><Scale size={12} />Compare selected ({compared.length})</button>
         </header>
         {run && <div className="scout-run-strip" aria-label="Scout run summary">

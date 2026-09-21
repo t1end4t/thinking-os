@@ -3,8 +3,8 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLiterature } from '../../context/useLiterature';
 import { sameDiscoveryPaper } from '../../literatureClient';
 import type { DiscoveryPaper } from '../../literatureTypes';
-import { LiteratureJobForm } from '../runtime/AgentJobsView';
 import { ScoutReportsPanel } from './ScoutReportsPanel';
+import { TopicWatchesPanel } from './TopicWatchesPanel';
 import {
   Search,
   Sparkles,
@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
-  Clock,
   Tag,
   X,
   FilePlus2,
@@ -84,7 +83,6 @@ export function DiscoveryView() {
   const [activeScope, setActiveScope] = useState<'all' | 'search' | 'unvaulted' | 'vaulted'>('all');
   const [sortBy, setSortBy] = useState<'year-desc' | 'year-asc' | 'title'>('year-desc');
 
-  const [scheduling, setScheduling] = useState(false);
   const [selectedPaperForProblem, setSelectedPaperForProblem] = useState<DiscoveryPaper | null>(null);
   const [problemObservationText, setProblemObservationText] = useState('');
   const [notice, setNotice] = useState('');
@@ -245,12 +243,13 @@ export function DiscoveryView() {
   return (
     <div className="discovery-surface">
       <div className="discovery-container">
+        <TopicWatchesPanel />
         <ScoutReportsPanel />
         <section className="discovery-mission" aria-labelledby="discovery-mission-title">
           <div>
-            <span className="discovery-section-index">Discover</span>
-            <h2 id="discovery-mission-title">Describe the research question.</h2>
-            <p>Include the mechanism, population, constraint, comparison, or evidence gap. Paper Scout formulates retrieval queries; you judge relevance and quality.</p>
+            <span className="discovery-section-index">Consolidated workflow</span>
+            <h2 id="discovery-mission-title">Use screened scouts before raw search.</h2>
+            <p>Discuss the question in the assistant, review its editable scout brief, then run it for an explained shortlist. Direct metadata retrieval remains available below for exact-query control.</p>
           </div>
         </section>
 
@@ -279,8 +278,13 @@ export function DiscoveryView() {
           </div>
         )}
 
-        {/* 1. Google Scholar AI Mode Search Section */}
-        <section className="scholar-search-card" aria-label="Academic Literature Search">
+        <details className="legacy-retrieval">
+          <summary>
+            <span><Search size={14} aria-hidden="true" />Advanced direct retrieval</span>
+            <small>Unscreened Crossref and arXiv metadata</small>
+          </summary>
+          <p className="legacy-retrieval-note">Use this fallback when you need exact query control. Results are cached candidates, not Paper Scout recommendations. Existing monitoring jobs remain in Runtime / Agent Jobs.</p>
+          <section className="scholar-search-card" aria-label="Advanced direct literature retrieval">
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -324,7 +328,7 @@ export function DiscoveryView() {
                 ) : (
                   <>
                     <Sparkles size={13} />
-                    <span>Scout papers</span>
+                    <span>Search metadata</span>
                   </>
                 )}
               </button>
@@ -366,15 +370,6 @@ export function DiscoveryView() {
 
               <button
                 type="button"
-                onClick={() => setScheduling(true)}
-                className="inline-flex items-center gap-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
-              >
-                <Clock size={12} />
-                <span>Schedule job</span>
-              </button>
-
-              <button
-                type="button"
                 disabled={busy}
                 onClick={() => void literature.refresh()}
                 className="inline-flex items-center gap-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
@@ -385,11 +380,10 @@ export function DiscoveryView() {
               </button>
             </div>
           </div>
-        </section>
+          </section>
 
-        {/* 2. AI Synthesis & Query Strategy Banner (Visible after search or when queries exist) */}
-        {(lastSearchedPrompt || literature.searchQueries.length > 0) && (
-          <details className="scholar-ai-banner animate-in fade-in" aria-label="Search strategy">
+          {(lastSearchedPrompt || literature.searchQueries.length > 0) && (
+            <details className="scholar-ai-banner animate-in fade-in" aria-label="Search strategy">
             <summary>
               <span>Search strategy</span>
               <strong>{literature.searchQueries.length} queries · {literature.searchResults.length} candidates</strong>
@@ -437,8 +431,9 @@ export function DiscoveryView() {
                 </button>
               ))}
             </div>
-          </details>
-        )}
+            </details>
+          )}
+        </details>
 
         {/* 3. Integrated Paper Catalog Section */}
         <section className="literature-inbox flex flex-col gap-3" aria-labelledby="literature-inbox-heading">
@@ -711,27 +706,6 @@ export function DiscoveryView() {
         </div>
       )}
 
-      {/* Monitoring Job Setup Modal */}
-      {scheduling && (
-        <LiteratureJobForm
-          initial={{
-            brief: lastSearchedPrompt || searchPrompt || 'Literature monitoring',
-            queries: literature.searchQueries.length > 0 ? literature.searchQueries : ['kv cache quantization', 'attention sparsity'],
-            expand
-          }}
-          scheduler={literature.snapshot?.scheduler}
-          busy={busy}
-          error={literature.error}
-          onClose={() => setScheduling(false)}
-          onSave={async input => {
-            const saved = await literature.createJob(input);
-            if (saved) {
-              setNotice('Daily monitoring job created successfully. Check Runtime / Agent Jobs.');
-            }
-            return saved;
-          }}
-        />
-      )}
     </div>
   );
 }

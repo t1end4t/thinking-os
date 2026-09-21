@@ -17,6 +17,15 @@ const BRIEF_PROPERTIES = {
   sourceReference: { type: 'string', description: 'A short reference to the assistant discussion that produced this brief.' }
 };
 const BRIEF_REQUIRED = ['question', 'purpose', 'scope', 'exclusions', 'constraints', 'searchDirections', 'screeningCriteria', 'maxRecommendations'];
+const WATCH_PROPERTIES = {
+  name: { type: 'string' }, topic: { type: 'string' }, purpose: { type: 'string' },
+  scope: { type: 'array', items: { type: 'string' } }, exclusions: { type: 'array', items: { type: 'string' } },
+  searchDirections: BRIEF_PROPERTIES.searchDirections, qualityPolicy: { type: 'array', items: { type: 'string' } },
+  cadence: { type: 'string', enum: ['daily', 'manual'] }, localTime: { type: 'string' }, timeZone: { type: 'string' },
+  recencyPolicy: { type: 'string', enum: ['recent', 'mixed', 'foundational-gap'] }, qualityThreshold: { type: 'string', enum: ['high', 'medium', 'low'] },
+  maxRecommendations: { type: 'integer', minimum: 1, maximum: 3 }, enabled: { type: 'boolean' }, sourceReference: BRIEF_PROPERTIES.sourceReference
+};
+const WATCH_REQUIRED = ['name', 'topic', 'purpose', 'scope', 'exclusions', 'searchDirections', 'qualityPolicy', 'cadence', 'localTime', 'timeZone', 'recencyPolicy', 'qualityThreshold', 'maxRecommendations', 'enabled'];
 const TOOLS = [
   {
     name: 'propose_scout_brief',
@@ -49,6 +58,16 @@ const TOOLS = [
     name: 'open_scout_report',
     description: 'Return the scout card for a completed report so the user can open the durable Discovery report.',
     inputSchema: { type: 'object', additionalProperties: false, required: ['reportId'], properties: { reportId: { type: 'string' } } }
+  },
+  {
+    name: 'propose_topic_watch',
+    description: 'Create a durable topic watch. Enabling it grants standing permission for local daily runs within the saved scope.',
+    inputSchema: { type: 'object', additionalProperties: false, required: WATCH_REQUIRED, properties: WATCH_PROPERTIES }
+  },
+  {
+    name: 'revise_topic_watch',
+    description: 'Replace the editable definition and schedule of an existing topic watch.',
+    inputSchema: { type: 'object', additionalProperties: false, required: ['watchId', ...WATCH_REQUIRED], properties: { watchId: { type: 'string' }, ...WATCH_PROPERTIES } }
   }
 ];
 
@@ -62,6 +81,19 @@ function briefInput(argumentsValue) {
   return {
     question: input.question, purpose: input.purpose, scope: input.scope, exclusions: input.exclusions, constraints: input.constraints,
     searchDirections: input.searchDirections, screeningCriteria: input.screeningCriteria, maxRecommendations: input.maxRecommendations,
+    createdFrom: { kind: 'assistant', reference: typeof input.sourceReference === 'string' && input.sourceReference.trim() ? input.sourceReference.trim() : 'assistant discussion' },
+    author: 'model:assistant'
+  };
+}
+
+function watchInput(argumentsValue) {
+  const input = object(argumentsValue, 'arguments');
+  return {
+    name: input.name, topic: input.topic, purpose: input.purpose, scope: input.scope, exclusions: input.exclusions,
+    searchDirections: input.searchDirections, qualityPolicy: input.qualityPolicy,
+    schedule: { cadence: input.cadence, localTime: input.localTime, timeZone: input.timeZone }, enabled: input.enabled,
+    recencyPolicy: input.recencyPolicy, qualityThreshold: input.qualityThreshold, maxRecommendations: input.maxRecommendations,
+    providerBudget: 30, knownPaperIds: [],
     createdFrom: { kind: 'assistant', reference: typeof input.sourceReference === 'string' && input.sourceReference.trim() ? input.sourceReference.trim() : 'assistant discussion' },
     author: 'model:assistant'
   };
@@ -93,6 +125,11 @@ function toolResult(brief, run, report, message) {
 
 export async function callScoutTool(root, origin, name, argumentsValue, request = fetch) {
   const input = object(argumentsValue, 'arguments');
+  if (name === 'propose_topic_watch' || name === 'revise_topic_watch') {
+    const result = await api(origin, root, { action: 'save-watch', ...(name === 'revise_topic_watch' ? { id: input.watchId } : {}), watch: watchInput(input) }, request);
+    return { content: [{ type: 'text', text: `Topic watch ${result.watch.name} was saved ${result.watch.enabled ? 'and scheduled' : 'in a paused state'}. Manage it in Discovery.` }],
+      structuredContent: { kind: 'topic-watch', watchId: result.watch.id } };
+  }
   if (name === 'propose_scout_brief') {
     const result = await api(origin, root, { action: 'save-brief', brief: briefInput(input) }, request);
     return toolResult(result.brief);
@@ -126,7 +163,7 @@ export async function handleScoutMcpMessage(root, origin, message, request = fet
   if (!message || message.jsonrpc !== '2.0') return errorResponse(message?.id ?? null, -32600, 'Invalid JSON-RPC request.');
   if (message.method === 'notifications/initialized') return null;
   if (message.method === 'initialize') return response(message.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER_INFO,
-    instructions: 'Create or revise scout briefs only. Never claim a run started; the user must use the visible Run scout action.' });
+    instructions: 'Create or revise scout briefs and topic watches only. Never claim a manual brief run started; the user must use the visible Run scout action.' });
   if (message.method === 'tools/list') return response(message.id, { tools: TOOLS });
   if (message.method === 'tools/call') {
     try {

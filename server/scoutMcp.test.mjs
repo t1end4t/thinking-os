@@ -9,6 +9,13 @@ const brief = {
   screeningCriteria: ['Must discuss training'], maxRecommendations: 5,
   createdFrom: { kind: 'assistant', reference: 'assistant discussion' }, author: 'model:assistant', createdAt: 1, updatedAt: 1
 };
+const watch = {
+  id: 'topic-watch-test', name: 'TinyML training', topic: 'TinyML on-device training', purpose: 'Track useful training methods.',
+  scope: ['Microcontrollers'], exclusions: ['Inference only'], searchDirections: [{ query: 'TinyML on-device training', reason: 'Direct terminology' }],
+  qualityPolicy: ['Medium confidence'], recencyPolicy: 'mixed', qualityThreshold: 'medium', schedule: { cadence: 'daily', localTime: '08:00', timeZone: 'Asia/Ho_Chi_Minh' },
+  enabled: true, maxRecommendations: 3, providerBudget: 30, knownPaperIds: [], createdFrom: { kind: 'assistant', reference: 'assistant discussion' },
+  author: 'model:assistant', createdAt: 1, updatedAt: 1
+};
 
 function fixture() {
   const calls = [];
@@ -20,6 +27,11 @@ function fixture() {
       const saved = { ...body.brief, id: body.id ?? brief.id, createdAt: 1, updatedAt: 2 };
       state = { ...state, briefs: [...state.briefs.filter(item => item.id !== saved.id), saved] };
       return new Response(JSON.stringify({ brief: saved }), { status: body.id ? 200 : 201, headers: { 'content-type': 'application/json' } });
+    }
+    if (body?.action === 'save-watch') {
+      const saved = { ...body.watch, id: body.id ?? watch.id, createdAt: 1, updatedAt: 2 };
+      state = { ...state, watches: [...state.watches.filter(item => item.id !== saved.id), saved] };
+      return new Response(JSON.stringify({ watch: saved }), { status: body.id ? 200 : 201, headers: { 'content-type': 'application/json' } });
     }
     if (body?.action === 'cancel-run') {
       state = { ...state, runs: state.runs.map(run => run.id === body.id ? { ...run, state: 'cancelling' } : run) };
@@ -34,7 +46,8 @@ test('scout MCP exposes narrow tools and keeps run start behind the visible card
   const harness = fixture();
   const listed = await handleScoutMcpMessage('/vault', 'http://127.0.0.1:3000', { jsonrpc: '2.0', id: 1, method: 'tools/list' }, harness.request);
   assert.deepEqual(listed.result.tools.map(tool => tool.name), [
-    'propose_scout_brief', 'revise_scout_brief', 'start_scout_run', 'get_scout_run', 'cancel_scout_run', 'open_scout_report'
+    'propose_scout_brief', 'revise_scout_brief', 'start_scout_run', 'get_scout_run', 'cancel_scout_run', 'open_scout_report',
+    'propose_topic_watch', 'revise_topic_watch'
   ]);
 
   const proposed = await callScoutTool('/vault', 'http://127.0.0.1:3000', 'propose_scout_brief', brief, harness.request);
@@ -46,6 +59,16 @@ test('scout MCP exposes narrow tools and keeps run start behind the visible card
   const prepared = await callScoutTool('/vault', 'http://127.0.0.1:3000', 'start_scout_run', { briefId: brief.id }, harness.request);
   assert.match(prepared.content[0].text, /must press Run scout/);
   assert.deepEqual(harness.calls.slice(callCount), [{ action: 'load' }], 'model tool must not start retrieval');
+});
+
+test('scout MCP creates an explicitly enabled topic watch', async () => {
+  const harness = fixture();
+  const result = await callScoutTool('/vault', 'http://127.0.0.1:3000', 'propose_topic_watch', {
+    ...watch, cadence: watch.schedule.cadence, localTime: watch.schedule.localTime, timeZone: watch.schedule.timeZone, sourceReference: 'daily monitoring request'
+  }, harness.request);
+  assert.deepEqual(result.structuredContent, { kind: 'topic-watch', watchId: watch.id });
+  assert.equal(harness.calls[0].watch.enabled, true);
+  assert.equal(harness.calls[0].watch.createdFrom.reference, 'daily monitoring request');
 });
 
 test('scout MCP inspects and cancels the active run through the local endpoint', async () => {

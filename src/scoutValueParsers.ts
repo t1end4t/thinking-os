@@ -111,6 +111,8 @@ export function parseWatch(value: unknown): TopicWatch {
     exclusions: texts(item.exclusions, 'watch.exclusions'),
     searchDirections: list(item.searchDirections, 'watch.searchDirections', parseDirection),
     qualityPolicy: texts(item.qualityPolicy, 'watch.qualityPolicy'),
+    recencyPolicy: item.recencyPolicy === undefined ? 'mixed' : literal(item.recencyPolicy, ['recent', 'mixed', 'foundational-gap'] as const, 'watch recency policy'),
+    qualityThreshold: item.qualityThreshold === undefined ? 'medium' : literal(item.qualityThreshold, ['high', 'medium', 'low'] as const, 'watch quality threshold'),
     schedule: {
       cadence: literal(schedule.cadence, ['daily', 'manual'] as const, 'watch cadence'),
       localTime: identifier(schedule.localTime, 'watch.schedule.localTime'),
@@ -120,6 +122,7 @@ export function parseWatch(value: unknown): TopicWatch {
     maxRecommendations: integer(item.maxRecommendations, 'watch.maxRecommendations'),
     providerBudget: integer(item.providerBudget, 'watch.providerBudget'),
     knownPaperIds: texts(item.knownPaperIds, 'watch.knownPaperIds'),
+    createdFrom: item.createdFrom === undefined ? { kind: 'imported', reference: 'legacy topic watch' } : parseSourceContext(item.createdFrom),
     author: parseAuthor(item.author),
     createdAt: number(item.createdAt, 'watch.createdAt'),
     updatedAt: number(item.updatedAt, 'watch.updatedAt'),

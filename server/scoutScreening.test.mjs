@@ -92,6 +92,17 @@ test('assembly does not fill the shortlist with redundant coverage', async () =>
   assert.equal(report.rejectionCounts['redundant-or-shortlist-budget'], 1);
 });
 
+test('topic watch quality threshold moves low-confidence recommendations to uncertain', () => {
+  const lowConfidence = { ...candidates[0], ...assessment(candidates[0], { qualityConfidence: 'low' }), assessmentState: 'screened' };
+  const watch = { ...brief, name: 'Daily TinyML', topic: brief.question, qualityThreshold: 'medium', maxRecommendations: 3 };
+  const report = assembleScoutReport({ brief: watch, source: { kind: 'watch', id: 'topic-watch-quality' }, runId: 'scout-run-quality',
+    retrieval: { attempts: [], executedQueries: ['query'], limitations: [], partial: false },
+    screening: { assessed: [lowConfidence], unscreened: [], failures: [], model: 'fixture', instructionsVersion: 'v1' }, createdAt: 10 });
+  assert.equal(report.recommendations.length, 0);
+  assert.deepEqual(report.uncertain.map(item => item.id), [lowConfidence.id]);
+  assert.deepEqual(report.rejectionCounts, {});
+});
+
 test('screening cancellation aborts without repair', async () => {
   const controller = new AbortController();
   const promise = screenScoutCandidates(brief, [candidates[0]], { signal: controller.signal, screenBatch: async (_brief, _batch, { signal }) => new Promise((resolve, reject) => {

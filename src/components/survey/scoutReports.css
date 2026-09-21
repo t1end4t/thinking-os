@@ -1,10 +1,29 @@
 .scout-report-empty,
-.scout-report-workbench {
+.scout-report-workbench,
+.topic-watches {
   margin-bottom: 20px;
   border: 1px solid var(--color-rule);
   border-radius: 12px;
   background: var(--color-surface);
 }
+
+.topic-watches { padding: 14px; }
+.topic-watches > header, .topic-watch-card, .topic-watch-actions, .topic-watch-dialog-heading, .topic-watch-fields { display: flex; gap: 10px; }
+.topic-watches > header, .topic-watch-card { align-items: flex-start; justify-content: space-between; }
+.topic-watches h2, .topic-watches h3, .topic-watches p { margin: 0; }
+.topic-watches > header p, .topic-watch-card p, .topic-watch-card small { color: var(--color-ink-muted); font-size: 0.75rem; }
+.topic-watch-list { display: grid; gap: 8px; margin-top: 12px; }
+.topic-watch-card { padding: 10px; border: 1px solid var(--color-rule); border-radius: 8px; background: var(--color-paper); }
+.topic-watch-card > div:first-child { display: grid; min-width: 0; gap: 4px; }
+.topic-watch-state { color: var(--accent-amber); font: 600 0.625rem var(--font-mono, monospace); text-transform: uppercase; }
+.topic-watch-actions { flex-wrap: wrap; justify-content: flex-end; }
+.topic-watch-empty { display: flex; align-items: center; gap: 7px; padding: 10px; border: 1px dashed var(--color-rule); border-radius: 8px; }
+.topic-watch-dialog { width: min(680px, calc(100vw - 24px)); }
+.topic-watch-dialog form { max-height: calc(100vh - 24px); overflow-y: auto; }
+.topic-watch-dialog-heading { align-items: center; justify-content: space-between; }
+.topic-watch-dialog-heading button { border: 0; color: var(--color-ink-muted); background: transparent; }
+.topic-watch-dialog input, .topic-watch-dialog select { border: 1px solid var(--color-rule); border-radius: 6px; padding: 7px 9px; color: var(--color-ink); background: var(--color-paper); font: inherit; }
+.topic-watch-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .scout-report-empty {
   padding: 14px 16px;
@@ -433,6 +452,9 @@
 }
 
 @media (max-width: 620px) {
+  .topic-watches > header, .topic-watch-card { align-items: stretch; flex-direction: column; }
+  .topic-watch-actions { justify-content: flex-start; }
+  .topic-watch-fields { grid-template-columns: minmax(0, 1fr); }
   .scout-report-main {
     padding: 10px;
   }

@@ -41,7 +41,7 @@ Use research-work language. Do not present yourself as a coding agent or narrate
 const SCOUT_MCP_PATH = fileURLToPath(new URL('./scoutMcp.mjs', import.meta.url));
 const SCOUT_INSTRUCTIONS = `
 
-For problem-driven paper scouting, use the thinking_os_scout tools to create or revise a durable scout brief. Do not create scouting files with shell commands. Do not claim that retrieval started after proposing a brief. The user must review the visible brief card and press Run scout before any external search begins. Keep the final chat response concise because the brief, progress, and durable report have dedicated surfaces.`;
+For problem-driven paper scouting, use the thinking_os_scout tools to create or revise a durable scout brief. Do not create scouting files with shell commands. Do not claim that retrieval started after proposing a brief. The user must review the visible brief card and press Run scout before any external search begins. For durable monitoring requests, create or revise a topic watch; enable daily scheduling only when the user explicitly requests recurring runs. Keep the final chat response concise because briefs, watches, progress, and durable reports have dedicated surfaces.`;
 
 function imageExtension(bytes) {
   if (bytes.length < 12) return;

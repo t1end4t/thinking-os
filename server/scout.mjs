@@ -1,6 +1,7 @@
+import { existsSync } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
 import { isLocalRequest } from './agent.mjs';
-import { resolveVaultDir, withVaultLock } from './vault.mjs';
+import { DEFAULT_VAULT, resolveVaultDir, withVaultLock } from './vault.mjs';
 import {
   deleteScoutBrief,
   deleteScoutReport,
@@ -11,9 +12,11 @@ import {
   saveScoutBrief,
   saveScoutRun,
   saveTopicWatch,
+  persistTopicWatch,
   updateScoutCandidate
 } from './scoutStore.mjs';
 import { validScoutId } from './scoutValidation.mjs';
+import { nextWatchRun } from './scoutSchedule.mjs';
 import { retrieveScoutCandidates } from './scoutRetrieval.mjs';
 import { assembleScoutReport, screenScoutCandidates } from './scoutScreening.mjs';
 
@@ -42,9 +45,17 @@ function send(response, status, payload) {
   response.end(JSON.stringify(payload));
 }
 
-export function scoutPlugin({ now = Date.now, retrieve = retrieveScoutCandidates, screen = screenScoutCandidates, assemble = assembleScoutReport } = {}) {
+const TERMINAL_STATES = new Set(['completed', 'partial', 'failed', 'cancelled', 'interrupted']);
+
+function candidateKeys(candidate) {
+  return new Set([candidate.id, ...candidate.identities.map(identity => `${identity.kind}:${identity.value.toLowerCase()}`)]);
+}
+
+export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = retrieveScoutCandidates, screen = screenScoutCandidates, assemble = assembleScoutReport } = {}) {
   const activeRuns = new Map();
   const initializedRoots = new Set();
+  const roots = new Set();
+  let timer;
 
   async function prepareRoot(raw) {
     const root = await resolveRoot(raw);
@@ -52,7 +63,21 @@ export function scoutPlugin({ now = Date.now, retrieve = retrieveScoutCandidates
       await withVaultLock(root, () => interruptScoutRuns(root, now()));
       initializedRoots.add(root);
     }
+    roots.add(root);
     return root;
+  }
+
+  async function removeRepeatedCandidates(root, run, screening) {
+    if (run.source.kind !== 'watch') return { screening, repeatCount: 0 };
+    const state = await withVaultLock(root, () => loadScoutState(root, now()));
+    const previous = state.reports.filter(report => report.source.kind === 'watch' && report.source.id === run.source.id && report.id !== run.id)
+      .flatMap(report => [...report.recommendations, ...report.uncertain]);
+    const seen = new Set(previous.flatMap(candidate => [...candidateKeys(candidate)]));
+    run.inputSnapshot.knownPaperIds.forEach(id => seen.add(id.toLowerCase()));
+    const repeated = candidate => [...candidateKeys(candidate)].some(key => seen.has(key) || seen.has(key.toLowerCase()));
+    const assessed = screening.assessed.filter(candidate => !repeated(candidate));
+    const unscreened = screening.unscreened.filter(candidate => !repeated(candidate));
+    return { screening: { ...screening, assessed, unscreened }, repeatCount: screening.assessed.length + screening.unscreened.length - assessed.length - unscreened.length };
   }
 
   async function executeRun(root, run, controller) {
@@ -80,7 +105,9 @@ export function scoutPlugin({ now = Date.now, retrieve = retrieveScoutCandidates
       const assembling = { ...checkpointRun, state: 'assembling', activeStage: 'assembling',
         counters: { ...checkpointRun.counters, screened: screening.assessed.length }, checkpoints: [...checkpointRun.checkpoints, 'screening-complete'], updatedAt: now() };
       await withVaultLock(root, () => saveScoutRun(root, assembling));
-      const report = assemble({ brief: run.inputSnapshot, source: run.source, runId: run.id, retrieval: result, screening, createdAt: now() });
+      const novelty = await removeRepeatedCandidates(root, run, screening);
+      const retrieval = novelty.repeatCount ? { ...result, limitations: [...result.limitations, `${novelty.repeatCount} previously surfaced candidate(s) were omitted for this watch.`] } : result;
+      const report = assemble({ brief: run.inputSnapshot, source: run.source, runId: run.id, retrieval, screening: novelty.screening, createdAt: now() });
       const finishedAt = now();
       await withVaultLock(root, async () => {
         if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
@@ -104,10 +131,55 @@ export function scoutPlugin({ now = Date.now, retrieve = retrieveScoutCandidates
     }
   }
 
+  async function createRun(root, kind, id) {
+    const key = `${root}:${kind}:${id}`;
+    if (activeRuns.has(key)) return 'active';
+    const run = await withVaultLock(root, async () => {
+      const state = await loadScoutState(root, now());
+      const source = kind === 'brief' ? state.briefs.find(item => item.id === id) : state.watches.find(item => item.id === id);
+      if (!source) return null;
+      if (state.runs.some(item => item.source.kind === kind && item.source.id === id && !TERMINAL_STATES.has(item.state))) return 'active';
+      const startedAt = now();
+      const created = { id: `scout-run-${crypto.randomUUID()}`, source: { kind, id }, inputSnapshot: source,
+        state: 'queued', activeStage: 'queued', executedQueries: [], providerAttempts: [],
+        counters: { retrieved: 0, normalized: 0, screened: 0 }, checkpoints: ['created'], startedAt, updatedAt: startedAt };
+      await saveScoutRun(root, created);
+      if (kind === 'watch') await persistTopicWatch(root, { ...source, lastRunAt: startedAt,
+        ...(source.enabled && source.schedule.cadence === 'daily'
+          ? { nextRunAt: nextWatchRun(source.schedule.localTime, source.schedule.timeZone, startedAt) }
+          : { nextRunAt: undefined }) });
+      return created;
+    });
+    if (!run || run === 'active') return run;
+    const controller = new AbortController();
+    activeRuns.set(key, controller);
+    void executeRun(root, run, controller);
+    return run;
+  }
+
+  async function tick() {
+    for (const root of roots) {
+      try {
+        const state = await withVaultLock(root, () => loadScoutState(root, now()));
+        for (const watch of state.watches.filter(item => item.enabled && item.schedule.cadence === 'daily' && item.nextRunAt !== undefined && item.nextRunAt <= now())) {
+          await createRun(root, 'watch', watch.id);
+        }
+      } catch (error) {
+        console.error('Scout scheduler:', error instanceof Error ? error.message : error);
+      }
+    }
+  }
+
   return {
     name: 'thinking-os-scouts',
     configureServer(server) {
-      server.httpServer?.once('close', () => activeRuns.forEach(controller => controller.abort(new DOMException('Server closed', 'AbortError'))));
+      if (existsSync(DEFAULT_VAULT)) void prepareRoot(DEFAULT_VAULT).catch(() => {});
+      timer = setInterval(() => void tick(), intervalMs);
+      timer.unref?.();
+      server.httpServer?.once('close', () => {
+        clearInterval(timer);
+        activeRuns.forEach(controller => controller.abort(new DOMException('Server closed', 'AbortError')));
+      });
       server.middlewares.use('/api/scouts', async (request, response) => {
         if (!isLocalRequest(request)) return send(response, 403, { error: 'Paper scouting requires a same-origin localhost connection.' });
         try {
@@ -139,26 +211,11 @@ export function scoutPlugin({ now = Date.now, retrieve = retrieveScoutCandidates
             return send(response, result.updated ? 200 : 201, { watch: result.watch });
           }
           if (input.action === 'start-run') {
-            if (!validScoutId(input.id)) throw new Error('Invalid scout brief id.');
-            const key = `${root}:brief:${input.id}`;
-            if (activeRuns.has(key)) return send(response, 409, { error: 'This scout brief already has an active run.' });
-            const run = await withVaultLock(root, async () => {
-              const state = await loadScoutState(root, now());
-              const brief = state.briefs.find(item => item.id === input.id);
-              if (!brief) return null;
-              if (state.runs.some(item => item.source.kind === 'brief' && item.source.id === brief.id && !['completed', 'partial', 'failed', 'cancelled', 'interrupted'].includes(item.state))) return 'active';
-              const startedAt = now();
-              const created = { id: `scout-run-${crypto.randomUUID()}`, source: { kind: 'brief', id: brief.id }, inputSnapshot: brief,
-                state: 'queued', activeStage: 'queued', executedQueries: [], providerAttempts: [],
-                counters: { retrieved: 0, normalized: 0, screened: 0 }, checkpoints: ['created'], startedAt, updatedAt: startedAt };
-              await saveScoutRun(root, created);
-              return created;
-            });
-            if (!run) return send(response, 404, { error: 'Scout brief not found.' });
-            if (run === 'active') return send(response, 409, { error: 'This scout brief already has an active run.' });
-            const controller = new AbortController();
-            activeRuns.set(key, controller);
-            void executeRun(root, run, controller);
+            if (!validScoutId(input.id)) throw new Error('Invalid scout source id.');
+            const kind = input.kind === 'watch' ? 'watch' : 'brief';
+            const run = await createRun(root, kind, input.id);
+            if (!run) return send(response, 404, { error: kind === 'watch' ? 'Topic watch not found.' : 'Scout brief not found.' });
+            if (run === 'active') return send(response, 409, { error: `This ${kind === 'watch' ? 'topic watch' : 'scout brief'} already has an active run.` });
             return send(response, 202, { run });
           }
           if (input.action === 'cancel-run') {
@@ -169,9 +226,10 @@ export function scoutPlugin({ now = Date.now, retrieve = retrieveScoutCandidates
             const key = `${root}:${run.source.kind}:${run.source.id}`;
             const controller = activeRuns.get(key);
             if (!controller) return send(response, 409, { error: 'Scout run is not active.' });
-            await withVaultLock(root, () => saveScoutRun(root, { ...run, state: 'cancelling', activeStage: run.activeStage, updatedAt: now() }));
+            const cancelling = { ...run, state: 'cancelling', activeStage: run.activeStage, updatedAt: now() };
+            await withVaultLock(root, () => saveScoutRun(root, cancelling));
             controller.abort(new DOMException('Cancelled', 'AbortError'));
-            return send(response, 202, { ok: true });
+            return send(response, 202, { run: cancelling });
           }
           if (input.action === 'decide-candidate') {
             if (!validScoutId(input.reportId) || !validScoutId(input.candidateId) || !['saved', 'dismissed'].includes(input.decision)) throw new Error('Invalid candidate decision.');

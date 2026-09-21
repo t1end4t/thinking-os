@@ -88,6 +88,12 @@ try {
   await page.waitForLoadState('networkidle');
   await openSurvey();
   await page.getByRole('heading', { name: /^Recommended/ }).waitFor();
+  const advancedRetrieval = page.locator('details.legacy-retrieval');
+  assert.equal(await advancedRetrieval.getAttribute('open'), null, 'advanced direct retrieval starts collapsed');
+  assert.equal(await page.getByRole('button', { name: 'Schedule job' }).count(), 0, 'Discovery does not duplicate legacy scheduling controls');
+  await advancedRetrieval.locator('summary').click();
+  await page.getByRole('button', { name: 'Search metadata' }).waitFor();
+  await advancedRetrieval.locator('summary').click();
   assert.match(await page.getByText('Rejection summary').locator('..').textContent(), /irrelevant: 1/);
   assert.match(await page.getByText('Run limitations').locator('..').textContent(), /arXiv was unavailable/);
 

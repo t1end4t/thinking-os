@@ -124,10 +124,10 @@ export async function screenScoutCandidates(brief, candidates, { batchSize = 6, 
   return { assessed, unscreened, failures, model: 'codex:9router', instructionsVersion: INSTRUCTIONS_VERSION };
 }
 
-function shortlist(candidates, maximum) {
+function shortlist(candidates, maximum, minimumConfidence = 'low') {
   const relevanceRank = { direct: 0, supporting: 1, background: 2, irrelevant: 3 };
   const confidenceRank = { high: 0, medium: 1, low: 2 };
-  const ordered = candidates.filter(candidate => candidate.outcome === 'recommend').sort((first, second) =>
+  const ordered = candidates.filter(candidate => candidate.outcome === 'recommend' && confidenceRank[candidate.qualityConfidence] <= confidenceRank[minimumConfidence]).sort((first, second) =>
     relevanceRank[first.relevance] - relevanceRank[second.relevance] || confidenceRank[first.qualityConfidence] - confidenceRank[second.qualityConfidence]);
   const selected = [];
   const covered = new Set();
@@ -142,15 +142,20 @@ function shortlist(candidates, maximum) {
 }
 
 export function assembleScoutReport({ brief, source, runId, retrieval, screening, createdAt }) {
-  const recommendations = shortlist(screening.assessed, brief.maxRecommendations);
-  const uncertain = [...screening.assessed.filter(candidate => candidate.outcome === 'uncertain'), ...screening.unscreened];
+  const minimumConfidence = source.kind === 'watch' ? brief.qualityThreshold : 'low';
+  const recommendations = shortlist(screening.assessed, brief.maxRecommendations, minimumConfidence);
+  const confidenceRank = { high: 0, medium: 1, low: 2 };
+  const belowThreshold = screening.assessed.filter(candidate => candidate.outcome === 'recommend' &&
+    confidenceRank[candidate.qualityConfidence] > confidenceRank[minimumConfidence]);
+  const uncertain = [...screening.assessed.filter(candidate => candidate.outcome === 'uncertain' ||
+    belowThreshold.includes(candidate)), ...screening.unscreened];
   const rejected = screening.assessed.filter(candidate => candidate.outcome === 'reject');
   const rejectionCounts = rejected.reduce((counts, candidate) => {
     const reason = candidate.relevance === 'irrelevant' ? 'irrelevant' : candidate.relevance === 'background' ? 'background' : 'insufficient-reading-value';
     counts[reason] = (counts[reason] ?? 0) + 1;
     return counts;
   }, {});
-  const omittedRecommendations = screening.assessed.filter(candidate => candidate.outcome === 'recommend' && !recommendations.includes(candidate)).length;
+  const omittedRecommendations = screening.assessed.filter(candidate => candidate.outcome === 'recommend' && !recommendations.includes(candidate) && !belowThreshold.includes(candidate)).length;
   if (omittedRecommendations) rejectionCounts['redundant-or-shortlist-budget'] = omittedRecommendations;
   const limitations = [...retrieval.limitations, ...screening.failures.map(failure => `Screening failed for ${failure.candidateIds.length} candidate(s): ${failure.error}`)];
   const partial = retrieval.partial || screening.failures.length > 0;

@@ -10,6 +10,7 @@ import {
   parseTopicWatchInput,
   validScoutId
 } from './scoutValidation.mjs';
+import { nextWatchRun, validateTimeZone } from './scoutSchedule.mjs';
 
 const BRIEFS = 'research/survey/scouting/briefs';
 const WATCHES = 'research/survey/scouting/watches';
@@ -86,12 +87,16 @@ export async function saveScoutBrief(root, input, previous, now = Date.now()) {
 
 export async function saveTopicWatch(root, input, previous, now = Date.now()) {
   const values = parseTopicWatchInput(input);
+  validateTimeZone(values.schedule.timeZone);
+  const scheduled = values.enabled && values.schedule.cadence === 'daily';
   return saveProseRecord(root, WATCHES, { ...values, id: previous?.id ?? `topic-watch-${crypto.randomUUID()}`,
     createdAt: previous?.createdAt ?? now, updatedAt: now,
     ...(previous?.lastRunAt === undefined ? {} : { lastRunAt: previous.lastRunAt }),
-    ...(previous?.nextRunAt === undefined ? {} : { nextRunAt: previous.nextRunAt }),
+    ...(scheduled ? { nextRunAt: nextWatchRun(values.schedule.localTime, values.schedule.timeZone, now) } : {}),
     ...(previous?.legacyExpand === undefined ? {} : { legacyExpand: previous.legacyExpand }) }, parseTopicWatch, ['topic', 'purpose']);
 }
+
+export const persistTopicWatch = (root, watch) => saveProseRecord(root, WATCHES, watch, parseTopicWatch, ['topic', 'purpose']);
 
 export const saveScoutRun = (root, run) => atomicJson(root, `${RUNS}/${parseScoutRun(run).id}.json`, parseScoutRun(run));
 export const saveScoutReport = (root, report) => saveProseRecord(root, REPORTS, report, parseScoutReport, ['summary']);

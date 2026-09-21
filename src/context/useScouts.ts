@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { activeScoutRun, cancelScoutRunRequest, loadScouts, mutateScout, saveScoutBriefRequest, startScoutRunRequest, type ScoutControlAction, type ScoutMutation } from '../scoutClient';
-import type { ScoutBriefInput, ScoutSnapshot } from '../scoutTypes';
+import { activeScoutRun, cancelScoutRunRequest, deleteTopicWatchRequest, loadScouts, mutateScout, saveScoutBriefRequest, saveTopicWatchRequest, startScoutRunRequest, type ScoutControlAction, type ScoutMutation } from '../scoutClient';
+import type { ScoutBriefInput, ScoutSnapshot, TopicWatchInput } from '../scoutTypes';
 
 type ScoutState = {
   readonly snapshot: ScoutSnapshot | null;
@@ -48,6 +48,7 @@ export function useScouts(dir: string) {
     return () => { store.listeners.delete(listener); };
   }, [store]);
   const state = useSyncExternalStore(subscribe, () => store.state);
+  const hasActiveRun = state.snapshot?.runs.some(run => activeScoutRun(run.state)) ?? false;
 
   const refresh = useCallback(async () => {
     const controller = new AbortController();
@@ -68,8 +69,7 @@ export function useScouts(dir: string) {
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       if (!store.state.busy) await refresh();
-      const active = store.state.snapshot?.runs.some(run => activeScoutRun(run.state)) ?? false;
-      if (!disposed) timer = setTimeout(() => void poll(), active ? 2000 : 30000);
+      if (!disposed) timer = setTimeout(() => void poll(), 30000);
     };
     void poll();
     const onFocus = () => { if (!store.state.busy) void refresh(); };
@@ -85,6 +85,12 @@ export function useScouts(dir: string) {
       }
     };
   }, [refresh, store]);
+
+  useEffect(() => {
+    if (!hasActiveRun) return;
+    const timer = window.setInterval(() => { if (!store.state.busy) void refresh(); }, 2000);
+    return () => window.clearInterval(timer);
+  }, [hasActiveRun, refresh, store]);
 
   const mutate = useCallback(async (mutation: ScoutMutation): Promise<boolean> => {
     if (store.state.busy) return false;
@@ -132,7 +138,9 @@ export function useScouts(dir: string) {
     ...state,
     refresh,
     saveBrief: (id: string, brief: ScoutBriefInput) => control('save-brief', signal => saveScoutBriefRequest(dir, id, brief, signal)),
-    startRun: (id: string) => control('start-run', signal => startScoutRunRequest(dir, id, signal)),
+    saveWatch: (id: string | undefined, watch: TopicWatchInput) => control('save-watch', signal => saveTopicWatchRequest(dir, id, watch, signal)),
+    deleteWatch: (id: string) => control('delete-watch', signal => deleteTopicWatchRequest(dir, id, signal)),
+    startRun: (id: string, kind: 'brief' | 'watch' = 'brief') => control('start-run', signal => startScoutRunRequest(dir, id, signal, kind)),
     cancelRun: (id: string) => control('cancel-run', signal => cancelScoutRunRequest(dir, id, signal)),
     decideCandidate: (mutation: Omit<Extract<ScoutMutation, { action: 'decide-candidate' }>, 'action'>) => mutate({ action: 'decide-candidate', ...mutation }),
     requestInspection: (reportId: string, candidateId: string) => mutate({ action: 'request-inspection', reportId, candidateId })

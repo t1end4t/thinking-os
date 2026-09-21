@@ -32,7 +32,7 @@ const report = {
 };
 const completed = { ...running, state: 'completed', activeStage: 'assembling', counters: { ...running.counters, screened: 9 }, checkpoints: [...running.checkpoints, 'report'], updatedAt: 4, finishedAt: 4, reportId: report.id };
 let snapshot = { briefs: [brief], watches: [], runs: [], reports: [] };
-let getCountAfterStart = 0;
+let runStartedAt = 0;
 
 try {
   await page.route('**/api/vault*', route => route.fulfill({ json: { dir: '/tmp/assistant-scout-test', data: {}, revision: 'scout-ui' } }));
@@ -41,10 +41,7 @@ try {
   await page.route('**/api/scouts*', async route => {
     const request = route.request();
     if (request.method() === 'GET') {
-      if (snapshot.runs.length) {
-        getCountAfterStart++;
-        if (getCountAfterStart >= 3) snapshot = { ...snapshot, runs: [completed], reports: [report] };
-      }
+      if (runStartedAt && Date.now() - runStartedAt >= 1200) snapshot = { ...snapshot, runs: [completed], reports: [report] };
       return route.fulfill({ json: snapshot });
     }
     const body = request.postDataJSON();
@@ -54,6 +51,7 @@ try {
       return route.fulfill({ json: { brief: saved } });
     }
     if (body.action === 'start-run') {
+      runStartedAt = Date.now();
       snapshot = { ...snapshot, runs: [running] };
       return route.fulfill({ status: 202, json: { run: running } });
     }
@@ -115,8 +113,9 @@ try {
   await expect(card.getByRole('button', { name: 'Open full report' })).toBeVisible({ timeout: 7000 });
   console.log('phase: report complete');
   await card.getByRole('button', { name: 'Open full report' }).click();
-  await expect(page.getByRole('heading', { name: brief.question })).toBeVisible();
-  await expect(page.getByText('arXiv was unavailable during this run.')).toBeVisible();
+  const reportSurface = page.locator('.scout-report-main');
+  await expect(reportSurface.getByRole('heading', { name: brief.question })).toBeVisible();
+  await expect(reportSurface.getByText('arXiv was unavailable during this run.')).toBeVisible();
   await page.screenshot({ path: '/tmp/thinking-os-assistant-scout-phase5.png', fullPage: true });
   assert.deepEqual(failures, []);
   console.log('Assistant scout: brief review, explicit run, detached progress, continued chat, and report handoff passed.');
