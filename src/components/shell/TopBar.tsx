@@ -9,7 +9,8 @@ import {
   FolderOpen,
   Home,
   ChevronLeft,
-  Bot
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { listWorkspaceDirs, WorkspaceDirListing } from '../../vaultClient';
@@ -27,12 +28,15 @@ export const TopBar: React.FC = () => {
     workspaceLoading,
     workspaceError,
     setWorkspaceDir,
+    loadSampleWorkspace,
     theme,
     toggleTheme,
     darkVariant,
     setDarkVariant,
     codexAssistant
   } = useWorkspace();
+
+  const [seedingSample, setSeedingSample] = useState(false);
 
   const [folderPicker, setFolderPicker] = useState<WorkspaceDirListing | null>(null);
   const [folderPickerLoading, setFolderPickerLoading] = useState(false);
@@ -273,6 +277,34 @@ export const TopBar: React.FC = () => {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                <div className="mt-5 pt-4 border-t border-[var(--color-rule)]">
+                  <div className="flex items-center gap-2 mb-1.5 font-mono text-xs font-semibold text-[var(--color-ink)]">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                    Sample Research Workspace
+                  </div>
+                  <p className="font-mono text-[0.6875rem] leading-relaxed text-[var(--color-ink-muted)] mb-3">
+                    Load realistic research data across all tabs (Literature Survey, Paper Vault, Argument Graph, Experiments, Tasks & Directions, Runtime Engine, and Manuscript Studio).
+                  </p>
+                  <button
+                    id="load-sample-workspace-btn"
+                    type="button"
+                    disabled={seedingSample || workspaceLoading}
+                    onClick={async () => {
+                      setSeedingSample(true);
+                      try {
+                        await loadSampleWorkspace();
+                        setShowSettings(false);
+                      } finally {
+                        setSeedingSample(false);
+                      }
+                    }}
+                    className="w-full justify-center rounded-md border border-indigo-400/80 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-700/80 px-3 py-2 font-mono text-[0.75rem] font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${seedingSample ? 'animate-spin' : ''}`} />
+                    <span>{seedingSample ? 'Seeding workspace...' : 'Reset & Load Complete Sample Data'}</span>
+                  </button>
                 </div>
 
               </div>

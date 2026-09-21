@@ -614,6 +614,7 @@ export const PapersSurface: React.FC = () => {
                     ]}
                     placement="bottom"
                     variant="inline"
+                    color="teal"
                   />
                 </div>
                 <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">

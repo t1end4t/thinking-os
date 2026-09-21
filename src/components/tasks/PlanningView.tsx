@@ -132,7 +132,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
       case 'done':
         return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
       case 'in-progress':
-        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800';
+        return 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border-rose-300 dark:border-rose-800';
       case 'review':
         return 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border-amber-300 dark:border-amber-800';
       case 'todo':
@@ -175,7 +175,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
         title={isEditing ? undefined : `Drag ${goal.title} into the assistant`}
         className={`rounded-xl border bg-[var(--color-surface)] p-4 transition-all shadow-sm ${!isEditing ? 'cursor-grab active:cursor-grabbing' : ''} ${
           goal.isCurrentFocus
-            ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+            ? 'border-rose-500 ring-2 ring-rose-500/20'
             : 'border-[var(--color-rule)] hover:border-slate-400 dark:hover:border-slate-600'
         }`}
       >
@@ -202,7 +202,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
               )}
 
               {parent && (
-                <span className="truncate font-mono text-[0.6875rem] text-[var(--accent-indigo)]" title={`Supports: ${parent.title}`}>
+                <span className="truncate font-mono text-[0.6875rem] text-[var(--accent-rose)]" title={`Supports: ${parent.title}`}>
                   ↳ {parent.title}
                 </span>
               )}
@@ -230,7 +230,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
                     onChange={e => setEditTargetDate(e.target.value)}
                   />
                   <button
-                    className="rounded bg-indigo-600 px-2 py-1 font-mono text-xs text-white hover:bg-indigo-700"
+                    className="rounded bg-rose-600 px-2 py-1 font-mono text-xs text-white hover:bg-rose-700"
                     onClick={() => saveEditGoal(goal.id)}
                   >
                     Save
@@ -283,7 +283,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
                 {doneCount}/{linkedTasks.length} tasks completed ({percentDone}%)
               </span>
               <div className="flex items-center gap-2 text-[var(--color-ink-muted)]">
-                {inProgressCount > 0 && <span className="text-indigo-600 dark:text-indigo-400">{inProgressCount} active</span>}
+                {inProgressCount > 0 && <span className="text-rose-600 dark:text-rose-400">{inProgressCount} active</span>}
                 {inReviewCount > 0 && <span className="text-amber-600 dark:text-amber-400">{inReviewCount} review</span>}
                 {todoCount > 0 && <span>{todoCount} todo</span>}
                 {backlogCount > 0 && <span>{backlogCount} backlog</span>}
@@ -298,7 +298,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
                 <>
                   <div style={{ width: `${(doneCount / linkedTasks.length) * 100}%` }} className="h-full bg-emerald-500" title={`Done: ${doneCount}`} />
                   <div style={{ width: `${(inReviewCount / linkedTasks.length) * 100}%` }} className="h-full bg-amber-500" title={`In Review: ${inReviewCount}`} />
-                  <div style={{ width: `${(inProgressCount / linkedTasks.length) * 100}%` }} className="h-full bg-indigo-500" title={`In Progress: ${inProgressCount}`} />
+                  <div style={{ width: `${(inProgressCount / linkedTasks.length) * 100}%` }} className="h-full bg-rose-500" title={`In Progress: ${inProgressCount}`} />
                   <div style={{ width: `${(todoCount / linkedTasks.length) * 100}%` }} className="h-full bg-slate-400" title={`To Do: ${todoCount}`} />
                   <div style={{ width: `${(backlogCount / linkedTasks.length) * 100}%` }} className="h-full bg-slate-300 dark:bg-slate-600" title={`Backlog: ${backlogCount}`} />
                 </>
@@ -350,7 +350,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
             {goal.horizon === 'one-year' && (
               <>
                 <button
-                  className="inline-flex h-7 items-center gap-1 rounded border border-indigo-200 bg-indigo-50 px-2.5 font-mono text-[0.6875rem] font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+                  className="inline-flex h-7 items-center gap-1 rounded border border-rose-200 bg-rose-50 px-2.5 font-mono text-[0.6875rem] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/60 dark:text-rose-300"
                   onClick={() => onNavigateToPipeline?.(goal.id)}
                   title="View this goal and its tasks on the Kanban Pipeline"
                 >
@@ -392,10 +392,10 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
             {linkedTasks.map(task => (
               <div
                 key={task.id}
-                className="flex items-center justify-between gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] px-2.5 py-1.5 text-xs transition-colors hover:border-indigo-300"
+                className="flex items-center justify-between gap-2 rounded border border-[var(--color-rule)] bg-[var(--color-surface)] px-2.5 py-1.5 text-xs transition-colors hover:border-rose-300"
               >
                 <div
-                  className="min-w-0 flex-1 cursor-pointer truncate font-medium text-[var(--color-ink)] hover:text-indigo-600"
+                  className="min-w-0 flex-1 cursor-pointer truncate font-medium text-[var(--color-ink)] hover:text-rose-600"
                   onClick={() => openTaskEditor(task.id, task.status)}
                   title="Edit task in panel"
                 >
@@ -431,7 +431,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
           className="h-fit rounded-xl border border-[var(--color-rule)] bg-[var(--color-surface)] p-4 shadow-sm lg:sticky lg:top-4"
         >
           <div className="flex items-center gap-2">
-            <Target size={16} className="text-[var(--accent-indigo)]" />
+            <Target size={16} className="text-[var(--accent-rose)]" />
             <h2 className="text-sm font-bold text-[var(--color-ink)]">Define Direction / Milestone</h2>
           </div>
           <p className="mb-4 mt-1 text-xs leading-5 text-[var(--color-ink-muted)]">
@@ -478,7 +478,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
                       onClick={() => setHorizon(item.id)}
                       className={`p-2.5 rounded-lg border text-left transition-all ${
                         isSelected
-                          ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] shadow-xs'
+                          ? 'border-[var(--accent-rose)] bg-[var(--accent-rose-soft)] shadow-xs'
                           : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                       }`}
                     >
@@ -511,12 +511,12 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
                     onClick={() => setParentGoalId('')}
                     className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
                       !parentGoalId
-                        ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)]'
+                        ? 'border-[var(--accent-rose)] bg-[var(--accent-rose-soft)] font-medium text-[var(--color-ink)]'
                         : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                     }`}
                   >
                     <span>No parent vision (Independent)</span>
-                    {!parentGoalId && <Check size={13} className="text-[var(--accent-indigo)]" />}
+                    {!parentGoalId && <Check size={13} className="text-[var(--accent-rose)]" />}
                   </button>
                   {fiveYearGoals.map(g => {
                     const isSelected = parentGoalId === g.id;
@@ -529,12 +529,12 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
                         onClick={() => setParentGoalId(g.id)}
                         className={`w-full flex items-center justify-between p-2 rounded-lg border text-xs text-left transition-all ${
                           isSelected
-                            ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] font-medium text-[var(--color-ink)]'
+                            ? 'border-[var(--accent-rose)] bg-[var(--accent-rose-soft)] font-medium text-[var(--color-ink)]'
                             : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                         }`}
                       >
                         <span className="truncate">{g.title}</span>
-                        {isSelected && <Check size={13} className="text-[var(--accent-indigo)] shrink-0" />}
+                        {isSelected && <Check size={13} className="text-[var(--accent-rose)] shrink-0" />}
                       </button>
                     );
                   })}
@@ -559,7 +559,7 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
             title="5-Year Strategic Horizons (North Stars)"
             description="The enduring research questions and overarching program goals."
             count={fiveYearGoals.length}
-            icon={<Compass size={15} className="text-indigo-600 dark:text-indigo-400" />}
+            icon={<Compass size={15} className="text-rose-600 dark:text-rose-400" />}
           >
             {fiveYearGoals.length ? (
               fiveYearGoals.map(renderGoal)

@@ -233,7 +233,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
               label="In Flight"
               value={inProgressTasks.length + inReviewTasks.length}
               sublabel="active / review"
-              color="indigo"
+              color="rose"
             />
             <ReviewMetricCard
               label="Milestones"
@@ -293,7 +293,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                         title={`Open ${review.title}. Drag into the assistant to attach it.`}
                         className={`flex w-full cursor-grab items-center justify-between rounded-lg border p-2.5 text-left transition-all active:cursor-grabbing ${
                           isSelected
-                            ? 'border-indigo-500 bg-indigo-50/70 text-indigo-900 shadow-xs dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200'
+                            ? 'border-rose-500 bg-rose-50/70 text-rose-900 shadow-xs dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200'
                             : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:border-slate-400'
                         }`}
                       >
@@ -352,7 +352,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleAutoSynthesize}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 font-mono text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 font-mono text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/60 dark:text-rose-300"
                     title="Synthesize completed tasks, active milestones, and next week plan into markdown notes"
                   >
                     <Sparkles size={13} />
@@ -457,7 +457,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                                   )}
                                   <div className="mt-2 flex items-center gap-3 pl-6 font-mono text-[0.6875rem]">
                                     {goal ? (
-                                      <span className="text-indigo-700 dark:text-indigo-300">
+                                      <span className="text-rose-700 dark:text-rose-300">
                                         Advanced Milestone: {goal.title}
                                       </span>
                                     ) : (
@@ -504,7 +504,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                                   <span
                                     className={`rounded px-1.5 py-0.5 font-mono text-[0.625rem] font-bold uppercase ${
                                       task.status === 'in-progress'
-                                        ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
+                                        ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                                         : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                                     }`}
                                   >
@@ -516,7 +516,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                                   <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{task.description}</p>
                                 )}
                                 {goal && (
-                                  <div className="mt-1.5 font-mono text-[0.6875rem] text-indigo-600 dark:text-indigo-400">
+                                  <div className="mt-1.5 font-mono text-[0.6875rem] text-rose-600 dark:text-rose-400">
                                     Milestone: {goal.title}
                                   </div>
                                 )}
@@ -541,7 +541,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                     <div className="flex justify-end pt-2">
                       <button
                         onClick={() => setActiveTab('alignment')}
-                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-rose-600 hover:text-rose-700"
                       >
                         <span>Continue to Step 2: Direction & Drift</span>
                         <ChevronRight size={14} />
@@ -567,7 +567,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                         {onNavigateToDirection && (
                           <button
                             onClick={onNavigateToDirection}
-                            className="inline-flex items-center gap-1 font-mono text-xs text-indigo-600 hover:underline"
+                            className="inline-flex items-center gap-1 font-mono text-xs text-rose-600 hover:underline"
                           >
                             <Compass size={12} />
                             Direction Surface
@@ -668,7 +668,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                                         key={g.id}
                                         type="button"
                                         onClick={() => assignTaskGoal(task.id, g.id)}
-                                        className="px-2 py-0.5 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] font-mono text-[0.6875rem] text-[var(--color-ink)] hover:border-[var(--accent-indigo)] hover:bg-[var(--accent-indigo-soft)] hover:text-indigo-600 transition-all max-w-40 truncate"
+                                        className="px-2 py-0.5 rounded border border-[var(--color-rule)] bg-[var(--color-paper)] font-mono text-[0.6875rem] text-[var(--color-ink)] hover:border-[var(--accent-rose)] hover:bg-[var(--accent-rose-soft)] hover:text-rose-600 transition-all max-w-40 truncate"
                                         title={`Assign to ${g.title}`}
                                       >
                                         + {g.title}
@@ -702,7 +702,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                       </button>
                       <button
                         onClick={() => setActiveTab('planning')}
-                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-rose-600 hover:text-rose-700"
                       >
                         <span>Continue to Step 3: Next Commitments</span>
                         <ChevronRight size={14} />
@@ -724,11 +724,11 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
 
                       {/* Current Week Focus Highlight */}
                       {currentFocusGoal && (
-                        <div className="mt-3 flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-xs dark:border-indigo-900/60 dark:bg-indigo-950/40">
+                        <div className="mt-3 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50/70 p-3 text-xs dark:border-rose-900/60 dark:bg-rose-950/40">
                           <div className="flex items-center gap-2">
-                            <Star size={15} className="fill-indigo-600 text-indigo-600" />
+                            <Star size={15} className="fill-rose-600 text-rose-600" />
                             <div>
-                              <span className="font-mono text-[0.6875rem] uppercase font-bold text-indigo-700 dark:text-indigo-300">
+                              <span className="font-mono text-[0.6875rem] uppercase font-bold text-rose-700 dark:text-rose-300">
                                 Target Milestone:
                               </span>{' '}
                               <span className="font-bold text-[var(--color-ink)]">{currentFocusGoal.title}</span>
@@ -737,7 +737,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                           {onNavigateToPipeline && (
                             <button
                               onClick={() => onNavigateToPipeline(currentFocusGoal.id)}
-                              className="font-mono text-xs text-indigo-700 underline dark:text-indigo-300"
+                              className="font-mono text-xs text-rose-700 underline dark:text-rose-300"
                             >
                               View in Pipeline
                             </button>
@@ -753,7 +753,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                             value={newTaskTitle}
                             onChange={e => setNewTaskTitle(e.target.value)}
                             placeholder="Add concrete deliverable for next week..."
-                            className="min-w-[240px] flex-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-2 text-xs font-medium text-[var(--color-ink)] outline-none focus:border-indigo-500"
+                            className="min-w-[240px] flex-1 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-3 py-2 text-xs font-medium text-[var(--color-ink)] outline-none focus:border-rose-500"
                           />
                           <button type="submit" className="kanban-primary-add-btn h-9 px-3 shrink-0">
                             <Plus size={14} />
@@ -768,7 +768,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                               onClick={() => setNewTaskGoalId('')}
                               className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all ${
                                 !newTaskGoalId
-                                  ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--color-ink)] font-bold'
+                                  ? 'border-[var(--accent-rose)] bg-[var(--accent-rose-soft)] text-[var(--color-ink)] font-bold'
                                   : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                               }`}
                             >
@@ -783,7 +783,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                                   onClick={() => setNewTaskGoalId(g.id)}
                                   className={`px-2.5 py-1 rounded-lg border text-xs transition-all ${
                                     isSelected
-                                      ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--color-ink)] font-bold'
+                                      ? 'border-[var(--accent-rose)] bg-[var(--accent-rose-soft)] text-[var(--color-ink)] font-bold'
                                       : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                                   }`}
                                 >
@@ -812,14 +812,14 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                               <div className="min-w-0 flex-1">
                                 <span className="font-bold text-[var(--color-ink)]">{task.title}</span>
                                 {goal && (
-                                  <span className="ml-2 font-mono text-[0.6875rem] text-indigo-600 dark:text-indigo-400">
+                                  <span className="ml-2 font-mono text-[0.6875rem] text-rose-600 dark:text-rose-400">
                                     ↳ {goal.title}
                                   </span>
                                 )}
                               </div>
                               <button
                                 onClick={() => updateTaskStatus(task.id, 'in-progress')}
-                                className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 font-mono text-[0.6875rem] font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300"
+                                className="rounded border border-rose-200 bg-rose-50 px-2 py-1 font-mono text-[0.6875rem] font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
                               >
                                 Start Now →
                               </button>
@@ -863,7 +863,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                       </button>
                       <button
                         onClick={() => setActiveTab('notes')}
-                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                        className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-rose-600 hover:text-rose-700"
                       >
                         <span>Continue to Step 4: Review Journal</span>
                         <ChevronRight size={14} />
@@ -903,7 +903,7 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                     ) : (
                       <textarea
                         id="weekly-review-notes"
-                        className="min-h-[440px] w-full resize-y rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] p-4 font-mono text-xs leading-6 text-[var(--color-ink)] outline-none focus:border-indigo-500"
+                        className="min-h-[440px] w-full resize-y rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] p-4 font-mono text-xs leading-6 text-[var(--color-ink)] outline-none focus:border-rose-500"
                         value={localNotes}
                         onChange={event => setLocalNotes(event.target.value)}
                         placeholder="Write your reflections or click 'Auto-Synthesize Notes' above..."
@@ -982,12 +982,12 @@ function ReviewMetricCard({
   label: string;
   value: number;
   sublabel: string;
-  color?: 'emerald' | 'indigo' | 'slate' | 'amber';
+  color?: 'emerald' | 'rose' | 'slate' | 'amber';
   warning?: boolean;
 }) {
   const colorMap = {
     emerald: 'text-emerald-700 dark:text-emerald-300',
-    indigo: 'text-indigo-700 dark:text-indigo-300',
+    rose: 'text-rose-700 dark:text-rose-300',
     slate: 'text-[var(--color-ink)]',
     amber: 'text-amber-700 dark:text-amber-300'
   };
@@ -1027,7 +1027,7 @@ function ReviewStepTab({
       onClick={onClick}
       className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 transition-colors ${
         isActive
-          ? 'border-indigo-600 bg-[var(--color-surface)] text-indigo-700 font-bold shadow-xs dark:border-indigo-800 dark:text-indigo-300'
+          ? 'border-rose-600 bg-[var(--color-surface)] text-rose-700 font-bold shadow-xs dark:border-rose-800 dark:text-rose-300'
           : 'border-transparent text-[var(--color-ink-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-ink)]'
       }`}
     >
@@ -1105,7 +1105,7 @@ function SimpleMarkdownViewer({ markdown }: { markdown: string }) {
         if (line.startsWith('- ')) {
           return (
             <div key={idx} className="ml-4 flex items-start gap-1.5 text-xs text-[var(--color-ink)]">
-              <span className="text-indigo-600 dark:text-indigo-400">•</span>
+              <span className="text-rose-600 dark:text-rose-400">•</span>
               <span>{line.replace('- ', '')}</span>
             </div>
           );

@@ -337,6 +337,35 @@ We test StreamingLLM across Llama-2-7B, Llama-2-13B, and MPT-7B models on input 
         title: '3. Empirical Results & Perplexity Stability',
         paragraphs: [{ id: 'par-p1-5', linkedClaimId: 'c1' }]
       }
+    ],
+    highlights: [
+      {
+        id: 'hl-p1-1',
+        text: 'softmax attention excessively concentrates high attention weights on the initial tokens regardless of their semantic content.',
+        color: 'amber',
+        pageNumber: 1,
+        createdAt: 1718015000000,
+        note: 'Core phenomenon definition: attention sink effect.',
+        sectionId: 'sec-p1-1'
+      },
+      {
+        id: 'hl-p1-2',
+        text: 'StreamingLLM preserves two components in the KV cache: 1. Attention Sinks (first 4 tokens) 2. Rolling Window (most recent 1020 tokens)',
+        color: 'emerald',
+        pageNumber: 2,
+        createdAt: 1718016000000,
+        note: 'Architectural specification linked to Claim c1.',
+        sectionId: 'sec-p1-3'
+      },
+      {
+        id: 'hl-p1-3',
+        text: 'StreamingLLM preserves flat perplexity curves identical to dense attention up to 4M tokens.',
+        color: 'sky',
+        pageNumber: 3,
+        createdAt: 1718017000000,
+        note: 'Evidence measurement e1 source passage.',
+        sectionId: 'sec-p1-4'
+      }
     ]
   },
   {
@@ -387,6 +416,17 @@ Across English text generation, translation, and code synthesis on CodeX and Chi
         id: 'sec-p2-4',
         title: '3. Empirical Results & Benchmarks',
         paragraphs: [{ id: 'par-p2-4', linkedClaimId: 'c2' }]
+      }
+    ],
+    highlights: [
+      {
+        id: 'hl-p2-1',
+        text: 'Each token is accepted with probability alpha = min(1, P(x)/Q(x)). If rejected, a corrective token is sampled from the residual distribution.',
+        color: 'emerald',
+        pageNumber: 2,
+        createdAt: 1718115000000,
+        note: 'Modified rejection sampling proof basis for Claim c2.',
+        sectionId: 'sec-p2-3'
       }
     ]
   }
@@ -517,6 +557,19 @@ export const SAMPLE_EXPERIMENTS: Experiment[] = [
         }
       }
     ]
+  },
+  {
+    id: 'exp3',
+    claimId: 'c3',
+    questionId: 'q1',
+    title: 'FP4 KV-Cache Outlier Retention Boundary Test on Needle-in-Haystack 256k',
+    status: 'planned',
+    targetMetric: 'Degradation < 3.0% at 256k tokens',
+    baseline: 'FP16 dense baseline (99.1% retrieval)',
+    prediction: 'Channel-wise dynamic outlier retention prevents catastrophic cliffs observed in uniform INT4 at 64k',
+    failureCondition: 'Retrieval accuracy drops below 85.0% on Multi-Needle tests',
+    scope: 'Llama-3-70B, 8x H100 SXM5, synthetic context 64k to 256k tokens',
+    artifacts: []
   }
 ];
 
@@ -822,6 +875,22 @@ export const SAMPLE_WEEKLY_REVIEWS: WeeklyReviewItem[] = [
 - Anchor current weekly focus on **"Submit one reproducible long-context inference paper"** (goal-1y-1).
 - Complete attention sink circular buffer verification (task-4).
 - Formalize theoretical bounds for Claim c3 in the inspector.`
+  },
+  {
+    id: 'review-2026-09-07',
+    title: 'Week of Sep 7, 2026',
+    weekOf: '2026-09-07',
+    status: 'draft',
+    createdAt: '2026-09-07T08:30:00.000Z',
+    focusGoalIds: ['goal-1y-1'],
+    completedTaskIds: ['task-3', 'task-4'],
+    notes: `## 🏆 Current Sprint Progress
+- Successfully verified attention-sink retention in circular buffer CUDA kernel.
+- Linked Theorem 1 empirical evidence lemmas from Leviathan et al. into Argument Map.
+
+## 🔬 Next Milestone
+- Finalize H100 memory bandwidth trace under multi-head speculative sampling (task-5).
+- Audit all uncommitted argument links against Gate 5 criteria.`
   }
 ];
 

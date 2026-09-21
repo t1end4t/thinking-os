@@ -260,7 +260,7 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
             href={linkMatch[2]}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[var(--accent-indigo)] hover:underline font-medium inline-flex items-center gap-0.5"
+            className="text-[var(--accent-violet)] hover:underline font-medium inline-flex items-center gap-0.5"
           >
             {linkMatch[1]}
           </a>
@@ -328,7 +328,7 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
                     <CopyButton value={block.code} label={`Copy ${block.language} code`} />
                   </span>
                 </div>
-                <pre className="p-3.5 text-[0.8125rem] font-mono overflow-x-auto text-[var(--color-ink)] leading-normal selection:bg-[var(--accent-indigo-soft)]">
+                <pre className="p-3.5 text-[0.8125rem] font-mono overflow-x-auto text-[var(--color-ink)] leading-normal selection:bg-[var(--accent-violet-soft)]">
                   <HighlightedCode code={block.code} language={block.language} />
                 </pre>
               </div>
@@ -338,7 +338,7 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
             return (
               <blockquote
                 key={idx}
-                className="border-l-3 border-[var(--accent-indigo)] pl-3.5 py-1 text-[var(--color-ink-muted)] italic bg-[var(--accent-indigo-soft)]/20 rounded-r"
+                className="border-l-3 border-[var(--accent-violet)] pl-3.5 py-1 text-[var(--color-ink-muted)] italic bg-[var(--accent-violet-soft)]/20 rounded-r"
               >
                 {renderInline(block.text)}
               </blockquote>

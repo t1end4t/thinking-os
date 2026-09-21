@@ -129,6 +129,7 @@ export const ExperimentsSurface: React.FC = () => {
                 ]}
                 placement="bottom"
                 variant="inline"
+                color="sky"
               />
             </div>
             <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">

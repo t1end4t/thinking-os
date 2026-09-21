@@ -264,6 +264,7 @@ export const ManuscriptSurface: React.FC = () => {
                 ]}
                 placement="bottom"
                 variant="inline"
+                color="purple"
               />
             </div>
             <p className="text-[0.7rem] text-[var(--color-ink-muted)] truncate">

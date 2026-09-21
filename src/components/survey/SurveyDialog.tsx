@@ -317,7 +317,7 @@ export function SurveyDialog({ action, onClose }: { action: SurveyDialogAction; 
                     key={preset}
                     type="button"
                     onClick={() => setReason(preset)}
-                    className="text-[0.6875rem] px-2 py-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--accent-indigo)] hover:border-[var(--accent-indigo)] transition-colors"
+                    className="text-[0.6875rem] px-2 py-0.5 rounded-md border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-amber-700 dark:hover:text-amber-400 hover:border-amber-400 dark:hover:border-amber-600 transition-colors"
                   >
                     {preset}
                   </button>
@@ -355,10 +355,9 @@ export function SurveyDialog({ action, onClose }: { action: SurveyDialogAction; 
 
               <div className="space-y-2 pt-1">
                 <span className="text-xs font-semibold text-[var(--color-ink)] flex items-center gap-1.5">
-                  <CheckSquare size={13} className="text-[var(--accent-indigo)]" />
+                  <CheckSquare size={13} className="text-amber-600 dark:text-amber-400" />
                   Falsifiability Commitments (Required)
                 </span>
-
                 <label className="survey-check select-none">
                   <input
                     type="checkbox"
@@ -411,7 +410,7 @@ export function SurveyDialog({ action, onClose }: { action: SurveyDialogAction; 
                     <label
                       key={kind}
                       className={`survey-check cursor-pointer ${
-                        retireKind === kind ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)]' : ''
+                        retireKind === kind ? 'border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' : ''
                       }`}
                     >
                       <input

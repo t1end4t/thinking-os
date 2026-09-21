@@ -208,6 +208,7 @@ export function RuntimeSurface() {
                 ]}
                 placement="bottom"
                 variant="inline"
+                color="violet"
               />
             </div>
             <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">

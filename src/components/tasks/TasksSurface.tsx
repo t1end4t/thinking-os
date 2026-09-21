@@ -103,6 +103,7 @@ export function TasksSurface() {
                 ]}
                 placement="bottom"
                 variant="inline"
+                color="rose"
               />
             </div>
             <p className="hidden text-[0.6875rem] text-[var(--color-ink-muted)] sm:block">
@@ -243,7 +244,7 @@ function ViewTab({
       title={onDragStart ? `Open ${label}. Drag into the assistant to attach it as context.` : undefined}
       className={`inline-flex h-8 items-center gap-2 rounded-md border px-3 font-mono text-xs transition-colors ${
         active
-          ? 'border-indigo-300 bg-indigo-50 font-semibold text-indigo-700 shadow-2xs dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
+          ? 'border-rose-300 bg-rose-50 font-semibold text-rose-700 shadow-2xs dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
           : 'border-transparent text-[var(--color-ink-muted)] hover:border-[var(--color-rule)] hover:bg-[var(--color-paper)] hover:text-[var(--color-ink)]'
       }`}
     >

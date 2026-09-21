@@ -243,14 +243,14 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
     <div className="kanban-container" id="kanban-pipeline-view">
       {/* Active Focus or Filter Banner */}
       {selectedGoal && (
-        <div className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3.5 text-xs dark:border-indigo-900/60 dark:bg-indigo-950/40">
+        <div className="mx-6 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/70 p-3.5 text-xs dark:border-rose-900/60 dark:bg-rose-950/40">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600 text-white">
+            <div className="grid h-7 w-7 place-items-center rounded-lg bg-rose-600 text-white">
               <Target size={15} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[0.6875rem] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                <span className="font-mono text-[0.6875rem] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
                   Active Milestone Filter:
                 </span>
                 <span className="font-bold text-[var(--color-ink)]">{selectedGoal.title}</span>
@@ -273,7 +273,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
           <div className="flex items-center gap-2">
             <button
               onClick={onNavigateToDirection}
-              className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-white px-2.5 py-1 font-mono text-xs font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300"
+              className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1 font-mono text-xs font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-rose-900/60 dark:text-rose-300"
             >
               <Compass size={13} />
               View in Direction
@@ -335,7 +335,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
           onClick={() => setGoalFilter('all')}
           className={`rounded-full border px-2.5 py-1 font-mono text-[0.6875rem] transition-colors ${
             goalFilter === 'all'
-              ? 'border-indigo-600 bg-indigo-600 text-white font-bold'
+              ? 'border-rose-600 bg-rose-600 text-white font-bold'
               : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
           }`}
         >
@@ -367,7 +367,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
                 onClick={() => setGoalFilter(isSelected ? 'all' : goal.id)}
                 className={`rounded-full border px-2.5 py-1 font-mono text-[0.6875rem] transition-colors ${
                   isSelected
-                    ? 'border-indigo-600 bg-indigo-600 text-white font-bold'
+                    ? 'border-rose-600 bg-rose-600 text-white font-bold'
                     : 'border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                 }`}
                 title={goal.title}
@@ -458,7 +458,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] px-2.5 font-mono text-xs text-[var(--color-ink)] transition-colors hover:bg-[var(--color-paper)]"
               title="Open Weekly Review surface to reflect, check alignment, and plan next week"
             >
-              <CalendarCheck2 size={13} className="text-[var(--accent-indigo)]" />
+              <CalendarCheck2 size={13} className="text-[var(--accent-rose)]" />
               <span>
                 {latestReview
                   ? `Review: ${latestReview.status === 'complete' ? 'Completed' : 'Draft'}`
@@ -549,8 +549,8 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
                           key={task.id}
                           id={`task-card-${task.id}`}
                           className={`kanban-card group ${draggedTaskId === task.id ? 'is-dragging' : ''} ${
-                            taskEditor?.taskId === task.id ? 'is-selected ring-2 ring-indigo-500/40' : ''
-                          } ${isAiOrigin ? 'model-hatched border-l-2 border-indigo-500/80' : ''}`}
+                            taskEditor?.taskId === task.id ? 'is-selected ring-2 ring-rose-500/40' : ''
+                          } ${isAiOrigin ? 'model-hatched border-l-2 border-rose-500/80' : ''}`}
                           draggable
                           onDragStart={e => handleDragStart(e, task)}
                           onDragEnd={handleDragEnd}
@@ -580,10 +580,10 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
                                 e.stopPropagation();
                                 setGoalFilter(goal.id);
                               }}
-                              className="flex items-center gap-1 truncate rounded border border-indigo-200 bg-indigo-50/90 px-2 py-1 text-left font-mono text-[0.6875rem] font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 dark:border-indigo-900/80 dark:bg-indigo-950/60 dark:text-indigo-300"
+                              className="flex items-center gap-1 truncate rounded border border-rose-200 bg-rose-50/90 px-2 py-1 text-left font-mono text-[0.6875rem] font-semibold text-rose-700 transition-colors hover:bg-rose-100 dark:border-rose-900/80 dark:bg-rose-950/60 dark:text-rose-300"
                               title={`Click to filter board by goal: ${goal.title}`}
                             >
-                              <Target size={11} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
+                              <Target size={11} className="shrink-0 text-rose-600 dark:text-rose-400" />
                               <span className="truncate">{goal.title}</span>
                             </button>
                           ) : (
@@ -654,7 +654,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
                             <div className="kanban-card-actions">
                               {/* Quick Advance Button */}
                               <button
-                                className="card-action-btn hover:text-indigo-600"
+                                className="card-action-btn hover:text-rose-600"
                                 onClick={() => advanceTaskStatus(task)}
                                 title={`Advance status (currently: ${task.status})`}
                                 aria-label="Advance task status"

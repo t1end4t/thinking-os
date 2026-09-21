@@ -52,16 +52,16 @@ const categories = [
     label: 'Templates',
     detail: 'Reusable drafts · not active',
     icon: LayoutTemplate,
-    accent: 'var(--accent-indigo)',
-    accentSoft: 'var(--accent-indigo-soft)'
+    accent: 'var(--accent-violet)',
+    accentSoft: 'var(--accent-violet-soft)'
   },
   {
     id: 'instructions',
     label: 'Instructions',
     detail: 'Behavior & project rules',
     icon: BookOpenText,
-    accent: 'var(--accent-indigo)',
-    accentSoft: 'var(--accent-indigo-soft)'
+    accent: 'var(--accent-violet)',
+    accentSoft: 'var(--accent-violet-soft)'
   },
   {
     id: 'skill',
@@ -409,11 +409,11 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
               <button
                 type="button"
                 onClick={() => setShowScopeDropdown(!showScopeDropdown)}
-                className="flex-1 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--accent-indigo)]/50 text-left transition-colors"
+                className="flex-1 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--accent-violet)]/50 text-left transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {scope === 'global' ? (
-                    <Home size={14} className="text-[var(--accent-indigo)] flex-shrink-0" />
+                    <Home size={14} className="text-[var(--accent-violet)] flex-shrink-0" />
                   ) : (
                     <Folder size={14} className="text-[var(--color-holds)] flex-shrink-0" />
                   )}
@@ -432,7 +432,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
               <button
                 type="button"
                 onClick={() => void browse(snapshot?.home ?? '~')}
-                className="p-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--accent-indigo)] hover:text-[var(--accent-indigo)] text-[var(--color-ink-muted)] transition-colors"
+                className="p-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--accent-violet)] hover:text-[var(--accent-violet)] text-[var(--color-ink-muted)] transition-colors"
                 title="Add project directory"
                 aria-label="Add project directory"
               >
@@ -451,7 +451,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs font-mono transition-colors ${
                     scope === 'global'
-                      ? 'bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)] font-semibold'
+                      ? 'bg-[var(--accent-violet-soft)] text-[var(--accent-violet)] font-semibold'
                       : 'hover:bg-[var(--color-paper)] text-[var(--color-ink)]'
                   }`}
                 >
@@ -475,7 +475,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                         key={project.id}
                         className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors ${
                           scope === project.id
-                            ? 'bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)] font-semibold'
+                            ? 'bg-[var(--accent-violet-soft)] text-[var(--accent-violet)] font-semibold'
                             : 'hover:bg-[var(--color-paper)] text-[var(--color-ink)]'
                         }`}
                       >
@@ -522,7 +522,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                       setShowScopeDropdown(false);
                       void browse(snapshot?.home ?? '~');
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-mono text-[var(--accent-indigo)] hover:bg-[var(--accent-indigo-soft)] transition-colors"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-mono text-[var(--accent-violet)] hover:bg-[var(--accent-violet-soft)] transition-colors"
                   >
                     <FolderPlus size={14} />
                     <span>Register another folder...</span>
@@ -549,14 +549,14 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                 }}
                 className={`flex items-center justify-between p-2 rounded-lg border text-left transition-all ${
                   isSelected
-                    ? 'border-[var(--accent-indigo)] bg-[var(--color-surface)] shadow-xs'
+                    ? 'border-[var(--accent-violet)] bg-[var(--color-surface)] shadow-xs'
                     : 'border-transparent hover:border-[var(--color-rule)] hover:bg-[var(--color-surface)]/70 text-[var(--color-ink-muted)]'
                 }`}
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Icon
                     size={14}
-                    className={isSelected ? 'text-[var(--accent-indigo)]' : 'text-[var(--color-ink-muted)]'}
+                    className={isSelected ? 'text-[var(--accent-violet)]' : 'text-[var(--color-ink-muted)]'}
                   />
                   <span
                     className={`text-[0.7188rem] font-mono font-medium truncate ${
@@ -569,7 +569,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                 <span
                   className={`text-[0.625rem] font-mono px-1.5 py-0.5 rounded-full ${
                     isSelected
-                      ? 'bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)] font-bold'
+                      ? 'bg-[var(--accent-violet-soft)] text-[var(--accent-violet)] font-bold'
                       : 'bg-[var(--color-rule)]/60 text-[var(--color-ink-muted)]'
                   }`}
                 >
@@ -589,7 +589,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder={`Filter ${currentCategory?.label.toLowerCase()}...`}
-              className="w-full h-8 pl-8 pr-7 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--accent-indigo)] focus:outline-none"
+              className="w-full h-8 pl-8 pr-7 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--accent-violet)] focus:outline-none"
             />
             {query && (
               <button
@@ -625,7 +625,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
               <button
                 type="button"
                 onClick={() => setShowSkillForm(true)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--accent-indigo)] text-white text-[0.625rem] font-mono font-semibold hover:opacity-90 transition-opacity"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--accent-violet)] text-white text-[0.625rem] font-mono font-semibold hover:opacity-90 transition-opacity"
                 title="Create a new agent skill"
               >
                 <Plus size={11} />
@@ -656,14 +656,14 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                 onClick={() => setSelectedId(entry.id)}
                 className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left border transition-all ${
                   isSelected
-                    ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)]/40 shadow-xs'
+                    ? 'border-[var(--accent-violet)] bg-[var(--accent-violet-soft)]/40 shadow-xs'
                     : 'border-transparent hover:border-[var(--color-rule)] hover:bg-[var(--color-paper)]'
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-lg mt-0.5 flex-shrink-0 ${
                     isSelected
-                      ? 'bg-[var(--accent-indigo)] text-white'
+                      ? 'bg-[var(--accent-violet)] text-white'
                       : 'bg-[var(--color-paper)] text-[var(--color-ink-muted)] border border-[var(--color-rule)]'
                   }`}
                 >
@@ -674,7 +674,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   <div className="flex items-center justify-between gap-1">
                     <span
                       className={`text-[0.7813rem] font-mono font-semibold truncate ${
-                        isSelected ? 'text-[var(--accent-indigo)]' : 'text-[var(--color-ink)]'
+                        isSelected ? 'text-[var(--accent-violet)]' : 'text-[var(--color-ink)]'
                       }`}
                     >
                       {entry.label}
@@ -720,7 +720,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                 <button
                   type="button"
                   onClick={() => setShowSkillForm(true)}
-                  className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--accent-indigo)] text-white text-xs font-mono font-semibold hover:opacity-90"
+                  className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--accent-violet)] text-white text-xs font-mono font-semibold hover:opacity-90"
                 >
                   <Plus size={13} /> Create skill
                 </button>
@@ -745,13 +745,13 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   <span>/</span>
                   <span className="uppercase">{selectedEntry.category}</span>
                   <span>/</span>
-                  <span className="text-[var(--accent-indigo)] font-bold">{selectedEntry.label}</span>
+                  <span className="text-[var(--accent-violet)] font-bold">{selectedEntry.label}</span>
 
                   <span className="ml-2 px-1.5 py-0.5 rounded text-[0.5625rem] font-mono uppercase bg-[var(--color-paper)] border border-[var(--color-rule)] text-[var(--color-ink-muted)]">
                     {selectedEntry.kind}
                   </span>
 
-                  <span className="px-1.5 py-0.5 rounded text-[0.5625rem] font-mono uppercase bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)] font-semibold">
+                  <span className="px-1.5 py-0.5 rounded text-[0.5625rem] font-mono uppercase bg-[var(--accent-violet-soft)] text-[var(--accent-violet)] font-semibold">
                     {selectedEntry.agent}
                   </span>
                 </div>
@@ -767,7 +767,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   <button
                     type="button"
                     onClick={handleCopyPath}
-                    className="inline-flex items-center gap-1 text-[0.625rem] font-mono text-[var(--color-ink-muted)] hover:text-[var(--accent-indigo)] transition-colors"
+                    className="inline-flex items-center gap-1 text-[0.625rem] font-mono text-[var(--color-ink-muted)] hover:text-[var(--accent-violet)] transition-colors"
                     title="Copy full file path"
                   >
                     {copiedPath ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
@@ -785,7 +785,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                     onClick={() => setViewMode('edit')}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors ${
                       viewMode === 'edit'
-                        ? 'bg-[var(--color-surface)] text-[var(--accent-indigo)] font-semibold shadow-xs'
+                        ? 'bg-[var(--color-surface)] text-[var(--accent-violet)] font-semibold shadow-xs'
                         : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                     }`}
                   >
@@ -797,7 +797,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                     onClick={() => setViewMode('preview')}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono transition-colors ${
                       viewMode === 'preview'
-                        ? 'bg-[var(--color-surface)] text-[var(--accent-indigo)] font-semibold shadow-xs'
+                        ? 'bg-[var(--color-surface)] text-[var(--accent-violet)] font-semibold shadow-xs'
                         : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                     }`}
                   >
@@ -810,7 +810,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                 <button
                   type="button"
                   onClick={handleCopyContent}
-                  className="p-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--accent-indigo)] hover:text-[var(--accent-indigo)] text-[var(--color-ink-muted)] transition-colors"
+                  className="p-1.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] hover:border-[var(--accent-violet)] hover:text-[var(--accent-violet)] text-[var(--color-ink-muted)] transition-colors"
                   title="Copy full file content"
                 >
                   {copiedContent ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
@@ -835,7 +835,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   disabled={!canSave}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
                     canSave
-                      ? 'bg-[var(--accent-indigo)] text-white shadow-xs hover:opacity-95 cursor-pointer'
+                      ? 'bg-[var(--accent-violet)] text-white shadow-xs hover:opacity-95 cursor-pointer'
                       : 'bg-[var(--color-rule)]/40 text-[var(--color-ink-muted)] cursor-default'
                   }`}
                 >
@@ -888,7 +888,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                     {Array.from({ length: lineCount }).map((_, i) => (
                       <div
                         key={i + 1}
-                        className={cursorPos.line === i + 1 ? 'text-[var(--accent-indigo)] font-bold' : ''}
+                        className={cursorPos.line === i + 1 ? 'text-[var(--accent-violet)] font-bold' : ''}
                       >
                         {i + 1}
                       </div>
@@ -910,7 +910,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                     onKeyUp={e => updateCursor(e.currentTarget)}
                     disabled={loading || saving || loadedId !== selectedId}
                     spellCheck={selectedEntry.kind === 'markdown'}
-                    className="flex-1 min-h-0 resize-none border-0 p-4 font-mono text-[0.8125rem] text-[var(--color-ink)] bg-transparent outline-none selection:bg-[var(--accent-indigo-soft)] tab-size-2"
+                    className="flex-1 min-h-0 resize-none border-0 p-4 font-mono text-[0.8125rem] text-[var(--color-ink)] bg-transparent outline-none selection:bg-[var(--accent-violet-soft)] tab-size-2"
                     style={{ lineHeight: '1.65rem' }}
                     aria-label={`Editing ${selectedEntry.label}`}
                   />
@@ -1059,7 +1059,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                       key={name}
                       type="button"
                       onClick={() => void browse(`${picker.dir}/${name}`)}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs font-mono text-[var(--color-ink)] hover:bg-[var(--accent-indigo-soft)] hover:text-[var(--accent-indigo)] transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs font-mono text-[var(--color-ink)] hover:bg-[var(--accent-violet-soft)] hover:text-[var(--accent-violet)] transition-colors"
                     >
                       <Folder size={14} className="text-[var(--color-ink-muted)] flex-shrink-0" />
                       <span className="truncate">{name}</span>
@@ -1084,7 +1084,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   value={projectName}
                   onChange={e => setProjectName(e.target.value)}
                   placeholder="Defaults to directory name"
-                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--accent-indigo)] focus:outline-none"
+                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--accent-violet)] focus:outline-none"
                 />
               </div>
 
@@ -1103,7 +1103,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   type="button"
                   onClick={() => void handleAddProject()}
                   disabled={saving || !picker.exists}
-                  className="px-4 py-1.5 rounded-lg bg-[var(--accent-indigo)] text-white text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-lg bg-[var(--accent-violet)] text-white text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {saving ? 'Registering...' : 'Register this folder'}
                 </button>
@@ -1199,7 +1199,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
             </div>
 
             <form onSubmit={handleCreateSkill} className="p-5 space-y-4">
-              <div className="p-3 rounded-xl bg-[var(--accent-indigo-soft)]/40 border border-[var(--accent-indigo)]/20 text-xs font-mono text-[var(--accent-indigo)]">
+              <div className="p-3 rounded-xl bg-[var(--accent-violet-soft)]/40 border border-[var(--accent-violet)]/20 text-xs font-mono text-[var(--accent-violet)]">
                 Will be created in: <strong>{scope === 'global' ? 'Global (~)' : activeProject?.name}</strong>
               </div>
 
@@ -1216,7 +1216,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                   placeholder="e.g. paper-review or data-analysis"
                   pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
                   required
-                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--accent-indigo)] focus:outline-none"
+                  className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--accent-violet)] focus:outline-none"
                 />
                 <p className="text-[0.625rem] font-mono text-[var(--color-ink-muted)] mt-1">
                   Use lowercase alphanumeric characters and hyphens (e.g. <code>literature-digest</code>).
@@ -1253,7 +1253,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                         onClick={() => setSkillAgent(agentOpt.id as AgentEnvEntry['agent'])}
                         className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                           isSelected
-                            ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)]/50 shadow-xs'
+                            ? 'border-[var(--accent-violet)] bg-[var(--accent-violet-soft)]/50 shadow-xs'
                             : 'border-[var(--color-rule)] bg-[var(--color-paper)] hover:bg-[var(--color-surface)]'
                         }`}
                       >
@@ -1265,7 +1265,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                             {agentOpt.desc}
                           </div>
                         </div>
-                        {isSelected && <Check size={14} className="text-[var(--accent-indigo)] shrink-0" />}
+                        {isSelected && <Check size={14} className="text-[var(--accent-violet)] shrink-0" />}
                       </button>
                     );
                   })}
@@ -1296,7 +1296,7 @@ export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (c
                 <button
                   type="submit"
                   disabled={saving || !skillName}
-                  className="px-4 py-1.5 rounded-lg bg-[var(--accent-indigo)] text-white text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-lg bg-[var(--accent-violet)] text-white text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {saving ? 'Creating...' : 'Create Skill'}
                 </button>

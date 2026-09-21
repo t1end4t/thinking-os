@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   container-type: inline-size;
-  background: var(--color-paper);
+  background: var(--color-surface);
   color: var(--color-ink);
 }
 
@@ -15,6 +15,7 @@
   overflow-y: auto;
   min-height: 0;
   flex: 1;
+  background: var(--color-surface);
 }
 
 .survey-command-header {
@@ -42,7 +43,7 @@
 }
 
 .survey-command-heading > svg {
-  color: var(--accent-indigo);
+  color: var(--accent-amber);
 }
 
 .survey-command-heading h1 {
@@ -73,7 +74,7 @@
 
 .survey-agent-line > svg,
 .survey-agent-line strong {
-  color: var(--accent-indigo);
+  color: var(--accent-amber);
 }
 
 .survey-agent-line span + span::before,
@@ -91,7 +92,7 @@
   min-height: 36px;
   padding: 4px 20px;
   border-top: 1px solid var(--color-rule);
-  background: var(--color-paper);
+  background: var(--color-surface);
 }
 
 .survey-view-tabs {
@@ -117,11 +118,11 @@
 .survey-view-tabs button:hover,
 .survey-view-tabs button[aria-selected="true"] {
   color: var(--color-ink);
-  background: var(--color-surface);
+  background: var(--color-paper);
 }
 
 .survey-view-tabs button[aria-selected="true"] > svg {
-  color: var(--accent-indigo);
+  color: var(--accent-amber);
 }
 
 .survey-view-tabs strong {
@@ -177,7 +178,7 @@
 .survey-card {
   padding: 16px;
   border: 1px solid var(--color-rule);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--color-surface);
   margin-bottom: 12px;
   overflow-wrap: anywhere;
@@ -187,7 +188,7 @@
 }
 
 .survey-card:hover {
-  border-color: color-mix(in srgb, var(--accent-indigo) 45%, var(--color-rule));
+  border-color: color-mix(in srgb, var(--accent-amber) 45%, var(--color-rule));
   box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.06);
 }
 
@@ -208,7 +209,7 @@
 
 .survey-card-heading input[type="checkbox"] {
   margin-top: 3px;
-  accent-color: var(--accent-indigo);
+  accent-color: var(--accent-amber);
   cursor: pointer;
   width: 15px;
   height: 15px;
@@ -242,7 +243,7 @@
 
 /* Linked Problems inside Candidate Questions */
 .survey-linked-problem {
-  border-left: 3px solid var(--accent-indigo);
+  border-left: 3px solid var(--accent-amber);
   padding: 10px 14px;
   background: var(--color-paper);
   border-radius: 0 8px 8px 0;
@@ -254,7 +255,7 @@
 }
 
 .survey-linked-problem:hover {
-  background: color-mix(in srgb, var(--accent-indigo) 4%, var(--color-paper));
+  background: color-mix(in srgb, var(--accent-amber) 5%, var(--color-paper));
 }
 
 .survey-linked-problem > * + * {
@@ -273,9 +274,9 @@
 }
 
 .survey-drop-active {
-  border-color: var(--accent-indigo) !important;
-  box-shadow: 0 0 0 2px var(--accent-indigo), 0 8px 24px -4px rgba(99, 102, 241, 0.2) !important;
-  background: color-mix(in srgb, var(--accent-indigo) 6%, var(--color-surface)) !important;
+  border-color: var(--accent-amber) !important;
+  box-shadow: 0 0 0 2px var(--accent-amber), 0 8px 24px -4px rgba(217, 119, 6, 0.2) !important;
+  background: color-mix(in srgb, var(--accent-amber) 6%, var(--color-surface)) !important;
   transform: scale(1.01);
 }
 
@@ -306,15 +307,15 @@
 .survey-selection {
   padding: 10px 16px;
   margin-top: 14px;
-  border: 1px solid var(--accent-indigo);
+  border: 1px solid var(--accent-amber);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--accent-indigo) 8%, var(--color-surface));
+  background: color-mix(in srgb, var(--accent-amber) 8%, var(--color-surface));
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  box-shadow: 0 4px 16px -2px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 16px -2px rgba(217, 119, 6, 0.15);
 }
 
 /* Buttons */
@@ -346,16 +347,16 @@
 }
 
 .survey-btn-primary {
-  background: var(--accent-indigo) !important;
-  border-color: var(--accent-indigo) !important;
+  background: var(--accent-amber, #d97706) !important;
+  border-color: var(--accent-amber, #d97706) !important;
   color: #ffffff !important;
   font-weight: 600;
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-indigo) 35%, transparent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-amber, #d97706) 35%, transparent);
 }
 
 .survey-btn-primary:hover:not(:disabled) {
   opacity: 0.92;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-indigo) 45%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-amber, #d97706) 45%, transparent);
   transform: translateY(-0.5px);
 }
 
@@ -426,8 +427,109 @@
 .survey-form textarea:focus,
 .survey-form select:focus {
   outline: none;
-  border-color: var(--accent-indigo);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-indigo) 20%, transparent);
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-amber) 25%, transparent);
+}
+
+.survey-form .survey-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+}
+
+.survey-source {
+  padding: 14px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.survey-source ul {
+  padding-left: 18px;
+  list-style: disc;
+  margin-top: 6px;
+}
+
+.survey-source li + li {
+  margin-top: 4px;
+}
+
+@media (max-width: 960px) {
+  .survey-command-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .survey-agent-line {
+    justify-content: flex-start;
+  }
+
+  .survey-command-bar {
+    padding-inline: 16px;
+  }
+
+  .survey-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .survey-workbench {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .survey-command-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .survey-view-tabs button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .survey-command-stats {
+    justify-content: space-between;
+  }
+}
+
+@container (max-width: 680px) {
+  .survey-command-main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .survey-agent-line {
+    justify-content: flex-start;
+  }
+
+  .survey-command-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 14px;
+  }
+
+  .survey-view-tabs button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .survey-command-stats {
+    justify-content: space-between;
+  }
 }
 
 .survey-form .survey-check {

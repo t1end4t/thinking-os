@@ -355,7 +355,7 @@ export function DiscoveryView() {
                   type="checkbox"
                   checked={expand}
                   onChange={e => setExpand(e.target.checked)}
-                  className="accent-[var(--accent-indigo)]"
+                  className="accent-amber-500"
                 />
                 <span className="text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
                   Codex query expansion
@@ -394,7 +394,7 @@ export function DiscoveryView() {
             </summary>
             <div className="scholar-ai-banner-header">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[var(--accent-indigo)] flex items-center justify-center shrink-0">
+                <span className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <Sparkles size={13} />
                 </span>
                 <div>
@@ -411,7 +411,7 @@ export function DiscoveryView() {
               <div className="flex items-center gap-1.5 flex-wrap">
                 {literature.searchQueries.map((q, idx) => (
                   <span key={idx} className="scholar-ai-tag">
-                    <Tag size={10} className="text-[var(--accent-indigo)]" />
+                    <Tag size={10} className="text-amber-600 dark:text-amber-400" />
                     <span>{q}</span>
                   </span>
                 ))}
@@ -552,7 +552,7 @@ export function DiscoveryView() {
                         <span className="survey-pill font-mono text-[0.6875rem] font-bold bg-[var(--color-paper)] text-[var(--color-ink)]">
                           {paper.year || 'Year unrecorded'}
                         </span>
-                        <span className="survey-pill font-mono text-[0.6875rem] text-[var(--accent-indigo)] border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/40 font-semibold">
+                        <span className="survey-pill font-mono text-[0.6875rem] text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/40 font-semibold">
                           {paper.source}
                         </span>
                         {paper.doi && (
@@ -610,10 +610,10 @@ export function DiscoveryView() {
                       <button
                         type="button"
                         onClick={() => handleExtractProblem(paper)}
-                        className="survey-btn inline-flex items-center gap-1 text-xs"
+                        className="survey-btn inline-flex items-center gap-1 text-xs hover:border-amber-400 dark:hover:border-amber-600"
                         title="Extract an observation or limitation into the Synthesis board"
                       >
-                        <FilePlus2 size={11} className="text-[var(--accent-indigo)]" />
+                        <FilePlus2 size={11} className="text-amber-600 dark:text-amber-400" />
                         <span>Extract Problem</span>
                       </button>
 
@@ -656,7 +656,7 @@ export function DiscoveryView() {
           <div className="bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-2xl p-6 max-w-lg w-full shadow-2xl animate-in zoom-in-95">
             <div className="flex items-center justify-between pb-3 border-b border-[var(--color-rule)] mb-4">
               <div className="flex items-center gap-2">
-                <FilePlus2 size={16} className="text-[var(--accent-indigo)]" />
+                <FilePlus2 size={16} className="text-amber-600 dark:text-amber-400" />
                 <h3 className="text-sm font-bold text-[var(--color-ink)]">
                   Extract Observation into Synthesis
                 </h3>
@@ -664,7 +664,7 @@ export function DiscoveryView() {
               <button
                 type="button"
                 onClick={() => setSelectedPaperForProblem(null)}
-                className="p-1 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                className="p-1 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] cursor-pointer"
               >
                 <X size={15} />
               </button>
@@ -683,7 +683,7 @@ export function DiscoveryView() {
                 rows={4}
                 value={problemObservationText}
                 onChange={e => setProblemObservationText(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none focus:border-[var(--accent-indigo)]"
+                className="w-full text-xs p-2.5 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                 placeholder="What specific limitation, boundary condition, or anomaly does this paper document?"
               />
             </label>

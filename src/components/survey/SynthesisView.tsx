@@ -115,7 +115,7 @@ export function SynthesisView() {
                 }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   view === value
-                    ? 'bg-[var(--color-surface)] text-[var(--accent-indigo)] font-semibold shadow-2xs border border-[var(--color-rule)]'
+                    ? 'bg-[var(--color-surface)] text-amber-700 dark:text-amber-400 font-semibold shadow-2xs border border-[var(--color-rule)]'
                     : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
                 }`}
               >
@@ -138,7 +138,7 @@ export function SynthesisView() {
               placeholder="Search problems or candidate questions…"
               value={query}
               onChange={event => setQuery(event.target.value)}
-              className="w-full text-xs py-1.5 pl-8 pr-7 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:border-[var(--accent-indigo)]"
+              className="w-full text-xs py-1.5 pl-8 pr-7 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
             />
             {query && (
               <button
@@ -159,7 +159,7 @@ export function SynthesisView() {
               type="button"
               onClick={() => setShowManualForm(prev => !prev)}
               className={`survey-btn inline-flex items-center gap-1.5 ${
-                showManualForm ? 'border-[var(--accent-indigo)] text-[var(--accent-indigo)]' : ''
+                showManualForm ? 'border-amber-500 text-amber-700 dark:text-amber-400' : ''
               }`}
             >
               <PenTool size={13} />
@@ -207,7 +207,7 @@ export function SynthesisView() {
       {activeSelected.length > 0 && (
         <div className="survey-selection" role="status">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-xs text-[var(--accent-indigo)] flex items-center gap-1.5">
+            <span className="font-semibold text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
               <CheckCircle2 size={15} />
               {activeSelected.length} {activeSelected.length === 1 ? 'problem' : 'problems'} selected
             </span>
@@ -253,10 +253,10 @@ export function SynthesisView() {
 
       {/* Manual Problem Recording Drawer */}
       {showManualForm && view === 'active' && (
-        <div className="mt-4 p-5 rounded-xl border border-[var(--accent-indigo)] bg-[var(--color-surface)] shadow-md animate-in fade-in duration-150">
+        <div className="mt-4 p-5 rounded-xl border border-amber-500/50 bg-[var(--color-surface)] shadow-md animate-in fade-in duration-150">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--color-rule)]">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[var(--accent-indigo)] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <PenTool size={14} />
               </div>
               <div>
@@ -380,7 +380,7 @@ export function SynthesisView() {
               return (
                 <article
                   key={problem.id}
-                  className={`survey-card ${draggedProblemId === problem.id ? 'opacity-50 ring-2 ring-[var(--accent-indigo)]' : ''}`}
+                  className={`survey-card ${draggedProblemId === problem.id ? 'opacity-50 ring-2 ring-amber-500' : ''}`}
                   data-problem-id={problem.id}
                   draggable={!problem.retireReason}
                   onDragStart={event => beginDrag(event, problem)}
@@ -419,7 +419,7 @@ export function SynthesisView() {
                       className={`survey-pill font-mono ${
                         problem.attribution === 'paper-author'
                           ? 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/50 border-teal-200 dark:border-teal-800'
-                          : 'text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800'
+                          : 'text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800'
                       }`}
                     >
                       {problem.attribution === 'paper-author'
@@ -448,7 +448,7 @@ export function SynthesisView() {
                         <span>Source paper passage</span>
                         <ChevronDown size={12} className="text-[var(--color-ink-muted)]" />
                       </summary>
-                      <blockquote className="italic font-serif text-[0.75rem] text-[var(--color-ink)] border-l-2 border-[var(--accent-indigo)] pl-2.5 my-2">
+                      <blockquote className="italic font-serif text-[0.75rem] text-[var(--color-ink)] border-l-2 border-amber-500 pl-2.5 my-2">
                         {problem.excerpt}
                       </blockquote>
                     </details>
@@ -605,7 +605,7 @@ export function SynthesisView() {
                         Retired
                       </span>
                     ) : (
-                      <span className="survey-pill font-mono text-[0.625rem] text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800">
+                      <span className="survey-pill font-mono text-[0.625rem] text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800 font-semibold">
                         Candidate
                       </span>
                     )}
@@ -659,11 +659,11 @@ export function SynthesisView() {
                   <div
                     className={`survey-drop-hint mt-2 transition-all p-2 rounded-lg ${
                       hoveredCandidate === candidate.id
-                        ? 'border border-[var(--accent-indigo)] bg-indigo-50/80 dark:bg-indigo-950/60 text-[var(--accent-indigo)] font-semibold'
+                        ? 'border border-amber-500 bg-amber-50/80 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-semibold'
                         : ''
                     }`}
                   >
-                    <GripVertical size={12} className="text-[var(--accent-indigo)] shrink-0" />
+                    <GripVertical size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
                     <span>
                       {hoveredCandidate === candidate.id
                         ? 'Release to link observation to this question'

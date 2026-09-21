@@ -40,6 +40,7 @@ import {
 import { LearningUnit, LearnBlock, LearnSource, LearnViewMode } from '../learnTypes';
 import { normalizeLearningUnit, scheduleCard } from '../utils/learnBlocks';
 import { loadVault, saveVault, type VaultSnapshot } from '../vaultClient';
+import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import { useCodexAssistant } from './useCodexAssistant';
 import { getEvidenceSource } from '../utils/evidenceSource';
 import { normalizeSurvey, linkSurveyProblems, unlinkSurveyProblem } from '../utils/survey';
@@ -125,6 +126,7 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   workspaceLoading: boolean;
   workspaceError: string | null;
   setWorkspaceDir: (dir: string) => Promise<void>;
+  loadSampleWorkspace: () => Promise<void>;
 
   // Navigation & Shell
   activeSurface: SurfaceId;
@@ -551,7 +553,15 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setWorkspaceDirState(loaded.dir);
       localStorage.setItem('thinking_os_workspace_dir', loaded.dir);
       
-      applySnapshot(loaded.data);
+      const isSnapshotEmpty = (data: VaultSnapshot) =>
+        !Object.values(data).some(arr => Array.isArray(arr) && arr.length > 0);
+
+      const isEmpty = isSnapshotEmpty(loaded.data);
+      const snapshotToApply = isEmpty ? SAMPLE_SNAPSHOT : loaded.data;
+      applySnapshot(snapshotToApply);
+      if (isEmpty) {
+        void persistSnapshot(loaded.dir, SAMPLE_SNAPSHOT);
+      }
       pendingSave.current = Promise.resolve();
       setVaultReady(true);
     } catch (error) {
@@ -559,7 +569,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setWorkspaceLoading(false);
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, persistSnapshot]);
+
+  const loadSampleWorkspace = useCallback(async () => {
+    if (savePaused.current) return;
+    setWorkspaceLoading(true);
+    setWorkspaceError(null);
+    try {
+      applySnapshot(SAMPLE_SNAPSHOT);
+      await persistSnapshot(workspaceDir, SAMPLE_SNAPSHOT);
+    } catch (error) {
+      setWorkspaceError(String(error instanceof Error ? error.message : error));
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, [applySnapshot, persistSnapshot, workspaceDir]);
 
   const codexAssistant = useCodexAssistant(workspaceDir, async dir => {
     if (dir !== workspaceDir) return;
@@ -1476,6 +1500,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         workspaceLoading,
         workspaceError,
         setWorkspaceDir,
+        loadSampleWorkspace,
         activeSurface,
         setActiveSurface,
         sourceEvidenceId,

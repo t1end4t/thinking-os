@@ -5,18 +5,18 @@
   flex-direction: column;
   min-height: 100%;
   container-type: inline-size;
-  background: var(--color-paper);
+  background: var(--color-surface);
   color: var(--color-ink);
 }
 
 .discovery-container {
-  padding: 18px 24px 40px;
+  padding: 20px 24px 48px;
   max-width: 1400px;
   width: 100%;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
 
 .discovery-mission {
@@ -26,7 +26,7 @@
 .discovery-section-index {
   display: block;
   margin-bottom: 3px;
-  color: var(--accent-indigo);
+  color: var(--accent-amber);
   font: 700 0.625rem var(--font-mono, monospace);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -58,36 +58,37 @@
    ========================================================================== */
 
 .scholar-search-card {
-  background: transparent;
-  border-block: 1px solid var(--color-rule);
-  border-inline: 0;
-  border-radius: 0;
-  padding: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   overflow: hidden;
-  transition: border-color 0.15s ease;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .scholar-search-card:focus-within {
-  border-color: color-mix(in srgb, var(--accent-indigo) 40%, var(--color-rule));
+  border-color: color-mix(in srgb, var(--accent-amber) 40%, var(--color-rule));
 }
 
 .scholar-search-box {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--color-rule);
-  border-radius: 0;
-  padding: 10px 0;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  padding: 8px 14px;
   transition: all 0.15s ease;
 }
 
 .scholar-search-box:focus-within {
-  border-color: var(--accent-indigo);
-  box-shadow: none;
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-amber) 25%, transparent);
+  background: var(--color-surface);
 }
 
 .scholar-search-input {
@@ -116,20 +117,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--accent-indigo);
+  background: var(--accent-amber, #d97706);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
+  border-radius: 8px;
+  padding: 7px 16px;
   font-size: 0.7813rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: none;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-amber, #d97706) 35%, transparent);
 }
 
 .scholar-search-btn:hover:not(:disabled) {
-  opacity: 0.92;
+  background: #b45309;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-amber, #d97706) 45%, transparent);
 }
 
 .scholar-search-btn:disabled {
@@ -147,7 +149,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 8px 0;
+  padding: 0;
   font-size: 0.75rem;
   color: var(--color-ink-muted);
 }
@@ -163,10 +165,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 7px;
-  border-radius: 4px;
-  border: 0;
-  background: var(--color-surface);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper);
   color: var(--color-ink-muted);
   font-size: 0.6875rem;
   font-weight: 500;
@@ -175,9 +177,9 @@
 }
 
 .scholar-topic-chip:hover {
-  border-color: color-mix(in srgb, var(--accent-indigo) 50%, var(--color-rule));
+  border-color: color-mix(in srgb, var(--accent-amber) 50%, var(--color-rule));
   color: var(--color-ink);
-  background: color-mix(in srgb, var(--accent-indigo) 4%, var(--color-paper));
+  background: color-mix(in srgb, var(--accent-amber) 6%, var(--color-surface));
 }
 
 /* ==========================================================================
@@ -185,10 +187,10 @@
    ========================================================================== */
 
 .scholar-ai-banner {
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--color-rule);
-  background: transparent;
+  padding: 12px 16px;
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  background: var(--color-paper);
 }
 
 .scholar-ai-banner > summary {
@@ -196,7 +198,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 0;
+  padding: 0;
   color: var(--color-ink-muted);
   font-size: 0.6875rem;
   cursor: pointer;
@@ -258,10 +260,10 @@
   gap: 6px;
   font-family: var(--font-mono, monospace);
   font-size: 0.6875rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
   background: var(--color-surface);
-  border: 0;
+  border: 1px solid var(--color-rule);
   color: var(--color-ink);
 }
 
@@ -270,7 +272,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding-top: 8px;
+  padding-top: 10px;
+  margin-top: 8px;
   border-top: 1px solid var(--color-rule);
 }
 
@@ -280,9 +283,9 @@
   gap: 4px;
   font-size: 0.6875rem;
   font-weight: 500;
-  padding: 3px 9px;
-  border-radius: 4px;
-  border: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-rule);
   background: var(--color-surface);
   color: var(--color-ink-muted);
   cursor: pointer;
@@ -290,9 +293,9 @@
 }
 
 .scholar-refinement-btn:hover {
-  border-color: var(--accent-indigo);
-  color: var(--accent-indigo);
-  background: color-mix(in srgb, var(--accent-indigo) 4%, var(--color-surface));
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+  background: color-mix(in srgb, var(--accent-amber) 6%, var(--color-surface));
 }
 
 /* ==========================================================================
@@ -319,10 +322,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 7px;
-  border-radius: 4px;
-  border: 0;
-  background: transparent;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper);
   color: var(--color-ink-muted);
   font-size: 0.7188rem;
   font-weight: 500;
@@ -332,8 +335,10 @@
 
 .catalog-chip-toggle.active {
   background: var(--color-surface);
-  color: var(--accent-indigo);
+  color: var(--accent-amber);
+  border-color: color-mix(in srgb, var(--accent-amber) 40%, var(--color-rule));
   font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .catalog-chip-toggle:hover:not(.active) {
@@ -348,24 +353,25 @@
 .scholar-papers-list {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  border-top: 1px solid var(--color-rule);
+  gap: 14px;
+  border-top: 0;
 }
 
 .scholar-paper-card {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--color-rule);
-  border-radius: 0;
-  padding: 13px 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: background 0.15s ease;
+  gap: 12px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .scholar-paper-card:hover {
-  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  border-color: color-mix(in srgb, var(--accent-amber) 45%, var(--color-rule));
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.06);
 }
 
 .scholar-paper-title {
@@ -374,6 +380,11 @@
   color: var(--color-ink);
   line-height: 1.4;
   letter-spacing: -0.01em;
+  transition: color 0.15s ease;
+}
+
+.scholar-paper-title:hover {
+  color: var(--accent-amber);
 }
 
 .scholar-paper-authors {
@@ -386,10 +397,10 @@
   font-size: 0.7813rem;
   line-height: 1.6;
   color: var(--color-ink);
-  padding: 10px 14px;
-  background: var(--color-surface);
-  border: 0;
-  border-radius: 4px;
+  padding: 12px 16px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
   margin-top: 6px;
   white-space: pre-wrap;
 }
@@ -407,7 +418,7 @@
     text-align: left;
   }
   .scholar-search-card {
-    border-radius: 8px;
+    border-radius: 12px;
   }
   .scholar-options-bar {
     flex-direction: column;
@@ -517,8 +528,8 @@
 .literature-dialog textarea:focus,
 .literature-dialog select:focus {
   outline: none;
-  border-color: var(--accent-indigo);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-indigo) 20%, transparent);
+  border-color: var(--accent-amber);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-amber) 25%, transparent);
 }
 
 .literature-check {
@@ -537,7 +548,7 @@
 }
 
 .literature-check input[type="checkbox"] {
-  accent-color: var(--accent-indigo);
+  accent-color: var(--accent-amber);
   width: 15px;
   height: 15px;
   cursor: pointer;
@@ -633,16 +644,16 @@ button.literature-primary:disabled {
 }
 
 .literature-primary {
-  background: var(--accent-indigo) !important;
-  border-color: var(--accent-indigo) !important;
+  background: var(--accent-amber, #d97706) !important;
+  border-color: var(--accent-amber, #d97706) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-indigo) 35%, transparent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--accent-amber, #d97706) 35%, transparent);
 }
 
 .literature-primary:hover:not(:disabled) {
   opacity: 0.92;
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-indigo) 45%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-amber, #d97706) 45%, transparent);
   transform: translateY(-0.5px);
 }
 
