@@ -111,6 +111,18 @@ function providerAttempt(value, index) {
   };
 }
 
+function liveCandidate(value, index) {
+  const input = object(value, `liveCandidates[${index}]`);
+  return {
+    id: text(input.id, `liveCandidates[${index}].id`, 120),
+    title: text(input.title, `liveCandidates[${index}].title`, 500),
+    authors: text(input.authors, `liveCandidates[${index}].authors`, 500, true),
+    ...(Number.isFinite(input.year) ? { year: input.year } : {}),
+    sources: texts(input.sources || [], `liveCandidates[${index}].sources`, 8),
+    status: literal(input.status, ['retrieved', 'screening', 'screened', 'recommended', 'uncertain', 'rejected'], 'retrieved', `liveCandidates[${index}].status`)
+  };
+}
+
 export function parseScoutRun(value) {
   const input = object(value, 'run');
   if (!RUN_STATES.has(input.state) || (input.activeStage !== undefined && !RUN_STATES.has(input.activeStage))) throw new Error('Invalid run state.');
@@ -124,7 +136,8 @@ export function parseScoutRun(value) {
     ...(input.finishedAt === undefined ? {} : { finishedAt: number(input.finishedAt, 'finishedAt') }),
     ...(input.reportId === undefined ? {} : { reportId: identifier(input.reportId, 'reportId') }),
     ...(input.cancellationReason === undefined ? {} : { cancellationReason: text(input.cancellationReason, 'cancellationReason', 2000) }),
-    ...(input.error === undefined ? {} : { error: text(input.error, 'error', 4000) })
+    ...(input.error === undefined ? {} : { error: text(input.error, 'error', 4000) }),
+    ...(Array.isArray(input.liveCandidates) ? { liveCandidates: input.liveCandidates.map(liveCandidate) } : {})
   };
 }
 

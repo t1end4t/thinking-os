@@ -238,9 +238,21 @@ export const ManuscriptSurface: React.FC = () => {
                 <ChevronDown size={14} className={`text-[var(--color-ink-muted)] shrink-0 transition-transform ${isPaperDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              <span className="text-[0.65rem] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 shrink-0 border border-purple-200/40">
-                {manuscript.meta.targetVenue}
+              <span className={`text-[0.65rem] font-mono px-2 py-0.5 rounded-full shrink-0 border ${
+                manuscript.meta.status === 'review_ready'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                  : manuscript.meta.status === 'submitted'
+                  ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800'
+                  : 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+              }`}>
+                {manuscript.meta.status === 'review_ready' ? 'Review Ready' : manuscript.meta.status === 'submitted' ? 'Submitted' : 'Draft'}
               </span>
+
+              {manuscript.meta.targetVenue ? (
+                <span className="text-[0.65rem] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 shrink-0 border border-purple-200/40">
+                  {manuscript.meta.targetVenue}
+                </span>
+              ) : null}
 
               <button
                 type="button"
@@ -326,8 +338,12 @@ export const ManuscriptSurface: React.FC = () => {
                               <div className="truncate font-semibold">{item.meta.title}</div>
                             </div>
                             <div className="text-[10px] text-[var(--color-ink-muted)] mt-0.5 flex items-center gap-2">
-                              <span>{item.meta.targetVenue}</span>
-                              <span>•</span>
+                              {item.meta.targetVenue ? (
+                                <>
+                                  <span>{item.meta.targetVenue}</span>
+                                  <span>•</span>
+                                </>
+                              ) : null}
                               <span>{itemWords} words</span>
                               <span>•</span>
                               <span>{item.sections.length} sections</span>
@@ -344,7 +360,7 @@ export const ManuscriptSurface: React.FC = () => {
                       onClick={() => {
                         const newDoc = createManuscript({
                           title: 'New Research Paper Draft',
-                          targetVenue: 'ICLR 2026',
+                          targetVenue: '',
                           status: 'drafting'
                         });
                         setIsPaperDropdownOpen(false);
@@ -355,7 +371,7 @@ export const ManuscriptSurface: React.FC = () => {
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors"
                     >
                       <Plus size={12} />
-                      <span>+ New Paper</span>
+                      <span>New Paper</span>
                     </button>
                     {activeManuscriptId && (
                       <button
@@ -427,7 +443,7 @@ export const ManuscriptSurface: React.FC = () => {
             onClick={() => {
               const newDoc = createManuscript({
                 title: 'New Research Paper Draft',
-                targetVenue: 'ICLR 2026',
+                targetVenue: '',
                 status: 'drafting'
               });
               if (newDoc.sections[0]) {
@@ -1074,10 +1090,23 @@ export const ManuscriptSurface: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--color-ink)] mb-1">Target Venue</label>
+                <label className="block text-xs font-medium text-[var(--color-ink)] mb-1">Status</label>
+                <select
+                  value={manuscript.meta.status || 'drafting'}
+                  onChange={e => updateManuscriptMeta({ status: e.target.value as any })}
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)]"
+                >
+                  <option value="drafting">Drafting</option>
+                  <option value="review_ready">Review Ready</option>
+                  <option value="submitted">Submitted</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-ink)] mb-1">Target Venue (Optional)</label>
                 <input
                   type="text"
-                  value={manuscript.meta.targetVenue}
+                  placeholder="Optional (e.g. arXiv)"
+                  value={manuscript.meta.targetVenue || ''}
                   onChange={e => updateManuscriptMeta({ targetVenue: e.target.value })}
                   className="w-full text-xs px-3 py-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)]"
                 />

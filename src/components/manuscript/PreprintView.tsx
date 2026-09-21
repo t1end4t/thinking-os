@@ -60,7 +60,8 @@ ${meta.abstract}
     let md = `# ${meta.title}\n\n`;
     if (meta.subtitle) md += `*${meta.subtitle}*\n\n`;
     md += `**Authors:** ${meta.authors.map(a => `${a.name} (${a.affiliation})`).join(', ')}\n\n`;
-    md += `**Target Venue:** ${meta.targetVenue} | **Status:** ${meta.status}\n\n`;
+    if (meta.targetVenue) md += `**Target Venue:** ${meta.targetVenue} | `;
+    md += `**Status:** ${meta.status}\n\n`;
     md += `## Abstract\n${meta.abstract}\n\n`;
     md += `**Keywords:** ${meta.keywords.join(', ')}\n\n---\n\n`;
 
@@ -104,9 +105,11 @@ ${meta.abstract}
       {/* Top Bar for Preprint Controls */}
       <div className="px-6 py-3 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between gap-4 select-none shrink-0">
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 rounded text-[0.7rem] font-mono font-semibold bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
-            {meta.targetVenue}
-          </span>
+          {meta.targetVenue ? (
+            <span className="px-2 py-0.5 rounded text-[0.7rem] font-mono font-semibold bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
+              {meta.targetVenue}
+            </span>
+          ) : null}
           <span className="text-xs text-[var(--color-ink-muted)]">
             Preprint Reader Mode · {sections.length} Sections
           </span>
@@ -178,7 +181,7 @@ ${meta.abstract}
             </div>
 
             <div className="inline-block px-3 py-1 rounded-full text-[0.68rem] font-mono font-medium bg-slate-100 dark:bg-slate-800 text-[var(--color-ink-muted)]">
-              Target: {meta.targetVenue} · Status: {meta.status.toUpperCase()}
+              {meta.targetVenue ? `Target: ${meta.targetVenue} · ` : ''}Status: {meta.status.toUpperCase()}
             </div>
           </header>
 

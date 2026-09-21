@@ -45,14 +45,35 @@ type SectionAttachmentField =
   | 'attachedClaimIds'
   | 'attachedCitationKeys';
 
+const cleanVenue = (venue?: string) => {
+  if (!venue) return '';
+  const v = venue.trim();
+  if (
+    v === 'ICLR 2026' ||
+    v === 'ICLR 2025' ||
+    v === 'ICLR 2025 (Oral Presentation Track)' ||
+    v === 'ICML 2025 Proceedings'
+  ) {
+    return '';
+  }
+  return v;
+};
+
 const loadInitialVault = (): { vault: ManuscriptDocument[]; activeId: string } => {
   try {
     const savedVault = localStorage.getItem(MANUSCRIPT_VAULT_STORAGE_KEY);
     if (savedVault) {
       const parsed = JSON.parse(savedVault);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const activeId = localStorage.getItem(ACTIVE_MANUSCRIPT_ID_KEY) || parsed[0].id || 'doc-1';
-        return { vault: parsed, activeId };
+        const sanitized = parsed.map((doc: ManuscriptDocument) => ({
+          ...doc,
+          meta: {
+            ...doc.meta,
+            targetVenue: cleanVenue(doc.meta?.targetVenue)
+          }
+        }));
+        const activeId = localStorage.getItem(ACTIVE_MANUSCRIPT_ID_KEY) || sanitized[0].id || 'doc-1';
+        return { vault: sanitized, activeId };
       }
     }
 
@@ -64,7 +85,11 @@ const loadInitialVault = (): { vault: ManuscriptDocument[]; activeId: string } =
         const legacyDoc: ManuscriptDocument = {
           ...(parsedLegacy as ManuscriptDocument),
           id: (parsedLegacy as any).id || 'doc-1',
-          createdAt: (parsedLegacy as any).createdAt || Date.now()
+          createdAt: (parsedLegacy as any).createdAt || Date.now(),
+          meta: {
+            ...parsedLegacy.meta,
+            targetVenue: cleanVenue(parsedLegacy.meta.targetVenue)
+          } as ManuscriptMeta
         };
         return { vault: [legacyDoc], activeId: legacyDoc.id || 'doc-1' };
       }
@@ -137,7 +162,7 @@ export const useManuscriptWorkspace = (): ManuscriptWorkspaceValue => {
         authors: metaOverrides?.authors || [{ name: 'Research Author', affiliation: 'Thinking OS Laboratory' }],
         abstract: metaOverrides?.abstract || '',
         keywords: metaOverrides?.keywords || [],
-        targetVenue: metaOverrides?.targetVenue || 'ICLR 2025',
+        targetVenue: metaOverrides?.targetVenue || '',
         status: metaOverrides?.status || 'drafting',
         lastEditedAt: Date.now()
       },

@@ -88,6 +88,15 @@ export type ScoutProviderAttempt = {
   readonly error?: string;
 };
 
+export type ScoutLiveCandidate = {
+  readonly id: string;
+  readonly title: string;
+  readonly authors: string;
+  readonly year?: number;
+  readonly sources: readonly string[];
+  readonly status: 'retrieved' | 'screening' | 'screened' | 'recommended' | 'uncertain' | 'rejected';
+};
+
 export type ScoutRun = {
   readonly id: string;
   readonly source: ScoutSource;
@@ -108,6 +117,7 @@ export type ScoutRun = {
   readonly reportId?: string;
   readonly cancellationReason?: string;
   readonly error?: string;
+  readonly liveCandidates?: readonly ScoutLiveCandidate[];
 };
 
 export type ScoutExternalIdentity = {
@@ -189,3 +199,12 @@ export type ScoutSnapshot = {
   readonly runs: readonly ScoutRun[];
   readonly reports: readonly ScoutReport[];
 };
+
+export function activeScoutRun(state: ScoutRunState): boolean {
+  return state === 'queued' ||
+    state === 'retrieving' ||
+    state === 'normalizing' ||
+    state === 'screening' ||
+    state === 'assembling' ||
+    state === 'cancelling';
+}

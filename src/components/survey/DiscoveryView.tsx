@@ -1,10 +1,13 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLiterature } from '../../context/useLiterature';
+import { useScouts } from '../../context/useScouts';
+import { activeScoutRun } from '../../scoutTypes';
 import { sameDiscoveryPaper } from '../../literatureClient';
 import type { DiscoveryPaper } from '../../literatureTypes';
 import { ScoutReportsPanel } from './ScoutReportsPanel';
 import { TopicWatchesPanel } from './TopicWatchesPanel';
+import { ActiveScoutMonitor } from './ActiveScoutMonitor';
 import {
   Search,
   Sparkles,
@@ -20,7 +23,10 @@ import {
   Compass,
   ArrowRight,
   Layers,
-  ListFilter
+  ListFilter,
+  FileText,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import './literature.css';
 
@@ -136,6 +142,7 @@ export function DiscoveryView() {
 
     if (success) {
       setActiveScope('search');
+      setActiveTab('candidates');
     }
   };
 
@@ -240,19 +247,45 @@ export function DiscoveryView() {
     });
   }, [literature.results, literature.searchResults, activeScope, catalogFilter, sortBy, papers]);
 
+  const scouts = useScouts(workspaceDir);
+  const reports = useMemo(
+    () => [...(scouts.snapshot?.reports ?? [])].sort((a, b) => b.createdAt - a.createdAt),
+    [scouts.snapshot?.reports]
+  );
+  const activeRuns = useMemo(
+    () => (scouts.snapshot?.runs ?? []).filter(run => activeScoutRun(run.state)),
+    [scouts.snapshot?.runs]
+  );
+
+  const [selectedReportId, setSelectedReportId] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<'report' | 'candidates'>('report');
+  const [watchesOpen, setWatchesOpen] = useState(false);
+
+  useEffect(() => {
+    if (reports.length > 0 && (!selectedReportId || !reports.some(r => r.id === selectedReportId))) {
+      setSelectedReportId(reports[0].id);
+    }
+  }, [reports, selectedReportId]);
+
+  // When an active scout run finishes, auto-select the new report and switch to the Scout Report tab
+  const prevActiveCountRef = useRef(activeRuns.length);
+  useEffect(() => {
+    if (prevActiveCountRef.current > 0 && activeRuns.length === 0) {
+      if (reports.length > 0) {
+        setSelectedReportId(reports[0].id);
+        setActiveTab('report');
+        const numRecs = reports[0].recommendations.length;
+        setNotice(`Scout completed! Generated shortlist report with ${numRecs} recommended paper${numRecs === 1 ? '' : 's'}.`);
+      }
+    }
+    prevActiveCountRef.current = activeRuns.length;
+  }, [activeRuns.length, reports]);
+
+  const selectedReport = reports.find(r => r.id === selectedReportId) ?? reports[0];
+
   return (
     <div className="discovery-surface">
       <div className="discovery-container">
-        <TopicWatchesPanel />
-        <ScoutReportsPanel />
-        <section className="discovery-mission" aria-labelledby="discovery-mission-title">
-          <div>
-            <span className="discovery-section-index">Consolidated workflow</span>
-            <h2 id="discovery-mission-title">Use screened scouts before raw search.</h2>
-            <p>Discuss the question in the assistant, review its editable scout brief, then run it for an explained shortlist. Direct metadata retrieval remains available below for exact-query control.</p>
-          </div>
-        </section>
-
         {/* Global Feedback Notifications */}
         {notice && (
           <div role="status" className="discovery-feedback p-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-xs animate-in fade-in">
@@ -278,373 +311,513 @@ export function DiscoveryView() {
           </div>
         )}
 
-        <details className="legacy-retrieval">
-          <summary>
-            <span><Search size={14} aria-hidden="true" />Advanced direct retrieval</span>
-            <small>Unscreened Crossref and arXiv metadata</small>
-          </summary>
-          <p className="legacy-retrieval-note">Use this fallback when you need exact query control. Results are cached candidates, not Paper Scout recommendations. Existing monitoring jobs remain in Runtime / Agent Jobs.</p>
-          <section className="scholar-search-card" aria-label="Advanced direct literature retrieval">
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              handleSearch();
-            }}
-            className="scholar-search-box"
-          >
-            <Search size={18} className="text-[var(--color-ink-muted)] shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={searchPrompt}
-              onChange={e => setSearchPrompt(e.target.value)}
-              placeholder="Example: Which TinyML methods reduce transformer memory without losing anomaly-detection recall?"
-              disabled={busy}
-              className="scholar-search-input"
+        {/* 2-Column Discovery Grid */}
+        <div className="discovery-layout-grid">
+          {/* Left Column: Active Search Radar, Direct Search & Reports Library */}
+          <div className="discovery-left-col">
+            {/* 1. Active Scout Monitor (Real-time telemetry & live papers stream during search) */}
+            <ActiveScoutMonitor
+              onSelectReport={id => {
+                setSelectedReportId(id);
+                setActiveTab('report');
+              }}
             />
 
-            <div className="scholar-search-actions">
-              {searchPrompt && (
-                <button
-                  type="button"
-                  onClick={() => setSearchPrompt('')}
-                  className="p-1 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
-                  title="Clear input"
+            {/* 2. Direct Academic Search */}
+            <section className="discovery-direct-search" aria-label="Direct academic search">
+              <div className="discovery-direct-search-header">
+                <h3>Direct Academic Search</h3>
+                <p>Query OpenAlex, arXiv & Crossref metadata across publications</p>
+              </div>
+              <div className="p-3">
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
+                    handleSearch();
+                  }}
+                  className="scholar-search-box"
                 >
-                  <X size={14} />
-                </button>
-              )}
+                  <Search size={16} className="text-[var(--color-ink-muted)] shrink-0" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchPrompt}
+                    onChange={e => setSearchPrompt(e.target.value)}
+                    placeholder="Search keywords or topics…"
+                    disabled={busy}
+                    className="scholar-search-input"
+                  />
+                  <div className="scholar-search-actions">
+                    {searchPrompt && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchPrompt('')}
+                        className="p-1 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                        title="Clear input"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={!searchPrompt.trim() || busy}
+                      className="scholar-search-btn"
+                    >
+                      {busy ? (
+                        <>
+                          <RefreshCw size={12} className="animate-spin" />
+                          <span>Searching…</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search size={12} />
+                          <span>Search</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
 
-              <button
-                type="submit"
-                disabled={!searchPrompt.trim() || busy}
-                className="scholar-search-btn"
-              >
-                {busy ? (
-                  <>
-                    <RefreshCw size={13} className="animate-spin" />
-                    <span>Searching…</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={13} />
-                    <span>Search metadata</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+                {/* Suggested Topics */}
+                <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[0.625rem] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">
+                    Topics:
+                  </span>
+                  {topicSuggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSearch(item.query)}
+                      className="scholar-topic-chip"
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
 
-          {/* Quick Options & Topic Suggestions Bar */}
-          <div className="scholar-options-bar">
-            {/* Suggested Starter Topics */}
-            <div className="scholar-topic-chips">
-              <span className="text-[0.6875rem] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">
-                Explore:
-              </span>
-              {topicSuggestions.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSearch(item.query)}
-                  className="scholar-topic-chip"
-                >
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Controls */}
-            <div className="flex items-center gap-4 text-xs shrink-0">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={expand}
-                  onChange={e => setExpand(e.target.checked)}
-                  className="accent-amber-500"
-                />
-                <span className="text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
-                  Codex query expansion
-                </span>
-              </label>
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void literature.refresh()}
-                className="inline-flex items-center gap-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
-                title="Refresh catalog from disk"
-              >
-                <RefreshCw size={12} className={busy ? 'animate-spin' : ''} />
-                <span>Sync</span>
-              </button>
-            </div>
-          </div>
-          </section>
-
-          {(lastSearchedPrompt || literature.searchQueries.length > 0) && (
-            <details className="scholar-ai-banner animate-in fade-in" aria-label="Search strategy">
-            <summary>
-              <span>Search strategy</span>
-              <strong>{literature.searchQueries.length} queries · {literature.searchResults.length} candidates</strong>
-            </summary>
-            <div className="scholar-ai-banner-header">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Sparkles size={13} />
-                </span>
-                <div>
-                  <h3 className="text-xs font-bold text-[var(--color-ink)]">
-                    {lastSearchedPrompt ? `Search brief: "${lastSearchedPrompt}"` : 'Search strategy'}
-                  </h3>
-                  <p className="text-[0.6875rem] text-[var(--color-ink-muted)]">
-                    Retrieval queries sent to Crossref and arXiv. {literature.searchResults.length} candidate publications were cached for review.
-                  </p>
+                {/* Query expansion & Sync controls */}
+                <div className="mt-2.5 pt-2 border-t border-[var(--color-rule)] flex items-center justify-between text-xs">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={expand}
+                      onChange={e => setExpand(e.target.checked)}
+                      className="accent-amber-500"
+                    />
+                    <span className="text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
+                      Codex query expansion
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void literature.refresh()}
+                    className="inline-flex items-center gap-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                    title="Refresh candidates from disk"
+                  >
+                    <RefreshCw size={11} className={busy ? 'animate-spin' : ''} />
+                    <span>Sync</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Formulated Queries as Chips */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {literature.searchQueries.map((q, idx) => (
-                  <span key={idx} className="scholar-ai-tag">
-                    <Tag size={10} className="text-amber-600 dark:text-amber-400" />
-                    <span>{q}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Follow-up Refinements */}
-            <div className="scholar-refinement-chips">
-              <span className="text-[0.6875rem] text-[var(--color-ink-muted)] font-medium">
-                Refine search:
-              </span>
-              {refinementOptions.map((refine, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleApplyRefinement(refine)}
-                  className="scholar-refinement-btn"
-                >
-                  <ArrowRight size={10} />
-                  <span>{refine}</span>
-                </button>
-              ))}
-            </div>
-            </details>
-          )}
-        </details>
-
-        {/* 3. Integrated Paper Catalog Section */}
-        <section className="literature-inbox flex flex-col gap-3" aria-labelledby="literature-inbox-heading">
-          <header className="literature-inbox-heading">
-            <div>
-              <span className="discovery-section-index">Evidence inbox</span>
-              <h2 id="literature-inbox-heading">Review cached candidates.</h2>
-            </div>
-            <p><ListFilter size={12} aria-hidden="true" />Search results persist in this workspace. Add selected papers to Paper Vault after review.</p>
-          </header>
-          {/* Catalog Toolbar & Filters */}
-          <div className="catalog-toolbar">
-            <div className="catalog-filter-group">
-              <button
-                type="button"
-                onClick={() => setActiveScope('all')}
-                className={`catalog-chip-toggle ${activeScope === 'all' ? 'active' : ''}`}
-              >
-                <Layers size={12} />
-                <span>All Inbox</span>
-                <span className="font-mono text-[0.625rem] px-1.5 py-0.2 rounded-full bg-[var(--color-rule)] text-[var(--color-ink)]">
-                  {literature.results.length}
-                </span>
-              </button>
-
-              {literature.searchResults.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveScope('search')}
-                  className={`catalog-chip-toggle ${activeScope === 'search' ? 'active' : ''}`}
-                >
-                  <Sparkles size={12} />
-                  <span>Current Search</span>
-                  <span className="font-mono text-[0.625rem] px-1.5 py-0.2 rounded-full bg-[var(--color-rule)] text-[var(--color-ink)]">
-                    {literature.searchResults.length}
-                  </span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setActiveScope('unvaulted')}
-                className={`catalog-chip-toggle ${activeScope === 'unvaulted' ? 'active' : ''}`}
-              >
-                <BookmarkPlus size={12} />
-                <span>Not in Paper Vault</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveScope('vaulted')}
-                className={`catalog-chip-toggle ${activeScope === 'vaulted' ? 'active' : ''}`}
-              >
-                <CheckCircle2 size={12} />
-                <span>In Paper Vault</span>
-              </button>
-            </div>
-
-            {/* In-catalog search & sort */}
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink-muted)]" />
-                <input
-                  type="search"
-                  placeholder="Filter papers in catalog…"
-                  value={catalogFilter}
-                  onChange={e => setCatalogFilter(e.target.value)}
-                  className="text-xs py-1.5 pl-7 pr-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] w-52 placeholder:text-[var(--color-ink-muted)]"
-                />
-              </div>
-
-              <select
-                value={sortBy}
-                onChange={event => {
-                  const value = event.target.value;
-                  if (value === 'year-desc' || value === 'year-asc' || value === 'title') setSortBy(value);
-                }}
-                className="text-xs py-1.5 px-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] font-mono"
-              >
-                <option value="year-desc">Newest Year</option>
-                <option value="year-asc">Oldest Year</option>
-                <option value="title">Title (A-Z)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Empty Catalog State */}
-          {filteredPapers.length === 0 && (
-            <div className="p-12 text-center border border-dashed border-[var(--color-rule)] rounded-2xl bg-[var(--color-surface)]/40 my-4">
-              <Compass size={32} className="mx-auto mb-2 text-[var(--color-ink-muted)] opacity-60" />
-              <h4 className="text-sm font-semibold text-[var(--color-ink)]">
-                {catalogFilter ? 'No papers match your filter' : 'No discovered publications yet'}
-              </h4>
-              <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto mt-1">
-                {catalogFilter
-                  ? 'Try clearing or changing your keyword search filter.'
-                  : 'Write a research brief on the left. The resulting candidates will retain the queries and job provenance that found them.'}
-              </p>
-            </div>
-          )}
-
-          {/* Papers Feed */}
-          <div className="scholar-papers-list">
-            {filteredPapers.map(paper => {
-              const inVault = papers.find(candidate => sameDiscoveryPaper(candidate, paper));
-
-              return (
-                <article key={paper.id} className="scholar-paper-card">
-                  {/* Card Header & Metadata */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span className="survey-pill font-mono text-[0.6875rem] font-bold bg-[var(--color-paper)] text-[var(--color-ink)]">
-                          {paper.year || 'Year unrecorded'}
-                        </span>
-                        <span className="survey-pill font-mono text-[0.6875rem] text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/40 font-semibold">
-                          {paper.source}
-                        </span>
-                        {paper.doi && (
-                          <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-                            DOI: {paper.doi}
-                          </span>
-                        )}
-                        {paper.queries?.length > 0 && (
-                          <span className="survey-pill font-mono text-[0.625rem] text-[var(--color-ink-muted)] hidden sm:inline-flex">
-                            via: {paper.queries[0]}
-                          </span>
-                        )}
-                      </div>
-
-                      <h4 className="scholar-paper-title">
-                        {paper.title}
-                      </h4>
-
-                      <p className="scholar-paper-authors mt-1">
-                        {paper.authors || 'Authors unavailable'}
-                      </p>
+              {(lastSearchedPrompt || literature.searchQueries.length > 0) && (
+                <details className="scholar-ai-banner border-t border-[var(--color-rule)]" aria-label="Search strategy">
+                  <summary>
+                    <span>Search strategy</span>
+                    <strong>{literature.searchQueries.length} queries · {literature.searchResults.length} candidates</strong>
+                  </summary>
+                  <div className="p-3 bg-[var(--color-paper)]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-xs font-semibold text-[var(--color-ink)]">
+                        {lastSearchedPrompt ? `Brief: "${lastSearchedPrompt}"` : 'Executed Queries'}
+                      </span>
                     </div>
-
-                    {/* Action Controls */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      {inVault ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 font-mono text-[0.6875rem] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 px-2 py-1 rounded-md">
-                            <CheckCircle2 size={11} />
-                            In Paper Vault
-                          </span>
-                          <button
-                            type="button"
-                            className="survey-btn inline-flex items-center gap-1 text-xs"
-                            onClick={() => openPaperSource(inVault.id)}
-                            title="Open in Paper Reader"
-                          >
-                            <BookOpen size={11} />
-                            <span>Reader</span>
-                          </button>
-                        </div>
-                      ) : (
+                    <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                      {literature.searchQueries.map((q, idx) => (
+                        <span key={idx} className="scholar-ai-tag">
+                          <Tag size={10} className="text-amber-600 dark:text-amber-400" />
+                          <span>{q}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="scholar-refinement-chips">
+                      <span className="text-[0.6875rem] text-[var(--color-ink-muted)] font-medium">
+                        Refine:
+                      </span>
+                      {refinementOptions.map((refine, idx) => (
                         <button
+                          key={idx}
                           type="button"
-                          disabled={workspaceLoading || workspaceSyncing}
-                          onClick={() => saveToVault(paper)}
-                          className="survey-btn survey-btn-primary inline-flex items-center gap-1 text-xs"
-                          title="Add this cached candidate to Paper Vault"
+                          onClick={() => handleApplyRefinement(refine)}
+                          className="scholar-refinement-btn"
                         >
-                          <BookmarkPlus size={12} />
-                          <span>Add to Paper Vault</span>
+                          <ArrowRight size={10} />
+                          <span>{refine}</span>
                         </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleExtractProblem(paper)}
-                        className="survey-btn inline-flex items-center gap-1 text-xs hover:border-amber-400 dark:hover:border-amber-600"
-                        title="Extract an observation or limitation into the Synthesis board"
-                      >
-                        <FilePlus2 size={11} className="text-amber-600 dark:text-amber-400" />
-                        <span>Extract Problem</span>
-                      </button>
-
-                      {paper.url && (
-                        <a
-                          href={paper.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="survey-btn inline-flex items-center gap-1 text-xs"
-                          title="Open external publisher or repository URL"
-                        >
-                          <ExternalLink size={11} />
-                          <span className="sr-only">External source</span>
-                        </a>
-                      )}
+                      ))}
                     </div>
                   </div>
+                </details>
+              )}
+            </section>
 
-                  {/* Collapsible Abstract */}
-                  {paper.abstract && (
-                    <details className="mt-1">
-                      <summary className="cursor-pointer text-[0.6875rem] font-semibold text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] select-none">
-                        View Abstract & Key Summary
-                      </summary>
-                      <p className="scholar-paper-abstract">
-                        {paper.abstract}
-                      </p>
-                    </details>
+            {/* 3. Scout Reports Library */}
+            <section className="discovery-reports-card" aria-label="Scout Reports Library">
+              <div className="discovery-reports-header">
+                <h3>
+                  <FileText size={13} className="text-amber-500" />
+                  <span>Scout Reports</span>
+                  {reports.length > 0 && (
+                    <span className="font-mono text-[0.625rem] px-1.5 py-0.5 rounded-full bg-[var(--color-rule)] text-[var(--color-ink)]">
+                      {reports.length}
+                    </span>
                   )}
-                </article>
-              );
-            })}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => void scouts.refresh()}
+                  className="p-1 text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] rounded"
+                  title="Refresh scout reports"
+                >
+                  <RefreshCw size={12} />
+                </button>
+              </div>
+
+              {reports.length > 0 ? (
+                <div className="discovery-reports-list">
+                  {reports.map(rep => {
+                    const isSelected = rep.id === selectedReportId;
+                    const dateStr = new Date(rep.createdAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    });
+                    const recCount = rep.recommendations.length;
+                    const title = rep.inputSnapshot
+                      ? ('question' in rep.inputSnapshot ? rep.inputSnapshot.question : rep.inputSnapshot.name)
+                      : (rep.summary || 'Problem Scout');
+
+                    return (
+                      <button
+                        key={rep.id}
+                        type="button"
+                        className="discovery-report-item"
+                        aria-current={isSelected}
+                        onClick={() => {
+                          setSelectedReportId(rep.id);
+                          setActiveTab('report');
+                        }}
+                      >
+                        <span className="discovery-report-item-title">{title}</span>
+                        <div className="discovery-report-item-meta">
+                          <span>{dateStr}</span>
+                          <span className="discovery-report-badge">
+                            {recCount} recommended
+                          </span>
+                          {rep.source.kind === 'watch' && <span>Watch</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="discovery-reports-empty">
+                  <span>No scout reports yet. Scout a problem brief or run a topic watch to generate an explained shortlist.</span>
+                </div>
+              )}
+            </section>
+
+            {/* 4. Automated Topic Watches */}
+            <details className="legacy-retrieval" open={watchesOpen} onToggle={e => setWatchesOpen(e.currentTarget.open)}>
+              <summary>
+                <span>
+                  <Compass size={13} />
+                  <span>Automated Topic Watches ({scouts.snapshot?.watches.length ?? 0})</span>
+                </span>
+                <small>Periodic research tracking</small>
+              </summary>
+              <div className="p-3">
+                <TopicWatchesPanel />
+              </div>
+            </details>
           </div>
-        </section>
+
+          {/* Right Column: Workspace Tabs (Scout Report & Review Candidates) */}
+          <div className="discovery-right-col">
+            {/* Tab navigation */}
+            <div className="discovery-workspace-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'report'}
+                className={`discovery-tab-btn ${activeTab === 'report' ? 'active' : ''}`}
+                onClick={() => setActiveTab('report')}
+              >
+                <Sparkles size={13} className="text-amber-500" />
+                <span>Scout Report</span>
+                {selectedReport && (
+                  <span className="discovery-tab-count">
+                    {selectedReport.recommendations.length} recommended
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'candidates'}
+                className={`discovery-tab-btn ${activeTab === 'candidates' ? 'active' : ''}`}
+                onClick={() => setActiveTab('candidates')}
+              >
+                <Layers size={13} />
+                <span>Review Candidates</span>
+                <span className="discovery-tab-count">{literature.results.length}</span>
+              </button>
+            </div>
+
+            {/* Tab Content 1: Scout Report */}
+            {activeTab === 'report' && (
+              <div className="flex flex-col gap-3">
+                {reports.length > 0 ? (
+                  <ScoutReportsPanel
+                    hideSidebar={true}
+                    forcedReportId={selectedReportId}
+                    onSelectReport={id => setSelectedReportId(id)}
+                  />
+                ) : (
+                  <div className="discovery-empty-report">
+                    <Sparkles size={28} className="text-amber-500" />
+                    <h3>No Scout Report Generated Yet</h3>
+                    <p>
+                      Paper Scouts screen across arXiv, Crossref, and OpenAlex to assemble a high-conviction shortlist.
+                      Each report displays explicit reasoning on why each paper is relevant, expected reading values, evidence excerpts, and quality confidence scores.
+                    </p>
+                    <p className="text-xs text-[var(--color-ink-muted)]">
+                      Ask the assistant to scout a paper or click &ldquo;Scout Research Problem&rdquo; on the left to start.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab Content 2: Candidate Papers */}
+            {activeTab === 'candidates' && (
+              <section className="literature-inbox flex flex-col gap-3" aria-labelledby="literature-inbox-heading">
+                <header className="literature-inbox-heading">
+                  <div>
+                    <span className="discovery-section-index">Evidence inbox</span>
+                    <h2 id="literature-inbox-heading">Review candidates.</h2>
+                  </div>
+                  <p><ListFilter size={12} aria-hidden="true" />Candidate papers retrieved across searches and queries. Add selected papers to Paper Vault after review.</p>
+                </header>
+
+                {/* Catalog Toolbar & Filters */}
+                <div className="catalog-toolbar">
+                  <div className="catalog-filter-group">
+                    <button
+                      type="button"
+                      onClick={() => setActiveScope('all')}
+                      className={`catalog-chip-toggle ${activeScope === 'all' ? 'active' : ''}`}
+                    >
+                      <Layers size={12} />
+                      <span>All Inbox</span>
+                      <span className="font-mono text-[0.625rem] px-1.5 py-0.2 rounded-full bg-[var(--color-rule)] text-[var(--color-ink)]">
+                        {literature.results.length}
+                      </span>
+                    </button>
+
+                    {literature.searchResults.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveScope('search')}
+                        className={`catalog-chip-toggle ${activeScope === 'search' ? 'active' : ''}`}
+                      >
+                        <Sparkles size={12} />
+                        <span>Current Search</span>
+                        <span className="font-mono text-[0.625rem] px-1.5 py-0.2 rounded-full bg-[var(--color-rule)] text-[var(--color-ink)]">
+                          {literature.searchResults.length}
+                        </span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveScope('unvaulted')}
+                      className={`catalog-chip-toggle ${activeScope === 'unvaulted' ? 'active' : ''}`}
+                    >
+                      <BookmarkPlus size={12} />
+                      <span>Not in Paper Vault</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveScope('vaulted')}
+                      className={`catalog-chip-toggle ${activeScope === 'vaulted' ? 'active' : ''}`}
+                    >
+                      <CheckCircle2 size={12} />
+                      <span>In Paper Vault</span>
+                    </button>
+                  </div>
+
+                  {/* In-catalog search & sort */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-ink-muted)]" />
+                      <input
+                        type="search"
+                        placeholder="Filter candidates…"
+                        value={catalogFilter}
+                        onChange={e => setCatalogFilter(e.target.value)}
+                        className="text-xs py-1.5 pl-7 pr-3 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] w-52 placeholder:text-[var(--color-ink-muted)]"
+                      />
+                    </div>
+
+                    <select
+                      value={sortBy}
+                      onChange={event => {
+                        const value = event.target.value;
+                        if (value === 'year-desc' || value === 'year-asc' || value === 'title') setSortBy(value);
+                      }}
+                      className="text-xs py-1.5 px-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] font-mono"
+                    >
+                      <option value="year-desc">Newest Year</option>
+                      <option value="year-asc">Oldest Year</option>
+                      <option value="title">Title (A-Z)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Empty Catalog State */}
+                {filteredPapers.length === 0 && (
+                  <div className="p-12 text-center border border-dashed border-[var(--color-rule)] rounded-2xl bg-[var(--color-surface)]/40 my-4">
+                    <Compass size={32} className="mx-auto mb-2 text-[var(--color-ink-muted)] opacity-60" />
+                    <h4 className="text-sm font-semibold text-[var(--color-ink)]">
+                      {catalogFilter ? 'No papers match your filter' : 'No candidate publications yet'}
+                    </h4>
+                    <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto mt-1">
+                      {catalogFilter
+                        ? 'Try clearing or changing your keyword search filter.'
+                        : 'Run a search on the left. The resulting candidates will retain the queries and job provenance that found them.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* Papers Feed */}
+                <div className="scholar-papers-list">
+                  {filteredPapers.map(paper => {
+                    const inVault = papers.find(candidate => sameDiscoveryPaper(candidate, paper));
+
+                    return (
+                      <article key={paper.id} className="scholar-paper-card">
+                        {/* Card Header & Metadata */}
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                              <span className="survey-pill font-mono text-[0.6875rem] font-bold bg-[var(--color-paper)] text-[var(--color-ink)]">
+                                {paper.year || 'Year unrecorded'}
+                              </span>
+                              <span className="survey-pill font-mono text-[0.6875rem] text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/40 font-semibold">
+                                {paper.source}
+                              </span>
+                              {paper.doi && (
+                                <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
+                                  DOI: {paper.doi}
+                                </span>
+                              )}
+                              {paper.queries?.length > 0 && (
+                                <span className="survey-pill font-mono text-[0.625rem] text-[var(--color-ink-muted)] hidden sm:inline-flex">
+                                  via: {paper.queries[0]}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="scholar-paper-title">
+                              {paper.title}
+                            </h4>
+
+                            <p className="scholar-paper-authors mt-1">
+                              {paper.authors || 'Authors unavailable'}
+                            </p>
+                          </div>
+
+                          {/* Action Controls */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {inVault ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 font-mono text-[0.6875rem] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 px-2 py-1 rounded-md">
+                                  <CheckCircle2 size={11} />
+                                  In Paper Vault
+                                </span>
+                                <button
+                                  type="button"
+                                  className="survey-btn inline-flex items-center gap-1 text-xs"
+                                  onClick={() => openPaperSource(inVault.id)}
+                                  title="Open in Paper Reader"
+                                >
+                                  <BookOpen size={11} />
+                                  <span>Reader</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={workspaceLoading || workspaceSyncing}
+                                onClick={() => saveToVault(paper)}
+                                className="survey-btn survey-btn-primary inline-flex items-center gap-1 text-xs"
+                                title="Add this candidate to Paper Vault"
+                              >
+                                <BookmarkPlus size={12} />
+                                <span>Add to Paper Vault</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleExtractProblem(paper)}
+                              className="survey-btn inline-flex items-center gap-1 text-xs hover:border-amber-400 dark:hover:border-amber-600"
+                              title="Extract an observation or limitation into the Synthesis board"
+                            >
+                              <FilePlus2 size={11} className="text-amber-600 dark:text-amber-400" />
+                              <span>Extract Problem</span>
+                            </button>
+
+                            {paper.url && (
+                              <a
+                                href={paper.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="survey-btn inline-flex items-center gap-1 text-xs"
+                                title="Open external publisher or repository URL"
+                              >
+                                <ExternalLink size={11} />
+                                <span className="sr-only">External source</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Collapsible Abstract */}
+                        {paper.abstract && (
+                          <details className="mt-1">
+                            <summary className="cursor-pointer text-[0.6875rem] font-semibold text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] select-none">
+                              View Abstract & Key Summary
+                            </summary>
+                            <p className="scholar-paper-abstract">
+                              {paper.abstract}
+                            </p>
+                          </details>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Extract Problem Modal Dialog */}

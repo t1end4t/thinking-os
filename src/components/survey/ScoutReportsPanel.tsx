@@ -115,7 +115,15 @@ function CandidateCard({ candidate, report, compared, busy, onCompare, onDismiss
   );
 }
 
-export function ScoutReportsPanel() {
+export function ScoutReportsPanel({
+  forcedReportId,
+  hideSidebar,
+  onSelectReport
+}: {
+  readonly forcedReportId?: string;
+  readonly hideSidebar?: boolean;
+  readonly onSelectReport?: (reportId: string) => void;
+} = {}) {
   const { workspaceDir, workspaceLoading, workspaceSyncing, papers, addPaper, openPaperSource, activeScoutReportId } = useWorkspace();
   const scouts = useScouts(workspaceDir);
   const reports = useMemo(() => [...(scouts.snapshot?.reports ?? [])].sort((first, second) => second.createdAt - first.createdAt), [scouts.snapshot?.reports]);
@@ -129,11 +137,23 @@ export function ScoutReportsPanel() {
   const dismissTrigger = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    if (reports.length && !reports.some(report => report.id === selectedReportId)) setSelectedReportId(reports[0].id);
-  }, [reports, selectedReportId]);
+    if (forcedReportId && reports.some(report => report.id === forcedReportId)) {
+      setSelectedReportId(forcedReportId);
+    }
+  }, [forcedReportId, reports]);
+
   useEffect(() => {
-    if (activeScoutReportId && reports.some(report => report.id === activeScoutReportId)) setSelectedReportId(activeScoutReportId);
-  }, [activeScoutReportId, reports]);
+    if (reports.length && !reports.some(report => report.id === selectedReportId)) {
+      setSelectedReportId(reports[0].id);
+      onSelectReport?.(reports[0].id);
+    }
+  }, [reports, selectedReportId, onSelectReport]);
+  useEffect(() => {
+    if (activeScoutReportId && reports.some(report => report.id === activeScoutReportId)) {
+      setSelectedReportId(activeScoutReportId);
+      onSelectReport?.(activeScoutReportId);
+    }
+  }, [activeScoutReportId, reports, onSelectReport]);
   useEffect(() => {
     if (dismissCandidate) dismissDialog.current?.showModal();
   }, [dismissCandidate]);
@@ -180,13 +200,15 @@ export function ScoutReportsPanel() {
   );
 
   return (
-    <section className="scout-report-workbench" aria-label="Scout reports">
-      <aside className="scout-report-history" aria-label="Scout report history">
-        <div className="scout-report-history-heading"><span><History size={14} />Reports</span><button type="button" onClick={() => void scouts.refresh()} aria-label="Refresh scout reports"><RefreshCw size={13} /></button></div>
-        {reports.map(item => <button key={item.id} type="button" aria-current={item.id === report?.id} onClick={() => { setSelectedReportId(item.id); setCompareIds([]); }}>
-          <strong>{reportLabel(item)}</strong><span>{item.source.kind === 'watch' ? 'Daily digest · ' : ''}{new Date(item.createdAt).toLocaleString()} · {item.recommendations.length} recommended</span>
-        </button>)}
-      </aside>
+    <section className={`scout-report-workbench ${hideSidebar ? 'no-sidebar' : ''}`} aria-label="Scout reports">
+      {!hideSidebar && (
+        <aside className="scout-report-history" aria-label="Scout report history">
+          <div className="scout-report-history-heading"><span><History size={14} />Reports</span><button type="button" onClick={() => void scouts.refresh()} aria-label="Refresh scout reports"><RefreshCw size={13} /></button></div>
+          {reports.map(item => <button key={item.id} type="button" aria-current={item.id === report?.id} onClick={() => { setSelectedReportId(item.id); setCompareIds([]); onSelectReport?.(item.id); }}>
+            <strong>{reportLabel(item)}</strong><span>{item.source.kind === 'watch' ? 'Daily digest · ' : ''}{new Date(item.createdAt).toLocaleString()} · {item.recommendations.length} recommended</span>
+          </button>)}
+        </aside>
+      )}
       {report && <div className="scout-report-main">
         <header className="scout-report-header">
           <div><span className="scout-report-kicker">{report.source.kind === 'watch' ? 'Topic watch digest · ' : ''}{report.status} · {report.screening.model}</span><h3>{reportLabel(report)}</h3><p>{report.summary}</p></div>

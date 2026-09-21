@@ -28,7 +28,7 @@ export const INITIAL_MANUSCRIPT: ManuscriptDocument = {
     ],
     abstract: 'Autoregressive Transformer inference over infinite sequence horizons suffers from either linear memory explosion or catastrophic numerical collapse under naive windowed eviction. In this paper, we demonstrate that softmax normalization intrinsically forces substantial probability mass onto initial prompt tokens—a mechanism we denote as "Attention Sinks." By retaining only four permanent sink tokens alongside a localized circular buffer, our architecture bounds key-value memory to 2.4 GB indefinitely while maintaining exact perplexity curves up to 4,000,000 tokens. Furthermore, we conduct a dialectic boundary investigation: while standard floating-point representations remain stable, 4-bit integer quantization experiences catastrophic degradation beyond 64k context due to channel outlier displacement. We provide both formal derivations and empirical validation across standard LLM benchmarks.',
     keywords: ['Autoregressive Inference', 'Attention Sinks', 'KV-Cache Optimization', 'Long Context', 'Quantization Limits'],
-    targetVenue: 'ICLR 2025 (Oral Presentation Track)',
+    targetVenue: '',
     status: 'drafting',
     lastEditedAt: 1718300000000
   },
@@ -362,7 +362,7 @@ export const SECOND_MANUSCRIPT: ManuscriptDocument = {
     ],
     abstract: 'Speculative decoding accelerates autoregressive generation by using an efficient draft model to propose tokens that are verified in parallel by a larger target model. While greedy decoding guarantees fidelity trivially, sampling with non-zero temperature requires a modified rejection sampling procedure to guarantee exact output distribution invariance. In this work, we prove that sampling from the residual distribution norm(max(0, P(x) - Q(x))) recovers target density P(x) with zero distributional drift. We benchmark batch concurrency up to 32 streams on NVIDIA H100 GPUs, establishing a 2.1x to 2.8x wall-clock speedup without approximation error.',
     keywords: ['Speculative Decoding', 'Rejection Sampling', 'Autoregressive Inference', 'H100 Acceleration', 'Throughput Scaling'],
-    targetVenue: 'ICML 2025 Proceedings',
+    targetVenue: '',
     status: 'review_ready',
     lastEditedAt: 1718280000000
   },

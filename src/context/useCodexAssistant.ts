@@ -21,6 +21,12 @@ export function isAssistantImage(value: unknown): value is AssistantImage {
     typeof image.name === 'string' && Boolean(image.name.trim()) && image.name.length <= 255;
 }
 
+export interface AgentRunMetadata {
+  agentKind: 'scout' | 'research' | 'writer' | 'synthesis' | string;
+  briefId?: string;
+  title?: string;
+}
+
 export interface ChatEntry {
   id: string;
   role: 'user' | 'assistant';
@@ -32,6 +38,7 @@ export interface ChatEntry {
   images?: AssistantImage[];
   contexts?: AssistantTurnContext[];
   scout?: { briefId: string };
+  agentRun?: AgentRunMetadata;
 }
 
 function scoutCard(value: unknown): { briefId: string } | undefined {
@@ -261,7 +268,12 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
           entry.state = item.status === 'in_progress' ? 'running' : item.status === 'failed' ? 'failed' : 'complete';
           if (item.server === 'thinking_os_scout' && item.status === 'completed') {
             const card = scoutCard(item.result?.structured_content);
-            if (card) { entry.kind = 'scout'; entry.scout = card; entry.label = 'Scout brief'; }
+            if (card) {
+              entry.kind = 'scout';
+              entry.scout = card;
+              entry.agentRun = { agentKind: 'scout', briefId: card.briefId, title: 'Literature Scout Agent' };
+              entry.label = 'Agent run card';
+            }
           }
           setStatus('Using a tool…'); break;
         case 'web_search': entry.kind = 'tool'; entry.label = 'Web search'; entry.content = item.query; setStatus('Searching…'); break;

@@ -1,0 +1,570 @@
+/* Scout Monitor & Live Telemetry Styles */
+
+.scout-monitor {
+  margin-bottom: 20px;
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.scout-monitor-active {
+  border-color: color-mix(in srgb, var(--accent-amber, #d97706) 60%, var(--color-rule));
+  box-shadow: 0 4px 16px -4px rgba(217, 119, 6, 0.12);
+}
+
+/* Idle Console Bar */
+.scout-monitor-idle {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scout-monitor-idle-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.scout-monitor-status-cluster {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.scout-monitor-beacon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  color: var(--accent-amber, #d97706);
+  shrink: 0;
+}
+
+.scout-monitor-beacon-ready {
+  color: #10b981;
+}
+
+.scout-monitor-beacon-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.scout-monitor-beacon-pulse {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.6;
+  animation: scout-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes scout-ping {
+  75%, 100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.scout-monitor-title-block {
+  min-width: 0;
+}
+
+.scout-monitor-title-block h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scout-monitor-title-block p {
+  margin: 2px 0 0;
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
+  line-height: 1.3;
+}
+
+.scout-monitor-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Active Live Mission Panel */
+.scout-monitor-running-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 7%, var(--color-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-amber, #d97706) 25%, var(--color-rule));
+}
+
+.scout-monitor-mission-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.scout-kicker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 0.625rem var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 18%, var(--color-surface));
+  color: var(--accent-amber, #d97706);
+  border: 1px solid color-mix(in srgb, var(--accent-amber, #d97706) 35%, var(--color-rule));
+}
+
+.scout-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 0.6875rem var(--font-mono, monospace);
+  color: var(--color-ink-muted);
+}
+
+.scout-monitor-running-header h3 {
+  margin: 0 0 4px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1.35;
+}
+
+.scout-monitor-running-header p {
+  margin: 0;
+  font-size: 0.7188rem;
+  color: var(--color-ink-muted);
+  line-height: 1.4;
+  max-width: 850px;
+}
+
+/* Stage Progress Stepper */
+.scout-stepper-track {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-paper);
+}
+
+.scout-step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
+  border-right: 1px solid var(--color-rule);
+  transition: all 0.15s ease;
+}
+
+.scout-step-item:last-child {
+  border-right: 0;
+}
+
+.scout-step-active {
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 12%, var(--color-paper));
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.scout-step-completed {
+  color: var(--color-ink);
+}
+
+.scout-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  font: 600 0.5625rem var(--font-mono, monospace);
+  shrink: 0;
+}
+
+.scout-step-active .scout-step-icon {
+  border-color: var(--accent-amber, #d97706);
+  color: var(--accent-amber, #d97706);
+}
+
+.scout-step-completed .scout-step-icon {
+  border-color: #10b981;
+  background: #10b981;
+  color: #ffffff;
+}
+
+/* Live Telemetry Grid */
+.scout-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--color-rule);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.scout-metric-cell {
+  background: var(--color-surface);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scout-metric-label {
+  font: 600 0.625rem var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-muted);
+}
+
+.scout-metric-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+.scout-metric-detail {
+  font-size: 0.625rem;
+  color: var(--color-ink-muted);
+}
+
+/* Provider Status & Checkpoint Feed */
+.scout-live-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  font-size: 0.7188rem;
+}
+
+.scout-provider-lane h4,
+.scout-query-lane h4 {
+  margin: 0 0 6px;
+  font: 600 0.625rem var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-muted);
+}
+
+.scout-provider-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.scout-provider-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font: 500 0.6875rem var(--font-mono, monospace);
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+}
+
+.scout-provider-chip[data-status="completed"] {
+  border-color: color-mix(in srgb, #10b981 40%, var(--color-rule));
+  color: var(--color-ink);
+}
+
+.scout-provider-chip[data-status="failed"] {
+  border-color: color-mix(in srgb, #ef4444 50%, var(--color-rule));
+  color: #ef4444;
+  background: color-mix(in srgb, #ef4444 8%, var(--color-paper));
+}
+
+.scout-query-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scout-query-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 4px;
+  padding: 3px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* History Drawer */
+.scout-history-panel {
+  border-top: 1px solid var(--color-rule);
+  padding: 12px 16px;
+  background: var(--color-paper);
+}
+
+.scout-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.6875rem;
+}
+
+.scout-history-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-rule);
+  font: 600 0.625rem var(--font-mono, monospace);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.scout-history-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-rule);
+  color: var(--color-ink);
+}
+
+.scout-history-table tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Section Jump Anchor Bar */
+.scout-nav-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 4px 6px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.scout-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font: 500 0.6875rem var(--font-mono, monospace);
+  color: var(--color-ink-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.scout-nav-btn:hover,
+.scout-nav-btn[aria-current="true"] {
+  color: var(--color-ink);
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.scout-nav-btn[aria-current="true"] {
+  color: var(--accent-amber, #d97706);
+  font-weight: 600;
+}
+
+/* Live Feed of Candidates during search */
+.scout-live-feed {
+  padding: 12px 16px;
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-rule);
+}
+
+.scout-live-feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.scout-live-feed-header h4 {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scout-feed-count {
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 15%, var(--color-surface));
+  color: var(--accent-amber, #d97706);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.scout-feed-status {
+  font-size: 0.6875rem;
+  font-style: italic;
+  color: var(--color-ink-muted);
+}
+
+.scout-live-candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.scout-live-candidate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  font-size: 0.75rem;
+  transition: all 0.15s ease;
+}
+
+.scout-live-candidate-item:hover {
+  border-color: color-mix(in srgb, var(--accent-amber, #d97706) 40%, var(--color-rule));
+}
+
+.scout-live-candidate-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.scout-live-candidate-title {
+  display: block;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.scout-live-candidate-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
+}
+
+.scout-live-candidate-sources {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.625rem;
+  color: var(--accent-indigo, #4f46e5);
+}
+
+.scout-live-candidate-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+}
+
+.scout-live-candidate-badge.status-recommended {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.scout-live-candidate-badge.status-uncertain {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.scout-live-candidate-badge.status-rejected {
+  background: var(--color-paper);
+  color: var(--color-ink-muted);
+  border: 1px solid var(--color-rule);
+}
+
+.scout-live-candidate-badge.status-retrieved {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.scout-live-feed-empty {
+  padding: 14px 12px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-rule);
+}
+
+/* Dialog styling additions */
+.scout-dialog label span {
+  display: block;
+  margin-bottom: 4px;
+  font: 600 0.6875rem var(--font-mono, monospace);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 768px) {
+  .scout-stepper-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scout-telemetry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scout-live-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .scout-monitor-running-header {
+    flex-direction: column;
+  }
+  .scout-stepper-track {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scout-telemetry-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

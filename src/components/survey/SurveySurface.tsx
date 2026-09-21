@@ -3,6 +3,8 @@ import { AlertCircle, Bot, Compass, GitMerge, RefreshCw } from 'lucide-react';
 import { TabHelpTip } from '../common/TabHelpTip';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLiterature } from '../../context/useLiterature';
+import { useScouts } from '../../context/useScouts';
+import { activeScoutRun } from '../../scoutClient';
 import { DiscoveryView } from './DiscoveryView';
 import { SynthesisView } from './SynthesisView';
 import './survey.css';
@@ -12,6 +14,7 @@ type SurveyView = 'discover' | 'synthesize';
 export function SurveySurface() {
   const { setActiveContext, openProblems, candidateQuestions, unclusteredOpenProblemsCount, workspaceDir } = useWorkspace();
   const literature = useLiterature(workspaceDir);
+  const scouts = useScouts(workspaceDir);
   const [view, setView] = useState<SurveyView>('discover');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -22,10 +25,14 @@ export function SurveySurface() {
   const activeJobsCount = literature.snapshot?.jobs.filter(job => job.enabled).length ?? 0;
   const schedulerActive = literature.snapshot?.scheduler.active ?? false;
 
+  const activeScoutRuns = (scouts.snapshot?.runs ?? []).filter(run => activeScoutRun(run.state));
+  const hasActiveScout = activeScoutRuns.length > 0;
+  const primaryActiveRun = activeScoutRuns[0];
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await literature.refresh();
+      await Promise.all([literature.refresh(), scouts.refresh()]);
     } finally {
       setRefreshing(false);
     }
@@ -86,14 +93,20 @@ export function SurveySurface() {
           {/* Right Status & Actions */}
           <div className="flex items-center gap-3 flex-wrap">
             <div
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-amber-200/80 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/40 text-xs text-[var(--color-ink-muted)]"
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition-colors ${
+                hasActiveScout
+                  ? 'border-amber-400 dark:border-amber-600 bg-amber-100/80 dark:bg-amber-950/70 text-amber-950 dark:text-amber-200 shadow-2xs'
+                  : 'border-amber-200/80 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/40 text-[var(--color-ink-muted)]'
+              }`}
               aria-label="Literature agent architecture"
             >
               <Bot size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
               <strong className="font-semibold text-[var(--color-ink)] text-xs">Paper Scout</strong>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${hasActiveScout ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
               <span className="font-mono text-[11px]">
-                {activeJobsCount > 0 ? `${activeJobsCount} active` : 'idle'}
+                {hasActiveScout
+                  ? `${primaryActiveRun.activeStage || primaryActiveRun.state} (${primaryActiveRun.counters.screened} screened)`
+                  : activeJobsCount > 0 ? `${activeJobsCount} active` : 'idle'}
               </span>
               <span className="text-[var(--color-rule)]">|</span>
               <span className="font-mono text-[11px]">

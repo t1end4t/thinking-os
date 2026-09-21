@@ -86,9 +86,17 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
       await withVaultLock(root, () => saveScoutRun(root, retrieving));
       const result = await retrieve(run.inputSnapshot, { signal: controller.signal });
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
+      const liveCandidates = (result.candidates || []).slice(0, 20).map(c => ({
+        id: c.id,
+        title: c.title,
+        authors: c.authors || '',
+        ...(c.year ? { year: c.year } : {}),
+        sources: c.sources || [],
+        status: 'retrieved'
+      }));
       const normalizing = { ...retrieving, state: 'normalizing', activeStage: 'normalizing', executedQueries: result.executedQueries,
         providerAttempts: result.attempts, counters: { retrieved: result.retrievedCount ?? result.candidates.length, normalized: result.normalizedCount ?? result.candidates.length, screened: 0 },
-        checkpoints: ['retrieval-complete'], updatedAt: now() };
+        checkpoints: ['retrieval-complete'], updatedAt: now(), liveCandidates };
       await withVaultLock(root, () => saveScoutRun(root, normalizing));
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
       const discoveryAttempts = result.attempts.filter(attempt => attempt.lane !== 'doi-verification');
@@ -97,13 +105,24 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
       await withVaultLock(root, () => saveScoutRun(root, screeningRun));
       let checkpointRun = screeningRun;
       const screening = await screen(run.inputSnapshot, result.candidates, { signal: controller.signal, onBatch: async progress => {
+        const assessedMap = new Map((progress.assessed || []).map(a => [a.id, a.outcome]));
+        const updatedLive = (checkpointRun.liveCandidates || liveCandidates).map(c => {
+          const outcome = assessedMap.get(c.id);
+          if (outcome === 'recommend') return { ...c, status: 'recommended' };
+          if (outcome === 'uncertain') return { ...c, status: 'uncertain' };
+          if (outcome === 'reject') return { ...c, status: 'rejected' };
+          if (outcome) return { ...c, status: 'screened' };
+          return c;
+        });
         checkpointRun = { ...checkpointRun, counters: { ...checkpointRun.counters, screened: progress.completed },
-          checkpoints: [...checkpointRun.checkpoints, `screening:${progress.completed}`], updatedAt: now() };
+          checkpoints: [...checkpointRun.checkpoints, `screening:${progress.completed}`], updatedAt: now(),
+          liveCandidates: updatedLive };
         await withVaultLock(root, () => saveScoutRun(root, checkpointRun));
       } });
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
       const assembling = { ...checkpointRun, state: 'assembling', activeStage: 'assembling',
-        counters: { ...checkpointRun.counters, screened: screening.assessed.length }, checkpoints: [...checkpointRun.checkpoints, 'screening-complete'], updatedAt: now() };
+        counters: { ...checkpointRun.counters, screened: screening.assessed.length }, checkpoints: [...checkpointRun.checkpoints, 'screening-complete'], updatedAt: now(),
+        liveCandidates: checkpointRun.liveCandidates };
       await withVaultLock(root, () => saveScoutRun(root, assembling));
       const novelty = await removeRepeatedCandidates(root, run, screening);
       const retrieval = novelty.repeatCount ? { ...result, limitations: [...result.limitations, `${novelty.repeatCount} previously surfaced candidate(s) were omitted for this watch.`] } : result;

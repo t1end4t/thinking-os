@@ -757,3 +757,236 @@ section.literature {
   padding-top: 16px;
   border-top: 1px solid var(--color-rule);
 }
+
+/* 2-Column Discovery Layout & Workspace Tabs */
+.discovery-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .discovery-layout-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.discovery-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.discovery-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Scout Reports Library Card */
+.discovery-reports-card {
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.discovery-reports-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.discovery-reports-header h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.discovery-reports-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.discovery-report-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.discovery-report-item:last-child {
+  border-bottom: 0;
+}
+
+.discovery-report-item:hover {
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 6%, var(--color-surface));
+}
+
+.discovery-report-item[aria-current="true"] {
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 12%, var(--color-surface));
+  border-left: 3px solid var(--accent-amber, #d97706);
+}
+
+.discovery-report-item-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.discovery-report-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
+}
+
+.discovery-report-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.discovery-reports-empty {
+  padding: 16px 14px;
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+  text-align: center;
+}
+
+/* Workspace Tabs in Right Column */
+.discovery-workspace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.discovery-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.discovery-tab-btn:hover {
+  color: var(--color-ink);
+  background: var(--color-paper);
+}
+
+.discovery-tab-btn.active {
+  color: var(--color-ink);
+  background: var(--color-paper);
+  border-color: var(--color-rule);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.discovery-tab-count {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--color-rule);
+  color: var(--color-ink);
+}
+
+.discovery-tab-btn.active .discovery-tab-count {
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 18%, var(--color-surface));
+  color: var(--accent-amber, #d97706);
+}
+
+/* Direct Search Card in Left Column */
+.discovery-direct-search {
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.discovery-direct-search-header {
+  padding: 12px 14px 6px;
+}
+
+.discovery-direct-search-header h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+}
+
+.discovery-direct-search-header p {
+  margin: 2px 0 0;
+  font-size: 0.6875rem;
+  color: var(--color-ink-muted);
+}
+
+/* Empty report view */
+.discovery-empty-report {
+  padding: 36px 24px;
+  border: 1px dashed var(--color-rule);
+  border-radius: 12px;
+  background: var(--color-surface);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.discovery-empty-report h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.discovery-empty-report p {
+  max-width: 480px;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-ink-muted);
+}
+

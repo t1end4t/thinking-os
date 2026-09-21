@@ -42,7 +42,7 @@ export const ManuscriptVaultModal: React.FC<ManuscriptVaultModalProps> = ({
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newSubtitle, setNewSubtitle] = useState('');
-  const [newVenue, setNewVenue] = useState('ICLR 2025');
+  const [newVenue, setNewVenue] = useState('');
   const [newAbstract, setNewAbstract] = useState('');
 
   const filteredManuscripts = useMemo(() => {
@@ -67,7 +67,7 @@ export const ManuscriptVaultModal: React.FC<ManuscriptVaultModalProps> = ({
     onCreateManuscript({
       title: newTitle.trim(),
       subtitle: newSubtitle.trim(),
-      targetVenue: newVenue.trim() || 'ICLR 2025',
+      targetVenue: newVenue.trim(),
       abstract: newAbstract.trim(),
       status: 'drafting',
       authors: [{ name: 'Research Author', affiliation: 'Thinking OS Laboratory' }]
@@ -75,7 +75,7 @@ export const ManuscriptVaultModal: React.FC<ManuscriptVaultModalProps> = ({
 
     setNewTitle('');
     setNewSubtitle('');
-    setNewVenue('ICLR 2025');
+    setNewVenue('');
     setNewAbstract('');
     setIsCreatingNew(false);
     onClose();
@@ -182,11 +182,11 @@ export const ManuscriptVaultModal: React.FC<ManuscriptVaultModalProps> = ({
 
               <div className="space-y-1">
                 <label className="text-[0.6875rem] font-mono uppercase text-[var(--color-ink-muted)]">
-                  Target Venue
+                  Target Venue (Optional)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. ICLR 2025 / NeurIPS"
+                  placeholder="Optional (e.g. arXiv)"
                   value={newVenue}
                   onChange={e => setNewVenue(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] focus:outline-none focus:border-purple-500"
@@ -304,9 +304,11 @@ export const ManuscriptVaultModal: React.FC<ManuscriptVaultModalProps> = ({
                             <Check size={10} /> Active in Studio
                           </span>
                         )}
-                        <span className="text-[0.625rem] font-mono px-2 py-0.5 rounded-full bg-[var(--color-paper)] text-[var(--color-ink-muted)] border border-[var(--color-rule)] flex items-center gap-1">
-                          <Building size={10} /> {doc.meta.targetVenue}
-                        </span>
+                        {doc.meta.targetVenue ? (
+                          <span className="text-[0.625rem] font-mono px-2 py-0.5 rounded-full bg-[var(--color-paper)] text-[var(--color-ink-muted)] border border-[var(--color-rule)] flex items-center gap-1">
+                            <Building size={10} /> {doc.meta.targetVenue}
+                          </span>
+                        ) : null}
                         {getStatusBadge(doc.meta.status)}
                       </div>
 

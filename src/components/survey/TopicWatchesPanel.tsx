@@ -97,24 +97,133 @@ export function TopicWatchesPanel() {
     </div>
     <dialog ref={dialog} className="scout-dialog topic-watch-dialog" aria-labelledby="topic-watch-dialog-title" onClose={() => requestAnimationFrame(() => dialogTrigger.current?.focus())}>
       <form method="dialog" onSubmit={event => { event.preventDefault(); void save(); }}>
-        <div className="topic-watch-dialog-heading"><h3 id="topic-watch-dialog-title">{editing ? 'Edit topic watch' : 'New topic watch'}</h3><button type="button" onClick={() => dialog.current?.close()} aria-label="Close watch editor"><X size={15} /></button></div>
-        <label>Name<input value={draft.name} onChange={event => setDraft(current => ({ ...current, name: event.target.value }))} /></label>
-        <label>Topic<textarea rows={2} value={draft.topic} onChange={event => setDraft(current => ({ ...current, topic: event.target.value }))} /></label>
-        <label>Purpose<textarea rows={2} value={draft.purpose} onChange={event => setDraft(current => ({ ...current, purpose: event.target.value }))} /></label>
-        <label>Included scope<textarea rows={2} value={draft.scope} onChange={event => setDraft(current => ({ ...current, scope: event.target.value }))} placeholder="One item per line" /></label>
-        <label>Exclusions<textarea rows={2} value={draft.exclusions} onChange={event => setDraft(current => ({ ...current, exclusions: event.target.value }))} placeholder="One item per line" /></label>
-        <label>Search directions<textarea rows={4} value={draft.directions} onChange={event => setDraft(current => ({ ...current, directions: event.target.value }))} placeholder="query :: reason" /></label>
-        <label>Quality policy<textarea rows={2} value={draft.qualityPolicy} onChange={event => setDraft(current => ({ ...current, qualityPolicy: event.target.value }))} /></label>
-        <div className="topic-watch-fields">
-          <label>Cadence<select value={draft.cadence} onChange={event => setDraft(current => ({ ...current, cadence: event.target.value === 'manual' ? 'manual' : 'daily' }))}><option value="daily">Daily</option><option value="manual">Manual</option></select></label>
-          <label>Local time<input type="time" value={draft.localTime} onChange={event => setDraft(current => ({ ...current, localTime: event.target.value }))} /></label>
-          <label>Time zone<input value={draft.timeZone} onChange={event => setDraft(current => ({ ...current, timeZone: event.target.value }))} /></label>
-          <label>Recency<select value={draft.recencyPolicy} onChange={event => { const value = RECENCY_POLICIES.find(item => item === event.target.value); if (value) setDraft(current => ({ ...current, recencyPolicy: value })); }}><option value="mixed">Mixed</option><option value="recent">Recent only</option><option value="foundational-gap">Foundational gaps</option></select></label>
-          <label>Quality threshold<select value={draft.qualityThreshold} onChange={event => { const value = QUALITY_THRESHOLDS.find(item => item === event.target.value); if (value) setDraft(current => ({ ...current, qualityThreshold: value })); }}><option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option></select></label>
-          <label>Maximum papers<input type="number" min={1} max={3} value={draft.maxRecommendations} onChange={event => setDraft(current => ({ ...current, maxRecommendations: Number(event.target.value) }))} /></label>
+        <div className="topic-watch-dialog-heading">
+          <h3 id="topic-watch-dialog-title">{editing ? 'Edit topic watch' : 'New topic watch'}</h3>
+          <button type="button" onClick={() => dialog.current?.close()} aria-label="Close watch editor">
+            <X size={15} />
+          </button>
         </div>
-        {validation && <p role="alert">{validation}</p>}
-        <div><button type="button" className="survey-btn" onClick={() => dialog.current?.close()}>Cancel</button><button type="submit" className="survey-btn survey-btn-primary" disabled={busy}>Save watch</button></div>
+        <div className="topic-watch-dialog-body">
+          <label>
+            <span>Name</span>
+            <input
+              value={draft.name}
+              onChange={event => setDraft(current => ({ ...current, name: event.target.value }))}
+              placeholder="e.g. LLM Agent Reliability"
+              autoFocus
+            />
+          </label>
+          <label>
+            <span>Topic</span>
+            <textarea
+              rows={2}
+              value={draft.topic}
+              onChange={event => setDraft(current => ({ ...current, topic: event.target.value }))}
+              placeholder="Core research domain or subfield terms"
+            />
+          </label>
+          <label>
+            <span>Purpose</span>
+            <textarea
+              rows={2}
+              value={draft.purpose}
+              onChange={event => setDraft(current => ({ ...current, purpose: event.target.value }))}
+              placeholder="Why this watch exists and what to monitor"
+            />
+          </label>
+          <div className="topic-watch-grid-2">
+            <label>
+              <span>Included scope</span>
+              <textarea
+                rows={2}
+                value={draft.scope}
+                onChange={event => setDraft(current => ({ ...current, scope: event.target.value }))}
+                placeholder="One item per line"
+              />
+            </label>
+            <label>
+              <span>Exclusions</span>
+              <textarea
+                rows={2}
+                value={draft.exclusions}
+                onChange={event => setDraft(current => ({ ...current, exclusions: event.target.value }))}
+                placeholder="One item per line"
+              />
+            </label>
+          </div>
+          <label>
+            <span>Search directions</span>
+            <textarea
+              rows={3}
+              value={draft.directions}
+              onChange={event => setDraft(current => ({ ...current, directions: event.target.value }))}
+              placeholder="query :: reason"
+            />
+            <span className="topic-watch-hint">Format: <code>query :: reason</code> (one direction per line)</span>
+          </label>
+          <label>
+            <span>Quality policy</span>
+            <textarea
+              rows={2}
+              value={draft.qualityPolicy}
+              onChange={event => setDraft(current => ({ ...current, qualityPolicy: event.target.value }))}
+            />
+          </label>
+
+          <hr className="topic-watch-section-divider" />
+          <h4 className="topic-watch-section-title">Schedule & Timing</h4>
+
+          <div className="topic-watch-fields">
+            <label>
+              <span>Cadence</span>
+              <select value={draft.cadence} onChange={event => setDraft(current => ({ ...current, cadence: event.target.value === 'manual' ? 'manual' : 'daily' }))}>
+                <option value="daily">Daily</option>
+                <option value="manual">Manual</option>
+              </select>
+            </label>
+            <label>
+              <span>Local time</span>
+              <input type="time" value={draft.localTime} onChange={event => setDraft(current => ({ ...current, localTime: event.target.value }))} />
+            </label>
+            <label>
+              <span>Time zone</span>
+              <input value={draft.timeZone} onChange={event => setDraft(current => ({ ...current, timeZone: event.target.value }))} />
+            </label>
+          </div>
+
+          <hr className="topic-watch-section-divider" />
+          <h4 className="topic-watch-section-title">Screening Constraints</h4>
+
+          <div className="topic-watch-fields">
+            <label>
+              <span>Recency</span>
+              <select value={draft.recencyPolicy} onChange={event => { const value = RECENCY_POLICIES.find(item => item === event.target.value); if (value) setDraft(current => ({ ...current, recencyPolicy: value })); }}>
+                <option value="mixed">Mixed</option>
+                <option value="recent">Recent only</option>
+                <option value="foundational-gap">Foundational gaps</option>
+              </select>
+            </label>
+            <label>
+              <span>Quality threshold</span>
+              <select value={draft.qualityThreshold} onChange={event => { const value = QUALITY_THRESHOLDS.find(item => item === event.target.value); if (value) setDraft(current => ({ ...current, qualityThreshold: value })); }}>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label>
+              <span>Maximum papers</span>
+              <input type="number" min={1} max={3} value={draft.maxRecommendations} onChange={event => setDraft(current => ({ ...current, maxRecommendations: Number(event.target.value) }))} />
+            </label>
+          </div>
+
+          {validation && <p className="scout-report-alert" role="alert">{validation}</p>}
+        </div>
+
+        <div className="topic-watch-dialog-footer">
+          <button type="button" className="survey-btn" onClick={() => dialog.current?.close()}>Cancel</button>
+          <button type="submit" className="survey-btn survey-btn-primary" disabled={busy}>Save watch</button>
+        </div>
       </form>
     </dialog>
   </section>;

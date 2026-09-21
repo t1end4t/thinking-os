@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   BookOpen, CheckCircle2, ChevronDown, CornerDownLeft, FileText, FlaskConical, HelpCircle,
   Layers, Link as LinkIcon, ListChecks, Loader2, Maximize2, MessageCircle, MessageSquarePlus, Minimize2, Search,
-  Sparkles, Square, Terminal, TriangleAlert, X, Paperclip, History, Trash2, ImagePlus, Pencil
+  Sparkles, Square, Terminal, TriangleAlert, X, Paperclip, History, Trash2, ImagePlus, Pencil, Bot
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { AssistantContextObject } from '../../types';
@@ -12,6 +12,7 @@ import { isAssistantImage, type AssistantImage, type AssistantTurnContext, type 
 import { AssistantProjects } from './AssistantProjects';
 import { AssistantModeMenu } from './AssistantModeMenu';
 import { AssistantScoutCard } from './AssistantScoutCard';
+import { SampleAgentRunDemo } from './SampleAgentRunDemo';
 import { useScouts } from '../../context/useScouts';
 import './assistant.css';
 
@@ -163,6 +164,7 @@ export const AssistantDock: React.FC = () => {
   const tabs = useRef<HTMLDivElement>(null);
   const historyDialog = useRef<HTMLDialogElement>(null);
   const [historySearch, setHistorySearch] = useState('');
+  const [showSampleCard, setShowSampleCard] = useState(true);
 
   useEffect(() => { tabs.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [session?.id]);
 
@@ -344,7 +346,21 @@ export const AssistantDock: React.FC = () => {
 
       <header className="assistant-dock-header flex items-center gap-1 border-b border-[var(--color-rule)] px-2 py-1.5">
         <AssistantProjects key={workspaceDir} />
-        <div className="ml-auto flex shrink-0 items-center">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setShowSampleCard(prev => !prev)}
+            className={`flex items-center gap-1 px-2 py-1 text-[0.6875rem] rounded border transition-colors ${
+              showSampleCard
+                ? 'border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)] font-semibold'
+                : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'
+            }`}
+            title="Toggle Agent Run Card Sample Preview"
+            aria-pressed={showSampleCard}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>Sample Card</span>
+          </button>
           <button type="button" className={iconButton} onClick={() => { setHistorySearch(''); historyDialog.current?.showModal(); historyDialog.current?.querySelector('input')?.focus(); }} aria-label="Browse conversations" aria-haspopup="dialog" title="Browse conversations"><History className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} onClick={() => newConversation()} disabled={running} aria-label="New conversation" title="New conversation"><MessageSquarePlus className="w-3.5 h-3.5" /></button>
           <button type="button" className={iconButton} onClick={() => setIsFullScreen(current => !current)} aria-label={isFullScreen ? 'Exit full screen' : 'Enter full screen'} aria-pressed={isFullScreen} title={isFullScreen ? 'Exit full screen' : 'Enter full screen'}>
@@ -395,12 +411,25 @@ export const AssistantDock: React.FC = () => {
           </div>
         )}
 
+        {showSampleCard && (
+          <SampleAgentRunDemo
+            onClose={() => setShowSampleCard(false)}
+            onOpenFullReportModal={report => openScoutReport(report.id)}
+          />
+        )}
+
         {!messages.length && (
           <div className="my-auto shrink-0 py-6 text-center text-[var(--color-ink-muted)]">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--accent-indigo-soft)] text-[var(--accent-indigo)]"><Sparkles className="w-5 h-5" /></div>
             <p className="mb-1 text-xs font-semibold text-[var(--color-ink)]">Start a conversation</p>
             <p className="mx-auto max-w-[260px] text-[0.8125rem] leading-relaxed">{mode === 'chat' ? 'Think with your vault, test ideas, and update research objects.' : 'Inspect files, make changes, and check the result.'}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {!showSampleCard && (
+                <button type="button" onClick={() => setShowSampleCard(true)} className="flex items-center gap-1.5 rounded-lg border border-[var(--accent-indigo)] bg-[var(--accent-indigo-soft)] px-2.5 py-1.5 text-[0.75rem] font-semibold text-[var(--accent-indigo)] hover:bg-[var(--accent-indigo)] hover:text-white transition-colors">
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>Test Agent Run Card Sample</span>
+                </button>
+              )}
               <button type="button" onClick={() => setInput(mode === 'chat' ? 'Review my current research and identify the most important open question.' : 'Explore this folder and explain how it is organized.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Find the open question' : 'Explore this folder'}</button>
               <button type="button" onClick={() => setInput(mode === 'chat' ? 'Help me decide the smallest useful next step.' : 'Help me plan a task. Ask what I want to accomplish first.')} className="rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] px-2.5 py-1.5 text-[0.75rem] hover:text-[var(--color-ink)]">{mode === 'chat' ? 'Choose next step' : 'Plan a task'}</button>
             </div>
@@ -431,12 +460,14 @@ export const AssistantDock: React.FC = () => {
               </div>
             </div>}
             <ActivityGroup entries={turn.entries.filter(entry => entry !== turn.reply && entry.kind !== 'scout')} prompt={turn.prompt} mode={mode} />
-            {turn.entries.filter(entry => entry.kind === 'scout' && entry.scout).map(entry => {
-              const brief = scouts.snapshot?.briefs.find(item => item.id === entry.scout?.briefId);
-              if (!brief) return <p key={entry.id} className="text-[0.75rem] text-[var(--color-ink-muted)]">Loading scout brief…</p>;
+            {turn.entries.filter(entry => (entry.kind === 'scout' && entry.scout) || Boolean(entry.agentRun?.briefId)).map(entry => {
+              const briefId = entry.scout?.briefId || entry.agentRun?.briefId;
+              const brief = scouts.snapshot?.briefs.find(item => item.id === briefId);
+              if (!brief) return <p key={entry.id} className="text-[0.75rem] text-[var(--color-ink-muted)]">Loading agent run card…</p>;
               const run = [...(scouts.snapshot?.runs ?? [])].filter(item => item.source.kind === 'brief' && item.source.id === brief.id).sort((first, second) => second.startedAt - first.startedAt)[0];
               const report = run?.reportId ? scouts.snapshot?.reports.find(item => item.id === run.reportId) : undefined;
               return <AssistantScoutCard key={entry.id} brief={brief} run={run} report={report} busy={scouts.busy !== null}
+                agentTitle={entry.agentRun?.title || 'Literature Scout Agent'}
                 onSave={input => scouts.saveBrief(brief.id, input)} onRun={() => scouts.startRun(brief.id)}
                 onCancel={() => run ? scouts.cancelRun(run.id) : Promise.resolve(false)} onOpenReport={() => report && openScoutReport(report.id)} />;
             })}
