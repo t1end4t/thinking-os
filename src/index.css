@@ -21,6 +21,7 @@
     --accent-indigo: #7287FD;
     --accent-indigo-soft: #E8EAFB;
     --accent-amber: #DF8E1D;
+    --accent-amber-fill: #B45309;
     --accent-amber-soft: #FAF2E3;
     --accent-emerald: #40A02B;
     --accent-emerald-soft: #E9F4E6;
@@ -48,6 +49,7 @@
     --accent-indigo: #D97757;
     --accent-indigo-soft: #38302C;
     --accent-amber: #E0A458;
+    --accent-amber-fill: #A75F12;
     --accent-amber-soft: #35301F;
     --accent-emerald: #7FB77E;
     --accent-emerald-soft: #253022;
@@ -75,6 +77,7 @@
     --accent-indigo: #B4BEFE;
     --accent-indigo-soft: #2A2B3C;
     --accent-amber: #F9E2AF;
+    --accent-amber-fill: #9A5B22;
     --accent-amber-soft: #332F26;
     --accent-emerald: #A6E3A1;
     --accent-emerald-soft: #26332A;

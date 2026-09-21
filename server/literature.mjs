@@ -36,6 +36,15 @@ export function literaturePlugin({ search = searchPapers, intervalMs = 30_000, n
     return root;
   };
 
+  const persistResults = async (root, results, metadata = {}) => {
+    const current = await loadLiteratureState(root, now());
+    for (const paper of results) {
+      const previous = current.results.find(item => item.id === paper.id);
+      await saveResult(root, { ...(previous ?? {}), ...paper,
+        queries: [...new Set([...(previous?.queries ?? []), ...paper.queries])], ...metadata });
+    }
+  };
+
   const runJob = async (root, job) => {
     const key = `${root}:${job.id}`;
     if (activeJobs.has(key)) throw new Error('This job is already running.');
@@ -50,11 +59,7 @@ export function literaturePlugin({ search = searchPapers, intervalMs = 30_000, n
       try {
         const response = await search({ brief: job.brief, queries: job.queries, expand: job.expand });
         await withVaultLock(root, async () => {
-          const current = await loadLiteratureState(root, now());
-          for (const paper of response.results) {
-            const previous = current.results.find(item => item.id === paper.id);
-            await saveResult(root, { ...(previous ?? {}), ...paper, queries: [...new Set([...(previous?.queries ?? []), ...paper.queries])], jobId: job.id, runId: run.id });
-          }
+          await persistResults(root, response.results, { jobId: job.id, runId: run.id });
           await saveRun(root, { ...run, finishedAt: now(), status: 'completed', resultCount: response.results.length });
         });
       } catch (error) {
@@ -101,7 +106,11 @@ export function literaturePlugin({ search = searchPapers, intervalMs = 30_000, n
           if (req.method !== 'POST') return send(res, 405, { error: 'Only GET and POST are supported.' });
           if (req.headers['content-type']?.split(';')[0] !== 'application/json') return send(res, 415, { error: 'Expected application/json.' });
           const input = await bodyOf(req);
-          if (input.action === 'search') return send(res, 200, await search(input));
+          if (input.action === 'search') {
+            const response = await search(input);
+            await withVaultLock(root, () => persistResults(root, response.results));
+            return send(res, 200, response);
+          }
           if (input.action === 'create') {
             const job = await withVaultLock(root, () => saveJob(root, input, undefined, now()));
             return send(res, 201, { job });

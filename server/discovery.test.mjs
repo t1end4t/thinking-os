@@ -1,9 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { searchPapers } from './discovery.mjs';
+import { paperFromCrossref, searchPapers } from './discovery.mjs';
 import { expandQueries } from './discoveryAgent.mjs';
 
 const work = { DOI: '10.1234/PAPER', title: ['A real API record'], author: [{ given: 'Ada', family: 'Author' }], published: { 'date-parts': [[2024]] }, abstract: '<jats:p>First line.\nSecond line.</jats:p>' };
+
+test('Crossref JATS abstracts preserve reading order and inline superscripts', () => {
+  const paper = paperFromCrossref({
+    ...work,
+    abstract: `<jats:title>Abstract</jats:title>
+      <jats:p>Signal in <jats:italic>P. cinereus</jats:italic> was weak (R
+      <jats:sup>2</jats:sup>
+      = 0.001), but p &lt; 0.001.</jats:p>`
+  }, 'signal', 123);
+
+  assert.equal(paper.abstract, 'Abstract\n\nSignal in P. cinereus was weak (R² = 0.001), but p < 0.001.');
+});
 
 test('search uses the brief and explicit queries, validates metadata, and merges provenance', async () => {
   const requests = [];
@@ -15,7 +27,7 @@ test('search uses the brief and explicit queries, validates metadata, and merges
   assert.deepEqual(response.queries, ['Ocean ecology', 'coral adaptation']);
   assert.deepEqual(requests.map(url => url.searchParams.get('query.bibliographic')), response.queries);
   assert.equal(response.results.length, 1);
-  assert.deepEqual(response.results[0], { id: response.results[0].id, title: work.title[0], authors: 'Ada Author', year: 2024, doi: '10.1234/paper', url: 'https://doi.org/10.1234/paper', abstract: 'First line.\nSecond line.', source: 'Crossref metadata/abstract (not full text)', queries: response.queries, discoveredAt: 123 });
+  assert.deepEqual(response.results[0], { id: response.results[0].id, title: work.title[0], authors: 'Ada Author', year: 2024, doi: '10.1234/paper', url: 'https://doi.org/10.1234/paper', abstract: 'First line. Second line.', source: 'Crossref metadata/abstract (not full text)', queries: response.queries, discoveredAt: 123 });
 });
 
 test('search rejects malformed input, provider errors, oversized bodies, and malformed responses', async () => {

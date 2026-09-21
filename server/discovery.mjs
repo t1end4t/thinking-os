@@ -10,7 +10,32 @@ export function validateSearch(input) {
 
 function plainText(value) {
   if (typeof value !== 'string') return '';
-  return value.replace(/<[^>]*>/g, '').replace(/&(?:amp|lt|gt|quot|apos);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" })[entity]).trim();
+  const decodeEntities = text => text.replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (entity, code) => {
+    if (code[0] === '#') {
+      const hexadecimal = code[1]?.toLowerCase() === 'x';
+      const point = Number.parseInt(code.slice(hexadecimal ? 2 : 1), hexadecimal ? 16 : 10);
+      return point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : entity;
+    }
+    return ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" })[code.toLowerCase()];
+  });
+  const script = (text, characters, prefix) => {
+    const content = decodeEntities(text.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
+    return [...content].every(character => characters[character]) ? [...content].map(character => characters[character]).join('') : `${prefix}${content}`;
+  };
+  const superscript = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾' };
+  const subscript = { 0: '₀', 1: '₁', 2: '₂', 3: '₃', 4: '₄', 5: '₅', 6: '₆', 7: '₇', 8: '₈', 9: '₉', '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎' };
+  return decodeEntities(value
+    .replace(/<(?:[\w.-]+:)?sup\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?sup>/gi, (_, text) => script(text, superscript, '^'))
+    .replace(/<(?:[\w.-]+:)?sub\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?sub>/gi, (_, text) => script(text, subscript, '_'))
+    .replace(/<\/(?:[\w.-]+:)?(?:title|p|sec|list-item|disp-quote)>/gi, '\u0000')
+    .replace(/<(?:[\w.-]+:)?br\b[^>]*\/?>/gi, '\u0001')
+    .replace(/<[^>]*>/g, ''))
+    .replace(/\s+/g, ' ')
+    .replace(/ *\u0000+ */g, '\n\n')
+    .replace(/ *\u0001 */g, '\n')
+    .replace(/ (?=[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎^_])/g, '')
+    .replace(/ +([,.;:!?%)\]])/g, '$1')
+    .trim();
 }
 
 export function paperFromCrossref(item, query, discoveredAt) {

@@ -145,7 +145,7 @@ export function DiscoveryView() {
     handleSearch(combined);
   };
 
-  // Save paper into local vault
+  // Promote a cached discovery candidate into the curated Paper Vault
   const saveToVault = (paper: DiscoveryPaper) => {
     setErrorMsg('');
     const existing = papers.find(candidate => sameDiscoveryPaper(candidate, paper));
@@ -172,7 +172,7 @@ export function DiscoveryView() {
     if (!result.success) {
       setErrorMsg(result.error || 'Could not save paper to vault.');
     } else {
-      setNotice(`Saved “${result.paper.title}” to your local vault.`);
+      setNotice(`Added “${result.paper.title}” to Paper Vault.`);
       setTimeout(() => setNotice(''), 3500);
     }
   };
@@ -402,7 +402,7 @@ export function DiscoveryView() {
                     {lastSearchedPrompt ? `Search brief: "${lastSearchedPrompt}"` : 'Search strategy'}
                   </h3>
                   <p className="text-[0.6875rem] text-[var(--color-ink-muted)]">
-                    Retrieval queries sent to Crossref and arXiv. {literature.searchResults.length} candidate publications require review.
+                    Retrieval queries sent to Crossref and arXiv. {literature.searchResults.length} candidate publications were cached for review.
                   </p>
                 </div>
               </div>
@@ -443,9 +443,9 @@ export function DiscoveryView() {
           <header className="literature-inbox-heading">
             <div>
               <span className="discovery-section-index">Evidence inbox</span>
-              <h2 id="literature-inbox-heading">Review before saving.</h2>
+              <h2 id="literature-inbox-heading">Review cached candidates.</h2>
             </div>
-            <p><ListFilter size={12} aria-hidden="true" />Metadata is discovered. Relevance and scientific quality are not inferred automatically.</p>
+            <p><ListFilter size={12} aria-hidden="true" />Search results persist in this workspace. Add selected papers to Paper Vault after review.</p>
           </header>
           {/* Catalog Toolbar & Filters */}
           <div className="catalog-toolbar">
@@ -482,7 +482,7 @@ export function DiscoveryView() {
                 className={`catalog-chip-toggle ${activeScope === 'unvaulted' ? 'active' : ''}`}
               >
                 <BookmarkPlus size={12} />
-                <span>Not in Vault</span>
+                <span>Not in Paper Vault</span>
               </button>
 
               <button
@@ -491,7 +491,7 @@ export function DiscoveryView() {
                 className={`catalog-chip-toggle ${activeScope === 'vaulted' ? 'active' : ''}`}
               >
                 <CheckCircle2 size={12} />
-                <span>In Vault</span>
+                <span>In Paper Vault</span>
               </button>
             </div>
 
@@ -582,7 +582,7 @@ export function DiscoveryView() {
                         <div className="flex items-center gap-1.5">
                           <span className="inline-flex items-center gap-1 font-mono text-[0.6875rem] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 px-2 py-1 rounded-md">
                             <CheckCircle2 size={11} />
-                            In Vault
+                            In Paper Vault
                           </span>
                           <button
                             type="button"
@@ -600,10 +600,10 @@ export function DiscoveryView() {
                           disabled={workspaceLoading || workspaceSyncing}
                           onClick={() => saveToVault(paper)}
                           className="survey-btn survey-btn-primary inline-flex items-center gap-1 text-xs"
-                          title="Save this paper into your local research vault"
+                          title="Add this cached candidate to Paper Vault"
                         >
                           <BookmarkPlus size={12} />
-                          <span>Save to Vault</span>
+                          <span>Add to Paper Vault</span>
                         </button>
                       )}
 
