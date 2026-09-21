@@ -107,7 +107,12 @@ test('agent, fixed 9router provider, context, and resumed session reach the SDK'
   assert.match(messages[0], /Direction -> Task/);
   assert.match(messages[0], /paper-backed evidence and a claim-evidence link/);
   assert.match(messages[0], /attached objects as the user's current focus, not as the complete workspace/);
-  assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }]);
+  assert.match(messages[0], /press Run scout/);
+  assert.equal(clientOptions.length, 1);
+  assert.equal(clientOptions[0].config.model_provider, '9router');
+  assert.equal(clientOptions[0].config.mcp_servers.thinking_os_scout.command, process.execPath);
+  assert.equal(clientOptions[0].config.mcp_servers.thinking_os_scout.args[1], await realpath(tmpdir()));
+  assert.match(clientOptions[0].config.mcp_servers.thinking_os_scout.args[2], /^http:\/\/127\.0\.0\.1:/);
   assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true }]);
 
   const rawConversation = randomUUID();
@@ -121,7 +126,7 @@ test('agent, fixed 9router provider, context, and resumed session reach the SDK'
   assert.equal(resumes[0][0], 'thread-1');
 
   await (await post({ ...body, conversationId: randomUUID(), provider: 'ignored', model: 'ignored', baseUrl: 'https://example.com/v1' })).text();
-  assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }], 'One 9Router client serves every turn');
+  assert.equal(clientOptions.length, 1, 'One configured client serves every turn for this workspace and origin');
   assert.equal(starts.at(-1).model, undefined, 'Client routing fields never reach the SDK');
 
   assert.equal((await post({ ...body, agent: 'other' })).status, 400);

@@ -188,6 +188,17 @@ export interface PaperHighlight {
   rects?: { pageNumber: number; coordinates: [number, number, number, number] }[];
 }
 
+export interface PaperDiscoveryContext {
+  reportId: string;
+  briefId: string;
+  candidateId: string;
+  matchingQueries: string[];
+  recommendationReason: string;
+  evidenceLevel: 'metadata' | 'abstract' | 'full-text';
+  savedAt: number;
+  decisionSource: 'user';
+}
+
 export interface Paper {
   id: string;
   title: string;
@@ -204,6 +215,7 @@ export interface Paper {
   abstract?: string;
   journal?: string;
   highlights?: PaperHighlight[];
+  discoveryContexts?: PaperDiscoveryContext[];
   createdAt?: number;
 }
 

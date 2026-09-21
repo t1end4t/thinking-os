@@ -6,6 +6,7 @@ import { runtimePlugin } from './server/runtime.mjs';
 import { agentEnvPlugin } from './server/agentEnv.mjs';
 import { agentPlugin } from './server/agent.mjs';
 import { literaturePlugin } from './server/literature.mjs';
+import { scoutPlugin } from './server/scout.mjs';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -16,7 +17,8 @@ export default defineConfig({
     runtimePlugin(),
     agentEnvPlugin(),
     agentPlugin(),
-    literaturePlugin()
+    literaturePlugin(),
+    scoutPlugin()
   ],
   server: {
     port: 3000,

@@ -54,3 +54,6 @@ Thinking OS is a dense, quiet research instrument. Compact controls, restrained 
 - Agent Jobs owns schedules and run history. Discover can create a monitoring job but does not duplicate job management. Scheduler availability and server-local time zone remain explicit.
 - Research tabs may expose a named agent profile and its responsibility boundary. The profile is descriptive until a real provider is connected; execution state, schedules, and history remain owned by Runtime / Agent Jobs.
 - Use existing semantic surface, ink, rule, and accent tokens, the 4px spacing scale, and native focus states. No new animation, font, or dependency is required.
+- Scout reports use a compact history rail plus a single reading column. Candidate cards expose relevance, reading value, assessment evidence, and limitations before expandable abstract and provenance details.
+- Scout decisions remain explicit actions. Dismissal and comparison use native dialogs with keyboard dismissal, focus restoration, and horizontal table scrolling on narrow screens.
+- Assistant scout briefs use a bordered compact card. The card shows scope, exclusions, search direction count, screening standard, and recommendation cap before any external request. Run and cancel remain explicit controls; stage progress uses named states rather than percentages.

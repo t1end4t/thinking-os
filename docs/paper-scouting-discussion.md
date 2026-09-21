@@ -36,9 +36,9 @@ Proposed flow:
 1. The user discusses the problem with the assistant.
 2. The assistant breaks the problem into concepts, constraints, and search directions.
 3. The assistant proposes search queries and explains the purpose of each query.
-4. When the user asks to scout, the assistant delegates the search and screening work to an agent.
-5. The agent searches candidate papers, then reads at least the title and abstract.
-6. The agent returns a short screened set, not an unfiltered result list.
+4. When the user asks to scout, the assistant starts a detached, persisted scout run.
+5. Deterministic retrieval services search candidate papers, then a bounded screening model reads at least the title and abstract.
+6. The scout run produces a short screened set, not an unfiltered result list.
 7. Each recommendation includes its relevance, expected value, limitations, and provenance.
 8. The user decides which papers enter the reading or research workflow.
 
@@ -106,8 +106,8 @@ The same paper may be found by both modes. The system should merge duplicates wh
 
 - UI layout and navigation.
 - Removal of the existing literature input.
-- Agent architecture and provider choice.
-- Search sources and APIs.
+- Exact screening-model invocation and restricted tool boundary.
+- Provider budgets and operational limits.
 - Ranking formula.
 - Persistence schema and migration.
 - Scheduler implementation.
@@ -121,7 +121,7 @@ Implementation order:
 1. Define the scout brief and scout report contracts.
 2. Exercise the contracts manually with real research questions.
 3. Let the assistant create and revise a scout brief.
-4. Let an agent execute the approved brief.
+4. Execute the approved brief as a detached scout run.
 5. Persist the report and user decisions.
 6. Reuse the proven pipeline for scheduled topic scouting.
 7. Redesign or remove the existing literature controls only after the replacement covers their useful behavior.
@@ -154,7 +154,7 @@ Run-level fields:
 - `briefId`: the brief that defined the run.
 - `startedAt` and `completedAt`.
 - `sources`: providers or indexes actually searched.
-- `executedQueries`: queries actually sent, including agent-generated expansions.
+- `executedQueries`: queries actually sent, including model-proposed expansions.
 - `candidateCount`: candidates retrieved before screening.
 - `recommendations`: papers considered worth the user's attention.
 - `uncertain`: promising papers that could not be assessed confidently.
@@ -488,7 +488,7 @@ Useful comparison dimensions include:
 - Important limitation.
 - Expected use in the user's work.
 
-Unknown values should remain unknown. The agent should not fill cells by guessing.
+Unknown values should remain unknown. The screening model should not fill cells by guessing.
 
 ## Handoff Acceptance Rules
 
@@ -807,7 +807,7 @@ Prefer persistent identifiers such as DOI, ORCID, OpenAlex ID, ISSN, or arXiv ID
 
 ## Retrieval Budget
 
-Quality requires enough recall for screening, but unbounded retrieval wastes provider calls and agent context.
+Quality requires enough recall for screening, but unbounded retrieval wastes provider calls and screening-model context.
 
 Initial per-run budget:
 
@@ -941,7 +941,7 @@ When provider quota or latency is constrained, reduce work in this order:
 
 Do not skip DOI verification or hide provider failure merely to report a full-looking shortlist.
 
-## Agent Execution Model
+## Scout Execution Model
 
 The assistant should initiate scouting, but the scout must run as a detached, persisted job. It should not remain inside the assistant's streamed response.
 
@@ -956,7 +956,7 @@ This separation matters because:
 
 ## Execution Roles
 
-Use four narrow roles rather than one unconstrained agent:
+Use five narrow components rather than multiple autonomous agents:
 
 ### Assistant Orchestrator
 
@@ -979,11 +979,11 @@ Responsibilities:
 - Enforce one active run per brief or watch.
 - Apply provider budgets, timeouts, cancellation, and retry rules.
 - Persist checkpoints and final state.
-- Validate all agent outputs before they enter the report.
+- Validate all model outputs before they enter the report.
 
 The controller owns state transitions. The model does not decide that its own run completed successfully.
 
-### Retrieval Workers
+### Retrieval Services
 
 Responsibilities:
 
@@ -995,7 +995,7 @@ Responsibilities:
 
 Retrieval should be deterministic application code. A model may propose queries, but it should not fabricate or directly rewrite provider responses.
 
-### Screening Agent
+### Screening Model
 
 Responsibilities:
 
@@ -1006,7 +1006,7 @@ Responsibilities:
 - Assign recommend, uncertain, or reject outcomes.
 - Propose a coverage-aware shortlist.
 
-The screening agent returns structured assessments. It does not write directly to the vault, create papers, create evidence, or change user decisions.
+The screening model returns structured assessments. It does not write directly to the vault, create papers, create evidence, or change user decisions.
 
 ### Report Assembler
 
@@ -1042,9 +1042,9 @@ For the first version, `start_scout_run` requires an explicit user action on the
 
 Scheduled topic watches are the exception. Enabling a watch grants standing permission for future scheduled runs within its saved scope and budget.
 
-## Agent Capability Boundary
+## Screening Model Capability Boundary
 
-The scout agent should not receive general shell or unrestricted filesystem access merely to search papers.
+The screening model should not receive general shell or unrestricted filesystem access merely to assess papers.
 
 Give it only the information and tools required for the run:
 
@@ -1056,7 +1056,7 @@ Give it only the information and tools required for the run:
 
 Do not expose unrelated vault notes, manuscripts, credentials, or the entire filesystem. Additional research context should be attached deliberately and recorded in `createdFrom` or run context.
 
-This boundary improves reproducibility and prevents an agent from silently changing research records while evaluating candidates.
+This boundary improves reproducibility and prevents the screening model from silently changing research records while evaluating candidates.
 
 ## Run State Machine
 
@@ -1124,7 +1124,7 @@ After batch screening, the report assembler compares all surviving candidates fo
 
 This keeps context bounded while preserving a final global comparison step.
 
-## Validation of Agent Output
+## Validation of Screening Output
 
 Reject or downgrade output that:
 
@@ -1207,7 +1207,7 @@ The execution model is acceptable when:
 - Every run reaches one durable terminal state.
 - Cancellation cannot later produce a completed report.
 - Model output is schema-validated before persistence.
-- The agent cannot directly create evidence, modify claims, or silently save papers.
+- The screening model cannot directly create evidence, modify claims, or silently save papers.
 - Provider and model failures produce partial or failed reports without invented replacements.
 - Restarted applications expose interrupted runs and permit deterministic reruns.
 
@@ -1294,7 +1294,7 @@ Persist:
 - Start, update, and terminal timestamps.
 - Final report identifier when available.
 
-Runs remain under `runtime/` because they describe agent execution. They must not be confused with the durable report.
+Runs remain under `runtime/` because they describe scout execution. They must not be confused with the durable report.
 
 ### Scout Reports
 
@@ -1478,7 +1478,7 @@ The user should be able to inspect the scout brief before a manual external requ
 
 - Keep scout endpoints loopback-only and same-origin.
 - Use an allowlist of provider hosts.
-- Construct provider URLs in application code; do not accept arbitrary agent-supplied URLs.
+- Construct provider URLs in application code; do not accept arbitrary model-supplied URLs.
 - Restrict redirects and validate the final protocol and host.
 - Set request timeouts and response-size limits.
 - Reject unsafe URL schemes.
@@ -1490,11 +1490,11 @@ The user should be able to inspect the scout brief before a manual external requ
 - Verify content type and enforce download-size limits.
 - Treat PDF and HTML contents as untrusted input.
 - Do not execute embedded files, scripts, macros, or links.
-- Do not allow downloaded content to issue agent instructions.
+- Do not allow downloaded content to issue model instructions.
 - Record source URL, retrieval time, and document hash when a document is inspected.
 - Respect access rights and provider terms.
 
-Paper text is evidence to analyze, not trusted instructions. Prompt-injection-like text inside a paper must not change agent tools, scope, or system rules.
+Paper text is evidence to analyze, not trusted instructions. Prompt-injection-like text inside a paper must not change model tools, scope, or system rules.
 
 ### Logging
 

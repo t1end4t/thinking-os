@@ -6,5 +6,15 @@ export function paperIdentity(paper: Pick<Paper, 'title' | 'authors' | 'year' | 
   if (arxiv) return `arxiv:${arxiv[1].toLowerCase()}`;
   if (identifier) return `doi:${identifier}`;
   const normalized = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-  return `title:${normalized(paper.title)}:${paper.year}:${normalized(paper.authors)}`;
+  if (paper.url) {
+    try {
+      const url = new URL(paper.url);
+      url.hash = '';
+      url.search = '';
+      return `url:${url.toString().replace(/\/$/, '').toLowerCase()}`;
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+    }
+  }
+  return `title:${normalized(paper.title)}`;
 }

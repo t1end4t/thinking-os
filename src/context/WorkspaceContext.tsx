@@ -131,6 +131,8 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   // Navigation & Shell
   activeSurface: SurfaceId;
   setActiveSurface: (surface: SurfaceId) => void;
+  activeScoutReportId: string | null;
+  openScoutReport: (reportId: string) => void;
   sourceEvidenceId: string | null;
   openEvidenceSource: (id: string) => boolean;
   paperSource: { paperId: string; pageNumber?: number } | null;
@@ -302,12 +304,19 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
   const [activeSurface, setActiveSurfaceState] = useState<SurfaceId>('tasks');
+  const [activeScoutReportId, setActiveScoutReportId] = useState<string | null>(null);
   const [sourceEvidenceId, setSourceEvidenceId] = useState<string | null>(null);
   const [paperSource, setPaperSource] = useState<{ paperId: string; pageNumber?: number } | null>(null);
   const setActiveSurface = useCallback((surface: SurfaceId) => {
     setSourceEvidenceId(null);
     setPaperSource(null);
     setActiveSurfaceState(surface);
+  }, []);
+  const openScoutReport = useCallback((reportId: string) => {
+    setSourceEvidenceId(null);
+    setPaperSource(null);
+    setActiveScoutReportId(reportId);
+    setActiveSurfaceState('survey');
   }, []);
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -1116,7 +1125,21 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return { success: false as const, error: 'A paper title is required.' };
     }
     const existing = latestSnapshot.current.papers.find(paper => paperIdentity(paper) === paperIdentity(paperData));
-    if (existing) return { success: true as const, paper: existing };
+    if (existing) {
+      const incomingContexts = paperData.discoveryContexts ?? [];
+      const existingContexts = existing.discoveryContexts ?? [];
+      const discoveryContexts = [...existingContexts];
+      for (const context of incomingContexts) {
+        if (!discoveryContexts.some(item => item.reportId === context.reportId && item.candidateId === context.candidateId)) {
+          discoveryContexts.push(context);
+        }
+      }
+      const mergedPaper = discoveryContexts.length === existingContexts.length
+        ? existing
+        : { ...existing, discoveryContexts };
+      if (mergedPaper !== existing) setPapers(previous => previous.map(paper => paper.id === existing.id ? mergedPaper : paper));
+      return { success: true as const, paper: mergedPaper };
+    }
     const cleanId = paperData.id?.trim() || `p-${crypto.randomUUID()}`;
     const newPaper: Paper = {
       ...paperData,
@@ -1135,6 +1158,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       ],
       highlights: paperData.highlights || [],
+      discoveryContexts: paperData.discoveryContexts || [],
       createdAt: paperData.createdAt || Date.now()
     };
     setPapers(prev => {
@@ -1503,6 +1527,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         loadSampleWorkspace,
         activeSurface,
         setActiveSurface,
+        activeScoutReportId,
+        openScoutReport,
         sourceEvidenceId,
         openEvidenceSource,
         paperSource,

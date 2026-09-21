@@ -11,6 +11,8 @@ import { CopyButton } from '../runtime/CopyButton';
 import { isAssistantImage, type AssistantImage, type AssistantTurnContext, type ChatEntry } from '../../context/useCodexAssistant';
 import { AssistantProjects } from './AssistantProjects';
 import { AssistantModeMenu } from './AssistantModeMenu';
+import { AssistantScoutCard } from './AssistantScoutCard';
+import { useScouts } from '../../context/useScouts';
 import './assistant.css';
 
 const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, className = 'w-3 h-3' }) => {
@@ -137,12 +139,13 @@ const ActivityGroup: React.FC<{ entries: ChatEntry[]; prompt?: ChatEntry; mode: 
 export const AssistantDock: React.FC = () => {
   const {
     isDockOpen, setIsDockOpen, dockWidth, setDockWidth, dockPosition, workspaceDir, workspaceLoading,
-    attachedContexts, addAttachedContext, removeAttachedContext, clearAttachedContexts, activeContext, codexAssistant
+    attachedContexts, addAttachedContext, removeAttachedContext, clearAttachedContexts, activeContext, codexAssistant, openScoutReport
   } = useWorkspace();
   const {
     sessions, openSessions, session, messages, running, status, error, storageWarning,
     send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir, mode, setMode
   } = codexAssistant;
+  const scouts = useScouts(projectDir);
 
   const [input, setInput] = useState('');
   const [images, setImages] = useState<AssistantImage[]>([]);
@@ -165,6 +168,7 @@ export const AssistantDock: React.FC = () => {
 
   useEffect(() => { if (followTranscript.current) transcriptEnd.current?.scrollIntoView({ block: 'nearest' }); }, [messages, status, isDockOpen]);
   useEffect(() => { followTranscript.current = true; setInput(''); transcriptEnd.current?.scrollIntoView({ block: 'nearest' }); }, [session?.id]);
+  useEffect(() => { if (messages.some(entry => entry.scout)) void scouts.refresh(); }, [messages, scouts.refresh]);
   useEffect(() => { setInput(''); historyDialog.current?.close(); }, [workspaceDir, projectDir]);
   useEffect(() => {
     imageRequest.current?.abort();
@@ -426,7 +430,16 @@ export const AssistantDock: React.FC = () => {
                 <button type="button" aria-label="Edit question" title="Edit a copy of this question" disabled={running || uploading} className={iconButton} onClick={() => editQuestion(turn.prompt!)}><Pencil className="w-3.5 h-3.5" /></button>
               </div>
             </div>}
-            <ActivityGroup entries={turn.entries.filter(entry => entry !== turn.reply)} prompt={turn.prompt} mode={mode} />
+            <ActivityGroup entries={turn.entries.filter(entry => entry !== turn.reply && entry.kind !== 'scout')} prompt={turn.prompt} mode={mode} />
+            {turn.entries.filter(entry => entry.kind === 'scout' && entry.scout).map(entry => {
+              const brief = scouts.snapshot?.briefs.find(item => item.id === entry.scout?.briefId);
+              if (!brief) return <p key={entry.id} className="text-[0.75rem] text-[var(--color-ink-muted)]">Loading scout brief…</p>;
+              const run = [...(scouts.snapshot?.runs ?? [])].filter(item => item.source.kind === 'brief' && item.source.id === brief.id).sort((first, second) => second.startedAt - first.startedAt)[0];
+              const report = run?.reportId ? scouts.snapshot?.reports.find(item => item.id === run.reportId) : undefined;
+              return <AssistantScoutCard key={entry.id} brief={brief} run={run} report={report} busy={scouts.busy !== null}
+                onSave={input => scouts.saveBrief(brief.id, input)} onRun={() => scouts.startRun(brief.id)}
+                onCancel={() => run ? scouts.cancelRun(run.id) : Promise.resolve(false)} onOpenReport={() => report && openScoutReport(report.id)} />;
+            })}
             {turn.reply && (
               <div className="w-full min-w-0 px-1 [&_*]:break-words [&_*]:[overflow-wrap:anywhere]">
                 <MarkdownPreview content={turn.reply.content} className="assistant-markdown" />

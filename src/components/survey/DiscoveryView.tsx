@@ -4,6 +4,7 @@ import { useLiterature } from '../../context/useLiterature';
 import { sameDiscoveryPaper } from '../../literatureClient';
 import type { DiscoveryPaper } from '../../literatureTypes';
 import { LiteratureJobForm } from '../runtime/AgentJobsView';
+import { ScoutReportsPanel } from './ScoutReportsPanel';
 import {
   Search,
   Sparkles,
@@ -244,6 +245,7 @@ export function DiscoveryView() {
   return (
     <div className="discovery-surface">
       <div className="discovery-container">
+        <ScoutReportsPanel />
         <section className="discovery-mission" aria-labelledby="discovery-mission-title">
           <div>
             <span className="discovery-section-index">Discover</span>

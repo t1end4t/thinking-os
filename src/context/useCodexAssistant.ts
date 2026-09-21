@@ -25,12 +25,20 @@ export interface ChatEntry {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  kind?: 'reasoning' | 'command' | 'tool' | 'warning' | 'plan' | 'files';
+  kind?: 'reasoning' | 'command' | 'tool' | 'warning' | 'plan' | 'files' | 'scout';
   label?: string;
   state?: 'running' | 'complete' | 'failed' | 'stopped';
   durationMs?: number;
   images?: AssistantImage[];
   contexts?: AssistantTurnContext[];
+  scout?: { briefId: string };
+}
+
+function scoutCard(value: unknown): { briefId: string } | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  const briefId = Object.entries(value).find(([key]) => key === 'briefId')?.[1];
+  const kind = Object.entries(value).find(([key]) => key === 'kind')?.[1];
+  return kind === 'scout-brief' && typeof briefId === 'string' && briefId.trim() ? { briefId } : undefined;
 }
 
 export interface AssistantSession {
@@ -75,10 +83,11 @@ export function parseSessions(raw: string | null): { selectedId: string; openIds
             context && typeof context.type === 'string' && typeof context.id === 'string' && typeof context.label === 'string' &&
             [context.secondaryLabel, context.sourceId, context.kind, context.excerpt].every(field => field === undefined || typeof field === 'string')))) &&
           ['user', 'assistant'].includes(entry.role) &&
-          (entry.kind === undefined || ['reasoning', 'command', 'tool', 'warning', 'plan', 'files'].includes(entry.kind)) &&
+          (entry.kind === undefined || ['reasoning', 'command', 'tool', 'warning', 'plan', 'files', 'scout'].includes(entry.kind)) &&
           (entry.label === undefined || typeof entry.label === 'string') &&
           (entry.durationMs === undefined || (typeof entry.durationMs === 'number' && Number.isFinite(entry.durationMs) && entry.durationMs >= 0)) &&
-          (entry.state === undefined || ['running', 'complete', 'failed', 'stopped'].includes(entry.state))))) {
+          (entry.state === undefined || ['running', 'complete', 'failed', 'stopped'].includes(entry.state)) &&
+          (entry.scout === undefined || (entry.scout !== null && typeof entry.scout === 'object' && typeof entry.scout.briefId === 'string' && Boolean(entry.scout.briefId.trim())))))) {
     throw new Error('Saved conversations could not be read. Existing storage has not been overwritten.');
   }
   const ids = value.sessions.map((session: AssistantSession) => session.id);
@@ -250,6 +259,10 @@ export function useCodexAssistant(defaultWorkspaceDir: string, beforeTurn?: (dir
           entry.kind = 'tool'; entry.label = `${item.server} · ${item.tool}`;
           entry.content = item.error?.message || JSON.stringify(item.result ?? item.arguments, null, 2);
           entry.state = item.status === 'in_progress' ? 'running' : item.status === 'failed' ? 'failed' : 'complete';
+          if (item.server === 'thinking_os_scout' && item.status === 'completed') {
+            const card = scoutCard(item.result?.structured_content);
+            if (card) { entry.kind = 'scout'; entry.scout = card; entry.label = 'Scout brief'; }
+          }
           setStatus('Using a tool…'); break;
         case 'web_search': entry.kind = 'tool'; entry.label = 'Web search'; entry.content = item.query; setStatus('Searching…'); break;
         case 'file_change': entry.kind = 'files'; entry.label = 'File changes'; entry.content = item.changes.map(change => `${change.kind}: ${change.path}`).join('\n'); break;
