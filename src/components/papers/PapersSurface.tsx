@@ -25,7 +25,10 @@ import {
   Star,
   Calendar,
   Tag,
-  Hash
+  Hash,
+  Maximize2,
+  Minimize2,
+  Compass
 } from 'lucide-react';
 import { TabHelpTip } from '../common/TabHelpTip';
 import { PdfViewer, PdfSelection } from './PdfViewer';
@@ -48,7 +51,9 @@ export const PapersSurface: React.FC = () => {
     removePaperHighlight,
     sourceEvidenceId,
     paperSource,
-    evidence
+    evidence,
+    openProblems,
+    links
   } = useWorkspace();
 
   const sourceEvidence = evidence.find(item => item.id === sourceEvidenceId && item.origin === 'literature');
@@ -71,11 +76,17 @@ export const PapersSurface: React.FC = () => {
   // Vault View Layout: 'cards' | 'list'
   const [vaultLayout, setVaultLayout] = useState<'cards' | 'list'>('cards');
 
-  // Left sidebar toggle for larger reader: collapsed / expanded
+  // Larger reader mode: collapses sidebar to rail AND compacts header for maximum reader space
+  const [isLargerReader, setIsLargerReader] = useState<boolean>(false);
+
+  // Left sidebar toggle: collapsed into rail / expanded
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => window.innerWidth < 900);
 
-  // Left sidebar tab when reading: 'toc' | 'highlights' | 'vault'
-  const [leftSidebarTab, setLeftSidebarTab] = useState<'toc' | 'highlights' | 'vault'>('toc');
+  // Left sidebar tab when reading: 'sections' | 'linked' | 'highlights' | 'vault'
+  const [leftSidebarTab, setLeftSidebarTab] = useState<'sections' | 'linked' | 'highlights' | 'vault'>('sections');
+
+  // Jump to specific page in reader
+  const [jumpPage, setJumpPage] = useState<number | undefined>(undefined);
 
   // Add Paper modal state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -132,6 +143,144 @@ export const PapersSurface: React.FC = () => {
     return papers.find(p => p.id === activeTab) || null;
   }, [papers, activeTab]);
 
+  // Section extraction from structured sections or markdown headers
+  const paperSections = useMemo(() => {
+    if (!activePaper) return [];
+
+    if (activePaper.sections && activePaper.sections.length > 0) {
+      const hasTitles = activePaper.sections.some(s => s.title && s.title.trim().length > 0);
+      if (hasTitles) {
+        return activePaper.sections.map((sec, idx) => {
+          const linkedClaims = sec.paragraphs
+            ?.filter(p => p.linkedClaimId)
+            .map(p => {
+              const clm = claims.find(c => c.id === p.linkedClaimId);
+              return {
+                id: p.linkedClaimId!,
+                text: clm?.text,
+                rejected: clm?.rejected
+              };
+            }) || [];
+
+          return {
+            id: sec.id || `sec-${idx}`,
+            title: sec.title || `Section ${idx + 1}`,
+            linkedClaims,
+            paragraphCount: sec.paragraphs?.length || 1
+          };
+        });
+      }
+    }
+
+    if (activePaper.markdown) {
+      const lines = activePaper.markdown.split('\n');
+      const sectionsFromMd: Array<{
+        id: string;
+        title: string;
+        linkedClaims: Array<{ id: string; text?: string; rejected?: boolean }>;
+        paragraphCount: number;
+      }> = [];
+      let currentTitle = '';
+      let currentId = '';
+      let paragraphCount = 0;
+
+      for (const line of lines) {
+        const headingMatch = line.match(/^#{1,3}\s+(.+)$/);
+        if (headingMatch) {
+          if (currentTitle) {
+            sectionsFromMd.push({
+              id: currentId,
+              title: currentTitle,
+              linkedClaims: [],
+              paragraphCount: Math.max(1, paragraphCount)
+            });
+          }
+          currentTitle = headingMatch[1].trim();
+          currentId = `sec-md-${sectionsFromMd.length}`;
+          paragraphCount = 0;
+        } else if (line.trim().length > 0) {
+          paragraphCount++;
+        }
+      }
+      if (currentTitle) {
+        sectionsFromMd.push({
+          id: currentId,
+          title: currentTitle,
+          linkedClaims: [],
+          paragraphCount: Math.max(1, paragraphCount)
+        });
+      }
+
+      if (sectionsFromMd.length > 0) {
+        activePaper.sections?.forEach(sec => {
+          sec.paragraphs?.forEach(p => {
+            if (p.linkedClaimId) {
+              const clm = claims.find(c => c.id === p.linkedClaimId);
+              if (sectionsFromMd[0]) {
+                sectionsFromMd[0].linkedClaims.push({
+                  id: p.linkedClaimId,
+                  text: clm?.text,
+                  rejected: clm?.rejected
+                });
+              }
+            }
+          });
+        });
+        return sectionsFromMd;
+      }
+    }
+
+    return [
+      {
+        id: 'sec-default',
+        title: 'Full Document Text',
+        linkedClaims: [],
+        paragraphCount: 1
+      }
+    ];
+  }, [activePaper, claims]);
+
+  // Epistemic graph items linked to this paper
+  const paperLinkedClaims = useMemo(() => {
+    if (!activePaper) return [];
+    const claimIdSet = new Set<string>();
+    activePaper.sections?.forEach(s => {
+      s.paragraphs?.forEach(p => {
+        if (p.linkedClaimId) claimIdSet.add(p.linkedClaimId);
+      });
+    });
+    // Claims linked via literature evidence
+    evidence.filter(e => e.paperId === activePaper.id).forEach(e => {
+      links.filter(l => l.childId === e.id && l.kind === 'claim-evidence').forEach(l => {
+        claimIdSet.add(l.parentId);
+      });
+    });
+    return Array.from(claimIdSet).map(id => claims.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => Boolean(c));
+  }, [activePaper, claims, evidence, links]);
+
+  const paperLinkedEvidence = useMemo(() => {
+    if (!activePaper) return [];
+    return evidence.filter(e => e.paperId === activePaper.id || (activePaper.citation && e.citation?.includes(activePaper.citation)));
+  }, [activePaper, evidence]);
+
+  const paperLinkedOpenProblems = useMemo(() => {
+    if (!activePaper) return [];
+    return (openProblems || []).filter(op => op.paperId === activePaper.id || (activePaper.citation && op.citation?.includes(activePaper.citation)));
+  }, [activePaper, openProblems]);
+
+  const totalLinkedCount = paperLinkedClaims.length + paperLinkedEvidence.length + paperLinkedOpenProblems.length;
+
+  // Toggle Larger Reader (both compact header and collapsed sidebar)
+  const toggleLargerReader = () => {
+    if (!isLargerReader) {
+      setIsLargerReader(true);
+      setIsSidebarCollapsed(true);
+    } else {
+      setIsLargerReader(false);
+      setIsSidebarCollapsed(false);
+    }
+  };
+
   // Tab switching and opening
   const handleOpenPaperTab = (paperId: string) => {
     if (!openTabIds.includes(paperId)) {
@@ -139,6 +288,7 @@ export const PapersSurface: React.FC = () => {
     }
     setActiveTab(paperId);
     setFloatingToolbarPos(null);
+    setJumpPage(undefined);
   };
 
   const handleCloseTab = (e: React.MouseEvent, paperIdToClose: string) => {
@@ -151,6 +301,8 @@ export const PapersSurface: React.FC = () => {
         setActiveTab(newTabs[0]);
       } else {
         setActiveTab('vault');
+        setIsLargerReader(false);
+        setIsSidebarCollapsed(false);
       }
     }
     setFloatingToolbarPos(null);
@@ -321,124 +473,26 @@ export const PapersSurface: React.FC = () => {
         </details>
       )}
       {/* Top Header: Title, Global Actions, and Multi-Tab Bar */}
-      <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col gap-2 shrink-0 shadow-2xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Surface Title & Description */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
-              <BookOpen size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-[var(--color-ink)] tracking-tight">
-                  Paper Vault & Real PDF Reader
-                </h1>
-                <TabHelpTip
-                  title="Paper Vault & Real PDF Reader"
-                  category="Literature Review"
-                  summary="High-fidelity academic paper reader with native vector PDF rendering, multi-tab browsing, customizable card/list vault views, and highlight extraction."
-                  tips={[
-                    "Use tabs to read and navigate multiple papers simultaneously.",
-                    "Toggle between Card View and List View in the Vault library.",
-                    "Click 'Larger Reader' (or collapse sidebar) to expand the PDF viewing canvas.",
-                    "Select PDF text to ask, capture evidence, highlight, or record an open problem.",
-                    "Add new research papers via DOI, URL, or local PDF upload."
-                  ]}
-                  placement="bottom"
-                  variant="inline"
-                />
-              </div>
-              <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">
-                Multi-tab vector PDF reader, card/list vault browser, and Gate 5 evidence capture
-              </p>
-            </div>
-          </div>
-
-          {/* Action Bar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* If in reading mode: Reader Mode Toggle & Toggle Left Sidebar (Larger Reader) */}
-            {activePaper && activeTab !== 'vault' && (
-              <>
-                <button
-                  ref={captureButtonRef}
-                  type="button"
-                  className="kanban-modal-cancel-btn"
-                  onClick={event => setOpenProblemCapture({ paper: activePaper, returnFocus: event.currentTarget })}
-                >
-                  Record open problem
-                </button>
-                {/* Toggle Left Sidebar to give a Larger Reader */}
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                  title={isSidebarCollapsed ? 'Show sidebar (Outline & Highlights)' : 'Collapse sidebar for larger reader'}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all ${
-                    isSidebarCollapsed
-                      ? 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700 shadow-2xs font-semibold'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {isSidebarCollapsed ? (
-                    <PanelLeftOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                  ) : (
-                    <PanelLeftClose className="w-3.5 h-3.5 text-slate-500" />
-                  )}
-                  <span>{isSidebarCollapsed ? 'Show Sidebar' : 'Larger Reader'}</span>
-                </button>
-
-              </>
-            )}
-
-            {/* Add Paper Button */}
+      {isLargerReader && activePaper && activeTab !== 'vault' ? (
+        /* COMPACT HEADER FOR LARGER READER MODE */
+        <header className="px-3 py-1.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between gap-2 shrink-0 shadow-2xs">
+          {/* Left: Tab bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none min-w-0 flex-1">
             <button
               type="button"
-              onClick={() => setShowAddModal(true)}
-              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+              onClick={() => {
+                setActiveTab('vault');
+                setIsLargerReader(false);
+                setFloatingToolbarPos(null);
+              }}
+              title="Vault Library"
+              className="px-2.5 py-1 text-xs font-mono rounded-lg flex items-center gap-1 shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-teal-400 border border-slate-200 dark:border-slate-700"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Paper</span>
+              <BookOpen className="w-3.5 h-3.5 text-teal-600" />
+              <span className="font-semibold text-[11px]">Vault ({papers.length})</span>
             </button>
-
-            {/* Delete active paper (if in reader) */}
-            {activePaper && activeTab !== 'vault' && (
-              <button
-                type="button"
-                onClick={() => setPaperToDelete(activePaper)}
-                title="Remove paper from vault"
-                className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Multi-Tab Navigation Bar */}
-        <div className="flex items-center gap-1.5 pt-1 overflow-x-auto scrollbar-none max-w-full">
-          {/* Main Vault Library Tab */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('vault');
-              setFloatingToolbarPos(null);
-            }}
-            className={`px-3 py-1.5 text-xs font-mono rounded-lg flex items-center gap-1.5 transition-all shrink-0 border ${
-              activeTab === 'vault'
-                ? 'bg-teal-600 text-white font-semibold border-teal-600 shadow-2xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Vault Library ({papers.length})</span>
-          </button>
-
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-1" />
-
-          {/* Open Paper Tabs (Supports reading multiple papers simultaneously) */}
-          {openTabIds.length === 0 ? (
-            <span className="text-xs text-slate-400 italic px-2">No reader tabs open. Select a paper from the vault.</span>
-          ) : (
-            openTabIds.map(tabId => {
+            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
+            {openTabIds.map(tabId => {
               const paper = papers.find(p => p.id === tabId);
               if (!paper) return null;
               const isActive = paper.id === activeTab;
@@ -449,51 +503,256 @@ export const PapersSurface: React.FC = () => {
                   key={paper.id}
                   role="group"
                   aria-label={`Reader tab: ${paper.title}`}
-                  className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer select-none shrink-0 border ${
+                  className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer select-none shrink-0 border ${
                     isActive
                       ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 border-teal-500/60 dark:border-teal-500/50 font-semibold shadow-2xs ring-1 ring-teal-500/20'
                       : 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-800'
                   }`}
                 >
                   <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-teal-500' : 'text-slate-400'}`} />
-                  <button type="button" onClick={() => handleOpenPaperTab(paper.id)} aria-pressed={isActive} className="truncate max-w-[150px]">{paper.title}</button>
+                  <button type="button" onClick={() => handleOpenPaperTab(paper.id)} aria-pressed={isActive} className="truncate max-w-[130px]">{paper.title}</button>
                   <span className="text-[10px] text-slate-400">({paper.year})</span>
 
                   {hlCount > 0 && (
                     <span
                       title={`${hlCount} saved highlights`}
-                      className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 text-[10px] font-bold"
+                      className="px-1 py-0.1 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 text-[9px] font-bold"
                     >
-                      ★ {hlCount}
+                      ★{hlCount}
                     </span>
                   )}
 
-                  {/* Close Tab Button */}
                   <button
                     type="button"
                     onClick={e => handleCloseTab(e, paper.id)}
                     title="Close tab"
                     aria-label={`Close tab: ${paper.title}`}
-                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ml-1"
+                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ml-0.5"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </div>
               );
-            })
-          )}
+            })}
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              title="Open or Add another paper"
+              className="p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors shrink-0 border border-slate-200 dark:border-slate-700"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-          {/* Plus tab button to add / open papers */}
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            title="Open or Add another paper"
-            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors shrink-0 border border-slate-200 dark:border-slate-700"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </header>
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              ref={captureButtonRef}
+              type="button"
+              className="px-2 py-1 text-xs rounded-lg border border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:bg-slate-200 dark:hover:bg-slate-700 hidden md:inline-flex items-center gap-1 font-medium"
+              onClick={event => setOpenProblemCapture({ paper: activePaper, returnFocus: event.currentTarget })}
+              title="Record open problem"
+            >
+              <span>Record problem</span>
+            </button>
+
+            {/* Exit Larger Reader */}
+            <button
+              type="button"
+              onClick={toggleLargerReader}
+              title="Exit Larger Reader (restore header and sidebar)"
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-all bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-700 shadow-2xs hover:bg-teal-100 dark:hover:bg-teal-900/60"
+            >
+              <Minimize2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Exit Larger Reader</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              title="Add Paper"
+              className="p-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs flex items-center gap-1 shadow-2xs transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPaperToDelete(activePaper)}
+              title="Remove paper from vault"
+              className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </header>
+      ) : (
+        /* STANDARD HEADER */
+        <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col gap-2 shrink-0 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Surface Title & Description */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+                <BookOpen size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm font-bold text-[var(--color-ink)] tracking-tight">
+                    Paper Vault
+                  </h1>
+                  <TabHelpTip
+                    title="Paper Vault"
+                    category="Literature Review"
+                    summary="Academic paper reader with native vector PDF rendering, multi-tab browsing, customizable card/list vault views, outline sections, and epistemic graph link extraction."
+                    tips={[
+                      "Use tabs to read and navigate multiple papers simultaneously.",
+                      "Toggle between Card View and List View in the Vault library.",
+                      "Click 'Larger Reader' to expand the canvas: sidebar minimizes to a left rail and the header compacts.",
+                      "Inspect paper sections and linked epistemic graph claims/evidence in the sidebar.",
+                      "Select PDF text to ask, capture evidence, highlight, or record an open problem.",
+                      "Add new research papers via DOI, URL, or local PDF upload."
+                    ]}
+                    placement="bottom"
+                    variant="inline"
+                  />
+                </div>
+                <p className="text-[0.6875rem] text-[var(--color-ink-muted)] hidden sm:block">
+                  Multi-tab vector PDF reader, card/list vault browser, and Gate 5 evidence capture
+                </p>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {activePaper && activeTab !== 'vault' && (
+                <>
+                  <button
+                    ref={captureButtonRef}
+                    type="button"
+                    className="kanban-modal-cancel-btn"
+                    onClick={event => setOpenProblemCapture({ paper: activePaper, returnFocus: event.currentTarget })}
+                  >
+                    Record open problem
+                  </button>
+                  {/* Larger Reader button */}
+                  <button
+                    type="button"
+                    onClick={toggleLargerReader}
+                    title="Larger reader (collapse top header and sidebar for maximum reading canvas)"
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition-all bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Larger Reader</span>
+                  </button>
+                </>
+              )}
+
+              {/* Add Paper Button */}
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Paper</span>
+              </button>
+
+              {/* Delete active paper (if in reader) */}
+              {activePaper && activeTab !== 'vault' && (
+                <button
+                  type="button"
+                  onClick={() => setPaperToDelete(activePaper)}
+                  title="Remove paper from vault"
+                  className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Multi-Tab Navigation Bar */}
+          <div className="flex items-center gap-1.5 pt-1 overflow-x-auto scrollbar-none max-w-full">
+            {/* Main Vault Library Tab */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('vault');
+                setFloatingToolbarPos(null);
+              }}
+              className={`px-3 py-1.5 text-xs font-mono rounded-lg flex items-center gap-1.5 transition-all shrink-0 border ${
+                activeTab === 'vault'
+                  ? 'bg-teal-600 text-white font-semibold border-teal-600 shadow-2xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Vault Library ({papers.length})</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-1" />
+
+            {/* Open Paper Tabs (Supports reading multiple papers simultaneously) */}
+            {openTabIds.length === 0 ? (
+              <span className="text-xs text-slate-400 italic px-2">No reader tabs open. Select a paper from the vault.</span>
+            ) : (
+              openTabIds.map(tabId => {
+                const paper = papers.find(p => p.id === tabId);
+                if (!paper) return null;
+                const isActive = paper.id === activeTab;
+                const hlCount = paper.highlights?.length || 0;
+
+                return (
+                  <div
+                    key={paper.id}
+                    role="group"
+                    aria-label={`Reader tab: ${paper.title}`}
+                    className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer select-none shrink-0 border ${
+                      isActive
+                        ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 border-teal-500/60 dark:border-teal-500/50 font-semibold shadow-2xs ring-1 ring-teal-500/20'
+                        : 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-teal-500' : 'text-slate-400'}`} />
+                    <button type="button" onClick={() => handleOpenPaperTab(paper.id)} aria-pressed={isActive} className="truncate max-w-[150px]">{paper.title}</button>
+                    <span className="text-[10px] text-slate-400">({paper.year})</span>
+
+                    {hlCount > 0 && (
+                      <span
+                        title={`${hlCount} saved highlights`}
+                        className="px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 text-[10px] font-bold"
+                      >
+                        ★ {hlCount}
+                      </span>
+                    )}
+
+                    {/* Close Tab Button */}
+                    <button
+                      type="button"
+                      onClick={e => handleCloseTab(e, paper.id)}
+                      title="Close tab"
+                      aria-label={`Close tab: ${paper.title}`}
+                      className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ml-1"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+
+            {/* Plus tab button to add / open papers */}
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              title="Open or Add another paper"
+              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors shrink-0 border border-slate-200 dark:border-slate-700"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* Surface Body: Vault View (Cards / List) OR Reader View */}
       {activeTab === 'vault' ? (
@@ -845,41 +1104,151 @@ export const PapersSurface: React.FC = () => {
         /* READER WORKSPACE: SIDEBAR + PDF VIEWER               */
         /* ========================================================================= */
         <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
-          {/* Collapsible Left Sidebar: Outline, Highlights, Vault (Can toggle left to larger reader) */}
-          {!isSidebarCollapsed && (
-            <aside className="absolute inset-y-0 left-0 max-w-full md:static w-72 md:w-80 border-r border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 overflow-hidden transition-all duration-200 z-10">
+          {/* Collapsible Left Sidebar: Mini-rail when collapsed, full drawer when open */}
+          {isSidebarCollapsed ? (
+            /* MINI-RAIL: Left edge collapsed toggle strip */
+            <aside
+              className="w-11 bg-[var(--color-surface)] border-r border-[var(--color-rule)] flex flex-col items-center py-2.5 gap-2 shrink-0 select-none z-10"
+              aria-label="Collapsed sidebar"
+            >
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(false)}
+                title="Expand sidebar (Outline, Linked Items, Notes)"
+                aria-label="Expand sidebar"
+                className="p-2 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+              >
+                <PanelLeftOpen className="w-4 h-4" />
+              </button>
+              <div className="w-6 h-px bg-[var(--color-rule)] my-0.5" />
+              <button
+                type="button"
+                onClick={() => {
+                  setLeftSidebarTab('sections');
+                  setIsSidebarCollapsed(false);
+                }}
+                title={`Sections Outline (${paperSections.length})`}
+                aria-label={`Sections Outline (${paperSections.length})`}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  leftSidebarTab === 'sections'
+                    ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-2xs font-semibold'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLeftSidebarTab('linked');
+                  setIsSidebarCollapsed(false);
+                }}
+                title={`Linked Epistemic Items (${totalLinkedCount})`}
+                aria-label={`Linked Epistemic Items (${totalLinkedCount})`}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  leftSidebarTab === 'linked'
+                    ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-2xs font-semibold'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <LinkIcon className="w-4 h-4" />
+                {totalLinkedCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {totalLinkedCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLeftSidebarTab('highlights');
+                  setIsSidebarCollapsed(false);
+                }}
+                title={`Notes & Highlights (${activePaper.highlights?.length || 0})`}
+                aria-label={`Notes & Highlights (${activePaper.highlights?.length || 0})`}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  leftSidebarTab === 'highlights'
+                    ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-2xs font-semibold'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Highlighter className="w-4 h-4" />
+                {(activePaper.highlights?.length || 0) > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {activePaper.highlights?.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLeftSidebarTab('vault');
+                  setIsSidebarCollapsed(false);
+                }}
+                title={`Vault Papers (${papers.length})`}
+                aria-label={`Vault Papers (${papers.length})`}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  leftSidebarTab === 'vault'
+                    ? 'bg-white dark:bg-slate-800 text-teal-600 shadow-2xs font-semibold'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+            </aside>
+          ) : (
+            /* EXPANDED SIDEBAR */
+            <aside className="absolute inset-y-0 left-0 max-w-full md:static w-72 md:w-80 border-r border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col shrink-0 overflow-hidden z-10">
               {/* Sidebar Header with subtabs and collapse button */}
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-1.5 gap-1 shrink-0">
-                <div className="flex items-center gap-1 text-xs font-medium flex-1">
+                <div className="flex items-center gap-1 text-xs font-medium flex-1 overflow-x-auto scrollbar-none">
                   <button
                     type="button"
-                    onClick={() => setLeftSidebarTab('toc')}
-                    className={`flex-1 py-1 px-1.5 rounded-md transition-colors text-center truncate ${
-                      leftSidebarTab === 'toc'
+                    onClick={() => setLeftSidebarTab('sections')}
+                    className={`py-1 px-2 rounded-md transition-colors text-center whitespace-nowrap text-xs ${
+                      leftSidebarTab === 'sections'
                         ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-2xs font-semibold'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
-                    Outline
+                    Sections
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeftSidebarTab('linked')}
+                    className={`py-1 px-2 rounded-md transition-colors text-center flex items-center justify-center gap-1 whitespace-nowrap text-xs ${
+                      leftSidebarTab === 'linked'
+                        ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-2xs font-semibold'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <span>Linked</span>
+                    {totalLinkedCount > 0 && (
+                      <span className="text-[10px] px-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">
+                        {totalLinkedCount}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setLeftSidebarTab('highlights')}
-                    className={`flex-1 py-1 px-1.5 rounded-md transition-colors text-center flex items-center justify-center gap-1 truncate ${
+                    className={`py-1 px-2 rounded-md transition-colors text-center flex items-center justify-center gap-1 whitespace-nowrap text-xs ${
                       leftSidebarTab === 'highlights'
                         ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-2xs font-semibold'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     <span>Notes</span>
-                    <span className="text-[10px] px-1 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
-                      {activePaper.highlights?.length || 0}
-                    </span>
+                    {(activePaper.highlights?.length || 0) > 0 && (
+                      <span className="text-[10px] px-1 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold">
+                        {activePaper.highlights?.length}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setLeftSidebarTab('vault')}
-                    className={`flex-1 py-1 px-1.5 rounded-md transition-colors text-center truncate ${
+                    className={`py-1 px-2 rounded-md transition-colors text-center whitespace-nowrap text-xs ${
                       leftSidebarTab === 'vault'
                         ? 'bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-2xs font-semibold'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -893,7 +1262,8 @@ export const PapersSurface: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsSidebarCollapsed(true)}
-                  title="Collapse sidebar for larger reader"
+                  title="Collapse sidebar to left rail"
+                  aria-label="Collapse sidebar"
                   className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors shrink-0"
                 >
                   <PanelLeftClose className="w-3.5 h-3.5" />
@@ -902,10 +1272,10 @@ export const PapersSurface: React.FC = () => {
 
               {/* Sidebar Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* SUBTAB 1: Outline & Metadata */}
-                {leftSidebarTab === 'toc' && (
+                {/* SUBTAB 1: Paper Sections Breakdown */}
+                {leftSidebarTab === 'sections' && (
                   <div className="space-y-4">
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 shadow-2xs space-y-1.5">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3 shadow-2xs space-y-1">
                       <span className="font-mono text-[10px] uppercase tracking-wider text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-full border border-teal-200/50 w-fit block">
                         Active Paper
                       </span>
@@ -913,45 +1283,192 @@ export const PapersSurface: React.FC = () => {
                         {activePaper.title}
                       </h3>
                       <p className="text-xs text-slate-500">{activePaper.authors}</p>
-                      <div className="font-mono text-[11px] text-slate-400 pt-1.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1">
+                      <div className="font-mono text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1">
                         <span>{activePaper.citation}</span>
                         {activePaper.doi && <span>• DOI: {activePaper.doi}</span>}
                       </div>
                     </div>
 
-                    {/* Linked Argument Passages */}
+                    {/* Paper Sections List */}
                     <div className="space-y-2">
-                      <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
-                        <LinkIcon className="w-3 h-3 text-teal-600" />
-                        Linked Passages in Graph
-                      </span>
-                      {activePaper.sections?.length > 0 ? (
-                        activePaper.sections.map(sec => {
-                          const linked = sec.paragraphs?.filter(p => p.linkedClaimId) || [];
-                          if (linked.length === 0) return null;
-                          return (
-                            <div
-                              key={sec.id}
-                              className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1 shadow-2xs"
-                            >
-                              <span className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                {sec.title}
-                              </span>
-                              <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/50 flex items-center gap-1 w-fit font-medium">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                Linked to Claim #{linked[0].linkedClaimId}
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
+                          <List className="w-3 h-3 text-teal-600" />
+                          Paper Sections ({paperSections.length})
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        {paperSections.map((sec, idx) => (
+                          <div
+                            key={sec.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setJumpPage(idx + 1)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setJumpPage(idx + 1);
+                              }
+                            }}
+                            title={`Jump to §${idx + 1}: ${sec.title}`}
+                            className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg hover:border-teal-400 dark:hover:border-teal-600 shadow-2xs group cursor-pointer"
+                          >
+                            <div className="flex items-start justify-between gap-1.5">
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400 shrink-0 mt-0.5">
+                                  §{idx + 1}
+                                </span>
+                                <span className="font-medium text-xs text-slate-800 dark:text-slate-200 leading-snug group-hover:text-teal-600 dark:group-hover:text-teal-400">
+                                  {sec.title}
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                                {sec.paragraphCount} {sec.paragraphCount === 1 ? 'para' : 'paras'}
                               </span>
                             </div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-xs text-slate-400 italic">No formal argument links yet.</p>
-                      )}
+
+                            {/* Any claim linked directly inside this section */}
+                            {sec.linkedClaims && sec.linkedClaims.length > 0 && (
+                              <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                                {sec.linkedClaims.map(lc => (
+                                  <div
+                                    key={lc.id}
+                                    className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200/50 flex items-center gap-1"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span className="truncate">Linked Claim: #{lc.id}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* SUBTAB 2: Highlights Kept */}
+                {/* SUBTAB 2: Linked Epistemic Graph Items (Claims, Evidence, Open Problems) */}
+                {leftSidebarTab === 'linked' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-1.5">
+                        <LinkIcon className="w-3 h-3 text-teal-600" />
+                        Linked Epistemic Items ({totalLinkedCount})
+                      </span>
+                    </div>
+
+                    {totalLinkedCount === 0 ? (
+                      <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs space-y-1">
+                        <LinkIcon className="w-6 h-6 mx-auto mb-1 opacity-50 text-teal-500" />
+                        <p className="font-medium text-slate-600 dark:text-slate-400">No linked items yet</p>
+                        <p className="text-[11px]">Select any passage in the reader to link literature evidence or record an open problem.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Linked Claims */}
+                        {paperLinkedClaims.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 font-mono">
+                              <span>Claims ({paperLinkedClaims.length})</span>
+                            </span>
+                            {paperLinkedClaims.map(c => (
+                              <div
+                                key={c.id}
+                                className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1 shadow-2xs"
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-2 h-2 rounded-full ${c.rejected ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                                  <span className="font-mono text-[10px] text-slate-400">#{c.id}</span>
+                                  {c.rejected && (
+                                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-red-100 text-red-700 font-semibold">
+                                      Rejected
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-800 dark:text-slate-200 leading-snug">
+                                  {c.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Linked Literature Evidence */}
+                        {paperLinkedEvidence.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 font-mono">
+                              <span>Evidence Records ({paperLinkedEvidence.length})</span>
+                            </span>
+                            {paperLinkedEvidence.map(ev => (
+                              <div
+                                key={ev.id}
+                                className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1 shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                                  <span className="font-semibold text-teal-600">#{ev.id}</span>
+                                  {ev.pageNumber && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setJumpPage(ev.pageNumber)}
+                                      className="hover:underline text-teal-600 font-bold"
+                                      title="Jump to page in reader"
+                                    >
+                                      Page {ev.pageNumber} →
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                  {ev.title}
+                                </p>
+                                {ev.excerpt && (
+                                  <p className="text-[11px] text-slate-500 italic line-clamp-2">
+                                    "{ev.excerpt}"
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Linked Open Problems */}
+                        {paperLinkedOpenProblems.length > 0 && (
+                          <div className="space-y-1.5">
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 font-mono">
+                              <span>Open Problems ({paperLinkedOpenProblems.length})</span>
+                            </span>
+                            {paperLinkedOpenProblems.map(op => (
+                              <div
+                                key={op.id}
+                                className="p-2.5 bg-amber-50/40 dark:bg-slate-900 border border-amber-200/60 dark:border-slate-800 rounded-lg space-y-1 shadow-2xs"
+                              >
+                                <div className="flex items-center justify-between text-[10px] font-mono text-amber-700 dark:text-amber-400">
+                                  <span className="font-semibold">#{op.id}</span>
+                                  {op.pageNumber && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setJumpPage(op.pageNumber)}
+                                      className="hover:underline font-bold"
+                                      title="Jump to page in reader"
+                                    >
+                                      Page {op.pageNumber} →
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-800 dark:text-slate-200">
+                                  {op.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SUBTAB 3: Highlights Kept */}
                 {leftSidebarTab === 'highlights' && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -1004,7 +1521,7 @@ export const PapersSurface: React.FC = () => {
                   </div>
                 )}
 
-                {/* SUBTAB 3: Vault Mini Explorer */}
+                {/* SUBTAB 4: Vault Mini Explorer */}
                 {leftSidebarTab === 'vault' && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -1050,12 +1567,12 @@ export const PapersSurface: React.FC = () => {
             </aside>
           )}
 
-
           <main className="flex-1 min-w-0 min-h-0 h-full overflow-hidden flex flex-col relative bg-[var(--color-surface)]">
             <PdfViewer
               key={activePaper.id}
               pdfUrl={getPaperPdfUrl(activePaper)}
               initialPage={activeTab === sourcePaperId ? sourcePage : undefined}
+              targetPage={jumpPage}
               highlights={activePaper.highlights}
               title={activePaper.title}
               onTextSelect={handlePdfTextSelect}

@@ -47,6 +47,7 @@ import { PreprintView } from './PreprintView';
 import { StoryboardView } from './StoryboardView';
 import { ArtifactModal } from './ArtifactModal';
 import { CitationModal } from './CitationModal';
+import { ManuscriptVaultModal } from './ManuscriptVaultModal';
 import { TabHelpTip } from '../common/TabHelpTip';
 
 const ARGUMENT_ROLES: { id: ArgumentRole; label: string; desc: string }[] = [
@@ -62,6 +63,12 @@ const ARGUMENT_ROLES: { id: ArgumentRole; label: string; desc: string }[] = [
 export const ManuscriptSurface: React.FC = () => {
   const {
     manuscript,
+    manuscripts,
+    activeManuscriptId,
+    switchManuscript,
+    createManuscript,
+    duplicateManuscript,
+    deleteManuscript,
     updateManuscriptMeta,
     updateManuscriptSection,
     addManuscriptSection,
@@ -83,6 +90,10 @@ export const ManuscriptSurface: React.FC = () => {
 
   // Active view mode: 'composer' | 'preprint' | 'storyboard'
   const [viewMode, setViewMode] = useState<'composer' | 'preprint' | 'storyboard'>('composer');
+
+  // Multi-paper switcher state
+  const [isPaperDropdownOpen, setIsPaperDropdownOpen] = useState(false);
+  const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
 
   // Active section selected for editing
   const [activeSectionId, setActiveSectionId] = useState<string>(
@@ -207,29 +218,45 @@ export const ManuscriptSurface: React.FC = () => {
     <div className="flex flex-col w-full h-full bg-[var(--color-surface)] text-[var(--color-ink)] overflow-hidden">
       {/* Top Header Toolbar */}
       <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 select-none shrink-0 shadow-2xs">
-        {/* Title & Venue */}
+        {/* Title & Multi-Paper Switcher */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-800 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
             <ScrollText size={18} />
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 relative">
             <div className="flex items-center gap-2">
-              <h2
-                onClick={() => setIsMetaModalOpen(true)}
-                className="text-sm font-bold text-[var(--color-ink)] truncate hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer transition-colors tracking-tight"
-                title="Click to edit paper metadata"
+              <button
+                type="button"
+                onClick={() => setIsPaperDropdownOpen(prev => !prev)}
+                className="flex items-center gap-1.5 text-left max-w-sm sm:max-w-md group py-0.5 px-1.5 -ml-1.5 rounded-lg hover:bg-[var(--color-paper)] transition-colors"
+                title="Switch paper or create a new paper"
               >
-                {manuscript.meta.title}
-              </h2>
+                <h2 className="text-sm font-bold text-[var(--color-ink)] truncate tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                  {manuscript.meta.title}
+                </h2>
+                <ChevronDown size={14} className={`text-[var(--color-ink-muted)] shrink-0 transition-transform ${isPaperDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
               <span className="text-[0.65rem] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 shrink-0 border border-purple-200/40">
                 {manuscript.meta.targetVenue}
               </span>
+
+              <button
+                type="button"
+                onClick={() => setIsMetaModalOpen(true)}
+                className="text-[10px] text-purple-600 dark:text-purple-400 hover:underline shrink-0"
+                title="Edit metadata"
+              >
+                (edit)
+              </button>
+
               <TabHelpTip
                 title="Manuscript Studio"
                 category="Academic Synthesis"
                 summary="Draft, storyboard, and format publication-grade research papers."
                 tips={[
+                  "Click paper title to switch between papers or draft a new paper.",
                   "Switch between Composer (editing), Argument Storyboard (narrative audit), and Preprint Reader (formatted preview).",
                   "In Composer: write section text, set narrative goals, and insert math/citations.",
                   "Drag verified claims or citations directly from the right panel into the editor.",
@@ -244,8 +271,111 @@ export const ManuscriptSurface: React.FC = () => {
               <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                 {totalWords.toLocaleString()}
               </span>{' '}
-              / {totalTargetWords.toLocaleString()} words
+              / {totalTargetWords.toLocaleString()} words ·{' '}
+              <span className="font-mono text-purple-600 dark:text-purple-400">
+                {manuscripts.length} paper{manuscripts.length > 1 ? 's' : ''}
+              </span>
             </p>
+
+            {/* Multi-Paper Dropdown Popover */}
+            {isPaperDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsPaperDropdownOpen(false)}
+                />
+                <div className="absolute top-full left-0 mt-1.5 w-80 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl shadow-xl z-50 p-2 overflow-hidden">
+                  <div className="flex items-center justify-between px-2 py-1 border-b border-[var(--color-rule)] mb-1 text-[11px] font-mono text-[var(--color-ink-muted)]">
+                    <span>Papers ({manuscripts.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPaperDropdownOpen(false);
+                        setIsVaultModalOpen(true);
+                      }}
+                      className="text-purple-600 dark:text-purple-400 hover:underline"
+                    >
+                      Manage all...
+                    </button>
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto space-y-1">
+                    {manuscripts.map(item => {
+                      const isActive = (item.id || '') === activeManuscriptId;
+                      const itemWords = item.sections.reduce((acc, s) => acc + s.content.trim().split(/\s+/).filter(Boolean).length, 0);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            if (item.id) {
+                              switchManuscript(item.id);
+                              setActiveSectionId(item.sections[0]?.id || '');
+                            }
+                            setIsPaperDropdownOpen(false);
+                          }}
+                          className={`flex items-start justify-between gap-2 p-2 rounded-lg cursor-pointer transition-colors text-xs ${
+                            isActive
+                              ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-medium'
+                              : 'hover:bg-[var(--color-paper)] text-[var(--color-ink)]'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              {isActive && <Check size={12} className="text-purple-600 shrink-0" />}
+                              <div className="truncate font-semibold">{item.meta.title}</div>
+                            </div>
+                            <div className="text-[10px] text-[var(--color-ink-muted)] mt-0.5 flex items-center gap-2">
+                              <span>{item.meta.targetVenue}</span>
+                              <span>•</span>
+                              <span>{itemWords} words</span>
+                              <span>•</span>
+                              <span>{item.sections.length} sections</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-2 border-t border-[var(--color-rule)] mt-1 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newDoc = createManuscript({
+                          title: 'New Research Paper Draft',
+                          targetVenue: 'ICLR 2026',
+                          status: 'drafting'
+                        });
+                        setIsPaperDropdownOpen(false);
+                        if (newDoc.sections[0]) {
+                          setActiveSectionId(newDoc.sections[0].id);
+                        }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors"
+                    >
+                      <Plus size={12} />
+                      <span>+ New Paper</span>
+                    </button>
+                    {activeManuscriptId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const dup = duplicateManuscript(activeManuscriptId);
+                          setIsPaperDropdownOpen(false);
+                          if (dup.sections[0]) {
+                            setActiveSectionId(dup.sections[0].id);
+                          }
+                        }}
+                        title="Duplicate current paper as a branch"
+                        className="py-1.5 px-2 rounded-lg border border-[var(--color-rule)] hover:bg-[var(--color-paper)] text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors"
+                      >
+                        Duplicate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -291,6 +421,25 @@ export const ManuscriptSurface: React.FC = () => {
 
         {/* Reset & Right panel toggle */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const newDoc = createManuscript({
+                title: 'New Research Paper Draft',
+                targetVenue: 'ICLR 2026',
+                status: 'drafting'
+              });
+              if (newDoc.sections[0]) {
+                setActiveSectionId(newDoc.sections[0].id);
+              }
+            }}
+            title="Create a new research paper"
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium transition-colors shadow-2xs"
+          >
+            <Plus size={13} />
+            <span className="hidden sm:inline">New Paper</span>
+          </button>
+
           <button
             onClick={() => {
               if (window.confirm('Clear manuscript to a clean blank state?')) {
@@ -953,6 +1102,38 @@ export const ManuscriptSurface: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Manuscript Papers Manager Modal */}
+      <ManuscriptVaultModal
+        isOpen={isVaultModalOpen}
+        onClose={() => setIsVaultModalOpen(false)}
+        manuscripts={manuscripts}
+        activeManuscriptId={activeManuscriptId}
+        onSwitchManuscript={id => {
+          switchManuscript(id);
+          const target = manuscripts.find(m => m.id === id);
+          if (target?.sections[0]) {
+            setActiveSectionId(target.sections[0].id);
+          }
+        }}
+        onCreateManuscript={meta => {
+          const doc = createManuscript(meta);
+          if (doc.sections[0]) {
+            setActiveSectionId(doc.sections[0].id);
+          }
+          return doc;
+        }}
+        onDuplicateManuscript={id => {
+          const doc = duplicateManuscript(id);
+          if (doc.sections[0]) {
+            setActiveSectionId(doc.sections[0].id);
+          }
+          return doc;
+        }}
+        onDeleteManuscript={id => {
+          deleteManuscript(id);
+        }}
+      />
     </div>
   );
 };

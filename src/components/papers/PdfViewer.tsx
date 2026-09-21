@@ -116,13 +116,14 @@ function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlig
   );
 }
 
-export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelection, title, initialPage }: {
+export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelection, title, initialPage, targetPage }: {
   pdfUrl: string;
   highlights?: PaperHighlight[];
   onTextSelect: (selection: PdfSelection) => void;
   onClearSelection: () => void;
   title?: string;
   initialPage?: number;
+  targetPage?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef(new Map<number, PageRegistration>());
@@ -222,6 +223,11 @@ export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelect
     containerRef.current?.querySelector<HTMLElement>(`[data-page-number="${initialPage}"]`)?.scrollIntoView({ block: 'start' });
     setCurrentPage(initialPage);
   }, [document, initialPage, laidOutPages]);
+  useEffect(() => {
+    if (!document || !targetPage || !Number.isInteger(targetPage) || targetPage < 1 || targetPage > document.numPages) return;
+    containerRef.current?.querySelector<HTMLElement>(`[data-page-number="${targetPage}"]`)?.scrollIntoView({ block: 'start' });
+    setCurrentPage(targetPage);
+  }, [document, targetPage]);
   const zoom = (delta: number) => {
     const actualScale = pagesRef.current.get(currentPage)?.viewport.scale || scale;
     setScale(Math.max(0.25, Math.min(3, actualScale + delta)));

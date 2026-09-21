@@ -412,7 +412,26 @@ export const SAMPLE_EXPERIMENTS: Experiment[] = [
         path: 'experiments/exp1/artifacts/needle_retrieval_128k_curve.json',
         contentHash: 'sha256:7f83b165',
         status: 'present',
-        observation: 'Achieved 98.6% recall across all depths (0% to 100%) at 128k tokens. Attention sinks anchor the attention distribution firmly.'
+        observation: 'Achieved 98.6% recall across all depths (0% to 100%) at 128k tokens. Attention sinks anchor the attention distribution firmly.',
+        plotData: {
+          xAxisLabel: 'Context Depth Position (%)',
+          yAxisLabel: 'Retrieval Recall (%)',
+          seriesName: 'Sink-Preserved Cache (128k)',
+          baselineName: 'Windowed Eviction Baseline',
+          targetThreshold: 'Recall@1 > 98.0%',
+          caption: 'Figure 1: Synthetic needle-in-a-haystack retrieval accuracy across insertion depths from 0% to 100% at 128k context length. The sink-preserved cache anchors 98.6% mean recall, whereas windowed eviction collapses to 12.1% once initial tokens are pruned.',
+          points: [
+            { x: '0%', y: 99.2, baseline: 12.1 },
+            { x: '15%', y: 98.9, baseline: 12.5 },
+            { x: '25%', y: 98.8, baseline: 13.0 },
+            { x: '35%', y: 98.7, baseline: 11.8 },
+            { x: '50%', y: 98.4, baseline: 11.5 },
+            { x: '65%', y: 98.6, baseline: 12.2 },
+            { x: '75%', y: 98.7, baseline: 12.8 },
+            { x: '85%', y: 98.3, baseline: 12.4 },
+            { x: '100%', y: 98.1, baseline: 11.9 }
+          ]
+        }
       },
       {
         id: 'art-2',
@@ -421,7 +440,19 @@ export const SAMPLE_EXPERIMENTS: Experiment[] = [
         path: 'experiments/exp1/artifacts/vram_allocation_profile.csv',
         contentHash: 'sha256:3a91c890',
         status: 'present',
-        observation: 'Peak KV memory usage remained flat at 2.4 GB per stream compared to 19.8 GB in full context mode.'
+        observation: 'Peak KV memory usage remained flat at 2.4 GB per stream compared to 19.8 GB in full context mode.',
+        tableData: {
+          headers: ['Stream Batch', 'Context Window', 'Dense KV Memory (GB)', 'Streaming Sink KV (GB)', 'Memory Savings', 'Peak Latency (ms)'],
+          rows: [
+            ['Stream #1', '8,192 tokens', '1.24 GB', '0.30 GB', '75.8%', '14.2 ms'],
+            ['Stream #2', '32,768 tokens', '4.96 GB', '0.30 GB', '93.9%', '14.5 ms'],
+            ['Stream #3', '65,536 tokens', '9.92 GB', '0.30 GB', '96.9%', '14.8 ms'],
+            ['Stream #4', '131,072 tokens', '19.84 GB', '0.31 GB', '98.4%', '15.1 ms'],
+            ['Stream #5 (Infinite)', '1,000,000+ tokens', 'OOM (>150 GB)', '0.31 GB (Flat)', '>99.8%', '15.2 ms']
+          ],
+          caption: 'Table 1: Peak VRAM allocation & decoding latency profile on NVIDIA A100-SXM4-80GB.',
+          notes: 'Sink streaming cache retains 4 initial sinks and 1020 rolling buffer tokens.'
+        }
       }
     ]
   },
@@ -438,13 +469,52 @@ export const SAMPLE_EXPERIMENTS: Experiment[] = [
     scope: 'NVIDIA H100 SXM5, vLLM engine, draft: Llama-3.2-1B, target: Llama-3.3-70B',
     artifacts: [
       {
+        id: 'art-4',
+        name: 'speculative_speedup_scaling_curve.json',
+        type: 'plot',
+        path: 'experiments/exp2/artifacts/speculative_speedup_scaling_curve.json',
+        contentHash: 'sha256:5b81a2e4',
+        status: 'present',
+        observation: 'Measured speculative decoding speedup curve across batch concurrency 1 to 32. Verification throughput sustains 1.96x at batch=16, comfortably beating the 1.8x threshold.',
+        plotData: {
+          xAxisLabel: 'Concurrency Batch Size (Tokens)',
+          yAxisLabel: 'Decoding Speedup Factor (x)',
+          seriesName: 'Llama-3.2-1B Draft Speculative Speedup',
+          baselineName: 'Standard Autoregressive (1.0x)',
+          targetThreshold: 'Speedup > 1.8x at batch=16',
+          caption: 'Figure 2: Empirical decoding latency speedup multiplier scaling against concurrency batch size (1 to 32) on NVIDIA H100. Verification in parallel amortizes memory bandwidth, achieving 2.14x speedup at batch=1 and sustaining 1.84x at batch=32.',
+          points: [
+            { x: '1', y: 2.14, baseline: 1.0 },
+            { x: '2', y: 2.11, baseline: 1.0 },
+            { x: '4', y: 2.08, baseline: 1.0 },
+            { x: '8', y: 2.02, baseline: 1.0 },
+            { x: '16', y: 1.96, baseline: 1.0 },
+            { x: '24', y: 1.89, baseline: 1.0 },
+            { x: '32', y: 1.84, baseline: 1.0 }
+          ]
+        }
+      },
+      {
         id: 'art-3',
         name: 'batch_concurrency_profiling.log',
         type: 'notes',
         path: 'experiments/exp2/artifacts/batch_concurrency_profiling.log',
         contentHash: 'sha256:e1a49f02',
         status: 'present',
-        observation: 'Live run log: currently measuring step 840/1000. Current mean acceptance length is 3.12 tokens/step.'
+        observation: 'Live run log: currently measuring step 840/1000. Current mean acceptance length is 3.12 tokens/step.',
+        notesData: {
+          language: 'log',
+          content: `[2026-09-04 14:22:01.104] [INFO] [Runner-H100-0] Starting speculative draft verification sweep (gamma=5, temperature=0.7)
+[2026-09-04 14:22:02.312] [INFO] Target model initialized: Llama-3.3-70B-Instruct (FP16 weights loaded: 138.4 GB)
+[2026-09-04 14:22:03.018] [INFO] Draft model initialized: Llama-3.2-1B-Instruct (FP16 weights loaded: 2.4 GB)
+[2026-09-04 14:22:05.412] [STEP 100/1000] draft_accepted=3.21/5.00 | wall_time=18.4ms | speedup=2.14x
+[2026-09-04 14:22:15.890] [STEP 300/1000] draft_accepted=3.18/5.00 | wall_time=18.7ms | speedup=2.08x
+[2026-09-04 14:22:28.320] [STEP 500/1000] draft_accepted=3.15/5.00 | wall_time=19.1ms | speedup=2.02x
+[2026-09-04 14:22:42.115] [STEP 840/1000] draft_accepted=3.12/5.00 | wall_time=19.4ms | speedup=1.98x
+[2026-09-04 14:22:48.500] [STEP 920/1000] draft_accepted=3.10/5.00 | wall_time=19.5ms | speedup=1.96x
+[2026-09-04 14:22:50.000] [METRIC] Target speedup > 1.8x at batch=16: MET (mean 2.01x across 920 samples)
+[2026-09-04 14:22:50.050] [INFO] Rejection sampling verified: zero output divergence against dense autoregressive baseline.`
+        }
       }
     ]
   }

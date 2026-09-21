@@ -143,7 +143,6 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [repPublished, setRepPublished] = useState('');
   const [repReproduced, setRepReproduced] = useState('');
   const [repGap, setRepGap] = useState('');
-  const [repHash, setRepHash] = useState('');
 
   const [showAddAlternative, setShowAddAlternative] = useState(false);
   const [altStatement, setAltStatement] = useState('');
@@ -1132,13 +1131,6 @@ export const DetailView: React.FC<DetailViewProps> = ({
                               className="argument-input text-xs"
                             />
                           </div>
-                          <input
-                            type="text"
-                            placeholder="Evaluation script hash (optional, e.g. sha256:...)"
-                            value={repHash}
-                            onChange={e => setRepHash(e.target.value)}
-                            className="argument-input text-xs"
-                          />
                           <div className="flex justify-end gap-1.5 pt-1">
                             <button
                               type="button"
@@ -1157,14 +1149,12 @@ export const DetailView: React.FC<DetailViewProps> = ({
                                   publishedNumber: repPublished.trim(),
                                   reproducedNumber: repReproduced.trim(),
                                   gap: repGap.trim() || '0',
-                                  evaluationScriptHash: repHash.trim() || undefined,
                                   date: new Date().toISOString().slice(0, 10)
                                 });
                                 setRepBaseline('');
                                 setRepPublished('');
                                 setRepReproduced('');
                                 setRepGap('');
-                                setRepHash('');
                                 setShowAddReproduction(false);
                                 setMessage('Reproduction record added.');
                               }}
@@ -1193,11 +1183,6 @@ export const DetailView: React.FC<DetailViewProps> = ({
                                 <span>Rep: <strong className="text-[var(--color-ink)]">{String(r.reproducedNumber)}</strong></span>
                                 <span>Gap: <strong className="text-emerald-600 dark:text-emerald-400">{String(r.gap)}</strong></span>
                               </div>
-                              {r.evaluationScriptHash && (
-                                <p className="text-[0.625rem] font-mono text-[var(--color-ink-muted)] truncate">
-                                  Hash: {r.evaluationScriptHash}
-                                </p>
-                              )}
                             </div>
                           ))
                         )}

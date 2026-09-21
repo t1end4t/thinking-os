@@ -10,11 +10,16 @@ import {
   FileBarChart,
   FileSpreadsheet,
   FileText,
+  Image as ImageIcon,
   AlertTriangle,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  TrendingUp,
+  Maximize2
 } from 'lucide-react';
 import { TabHelpTip } from '../common/TabHelpTip';
+import { ArtifactViewerModal } from './ArtifactViewerModal';
+import { ArtifactPlotView } from './ArtifactPlotView';
 
 export const ExperimentsSurface: React.FC = () => {
   const {
@@ -41,8 +46,6 @@ export const ExperimentsSurface: React.FC = () => {
     experiment: Experiment;
     artifact: ExperimentArtifact;
   } | null>(null);
-  const [observationText, setObservationText] = useState<string>('');
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
   // Filter experiments
   const filteredExperiments = statusFilter === 'all'
@@ -57,22 +60,19 @@ export const ExperimentsSurface: React.FC = () => {
 
   const handleOpenArtifact = (experiment: Experiment, artifact: ExperimentArtifact) => {
     setSelectedArtifact({ experiment, artifact });
-    setObservationText(artifact.observation || '');
-    setSaveSuccess(false);
   };
 
-  const handleSaveObservation = () => {
+  const handleSaveObservation = (observation: string) => {
     if (!selectedArtifact) return;
     updateArtifactObservation(
       selectedArtifact.experiment.id,
       selectedArtifact.artifact.id,
-      observationText
+      observation
     );
-    setSaveSuccess(true);
-    setTimeout(() => {
-      setSelectedArtifact(null);
-      setSaveSuccess(false);
-    }, 400);
+    setSelectedArtifact(prev => prev ? {
+      ...prev,
+      artifact: { ...prev.artifact, observation }
+    } : null);
   };
 
   const getStatusBadge = (status: ExperimentStatus) => {
@@ -250,45 +250,185 @@ export const ExperimentsSurface: React.FC = () => {
                     </div>
 
                     {/* Artifacts Gallery */}
-                    <div className="flex flex-col gap-2">
-                      <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
-                        Artifacts ({exp.artifacts.length}):
-                      </span>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
+                          Artifacts & Direct Visualizations ({exp.artifacts.length}):
+                        </span>
+                      </div>
 
                       {exp.artifacts.length === 0 ? (
                         <div className="p-3 border border-dashed border-[var(--color-rule)] rounded-lg text-xs font-mono text-[var(--color-ink-muted)] bg-[var(--color-surface)]">
                           No artifacts generated yet. Experiment is in {exp.status} status.
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {exp.artifacts.map(art => (
-                            <button
-                              type="button"
-                              key={art.id}
-                              id={`experiment-artifact-${exp.id}-${art.id}`}
-                              onClick={() => handleOpenArtifact(exp, art)}
-                              className="p-3 text-left bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg flex flex-col justify-between gap-2.5 hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-2xs cursor-pointer transition-all"
-                            >
-                              <div className="flex items-center gap-2">
-                                {art.type === 'plot' && <FileBarChart className="w-4 h-4 text-indigo-500" />}
-                                {art.type === 'table' && <FileSpreadsheet className="w-4 h-4 text-teal-500" />}
-                                {art.type === 'notes' && <FileText className="w-4 h-4 text-amber-500" />}
-                                <span className="font-mono text-xs font-semibold truncate text-[var(--color-ink)]">
-                                  {art.name}
-                                </span>
-                              </div>
+                        <div className="flex flex-col gap-4">
+                          {exp.artifacts.map(art => {
+                            if (art.type === 'plot' && art.plotData) {
+                              return (
+                                <div key={art.id} id={`experiment-artifact-${exp.id}-${art.id}`}>
+                                  <ArtifactPlotView
+                                    name={art.name}
+                                    plotData={art.plotData}
+                                    observation={art.observation}
+                                    onOpenModal={() => handleOpenArtifact(exp, art)}
+                                  />
+                                </div>
+                              );
+                            }
 
-                              <div className="flex flex-col text-[0.6875rem] font-mono text-[var(--color-ink-muted)] border-t border-[var(--color-rule)] pt-2 gap-0.5">
-                                <span className="truncate">Hash: {art.contentHash.slice(0, 10)}...</span>
-                                <span className={art.observation ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-amber-600 dark:text-amber-400 font-semibold'}>
-                                  {art.observation ? 'Observed ✓' : 'Observation required'}
-                                </span>
-                                {sourceExperimentId === exp.id && sourceArtifactId === art.id && (
-                                  <span className="whitespace-pre-wrap text-[var(--color-ink)]">{art.observation || 'No observation recorded.'}</span>
-                                )}
+                            if (art.type === 'table' && art.tableData) {
+                              const headers = art.tableData.headers || [];
+                              const rows = art.tableData.rows || [];
+                              return (
+                                <div
+                                  key={art.id}
+                                  id={`experiment-artifact-${exp.id}-${art.id}`}
+                                  className="w-full bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl overflow-hidden shadow-2xs flex flex-col"
+                                >
+                                  <div className="px-4 py-3 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/50 flex items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-6 h-6 rounded-md bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+                                        <FileSpreadsheet size={14} />
+                                      </div>
+                                      <span className="font-mono text-xs font-bold text-[var(--color-ink)] truncate">
+                                        {art.name}
+                                      </span>
+                                      <span className="text-[0.625rem] font-mono px-1.5 py-0.5 rounded-full bg-teal-100/70 text-teal-700 dark:bg-teal-950 dark:text-teal-300 font-semibold uppercase">
+                                        table ({rows.length} rows)
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenArtifact(exp, art)}
+                                      className="flex items-center gap-1 text-[0.6875rem] font-mono text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 px-2 py-1 rounded border border-teal-200 dark:border-teal-800 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors"
+                                    >
+                                      <Maximize2 size={11} />
+                                      <span>Fullscreen / Edit</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="p-3 overflow-x-auto">
+                                    <table className="w-full border-collapse text-left text-xs font-mono">
+                                      <thead>
+                                        <tr className="border-b border-[var(--color-rule)] bg-[var(--color-paper)]">
+                                          {headers.map((h, i) => (
+                                            <th key={i} className="py-2 px-3 font-semibold text-[var(--color-ink)] whitespace-nowrap">
+                                              {h}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {rows.map((r, ri) => (
+                                          <tr key={ri} className="border-b border-[var(--color-rule)]/50 hover:bg-[var(--color-paper)]/30">
+                                            {r.map((c, ci) => (
+                                              <td key={ci} className="py-1.5 px-3 whitespace-nowrap text-[var(--color-ink)]">
+                                                {c}
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  <div className="p-3 bg-[var(--color-paper)]/60 border-t border-[var(--color-rule)] flex flex-col gap-1.5 text-xs">
+                                    {art.tableData.caption && (
+                                      <p className="text-[0.75rem] text-[var(--color-ink)] italic pl-2 border-l-2 border-teal-500">
+                                        {art.tableData.caption}
+                                      </p>
+                                    )}
+                                    {art.observation && (
+                                      <div className="text-[0.75rem] bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg p-2 text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
+                                        <span className="font-bold shrink-0 font-mono">✓ Observed:</span>
+                                        <span>{art.observation}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            if (art.type === 'notes' && art.notesData) {
+                              const lines = art.notesData.content.split('\n');
+                              return (
+                                <div
+                                  key={art.id}
+                                  id={`experiment-artifact-${exp.id}-${art.id}`}
+                                  className="w-full bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl overflow-hidden shadow-2xs flex flex-col"
+                                >
+                                  <div className="px-4 py-3 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/50 flex items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                                        <FileText size={14} />
+                                      </div>
+                                      <span className="font-mono text-xs font-bold text-[var(--color-ink)] truncate">
+                                        {art.name}
+                                      </span>
+                                      <span className="text-[0.625rem] font-mono px-1.5 py-0.5 rounded-full bg-amber-100/70 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-semibold uppercase">
+                                        log ({lines.length} lines)
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenArtifact(exp, art)}
+                                      className="flex items-center gap-1 text-[0.6875rem] font-mono text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 px-2 py-1 rounded border border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors"
+                                    >
+                                      <Maximize2 size={11} />
+                                      <span>Fullscreen / Edit</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="p-3 bg-slate-950 text-slate-200 font-mono text-[0.75rem] max-h-56 overflow-y-auto space-y-1">
+                                    {lines.map((line, li) => (
+                                      <div key={li} className="leading-relaxed font-mono">
+                                        <span className="text-slate-600 select-none mr-3 inline-block w-6 text-right text-[0.6875rem]">
+                                          {li + 1}
+                                        </span>
+                                        <span className={line.includes('[INFO]') ? 'text-sky-300' : line.includes('[METRIC]') ? 'text-emerald-400 font-semibold' : 'text-slate-300'}>
+                                          {line}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {art.observation && (
+                                    <div className="p-3 bg-[var(--color-paper)]/60 border-t border-[var(--color-rule)]">
+                                      <div className="text-[0.75rem] bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg p-2 text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
+                                        <span className="font-bold shrink-0 font-mono">✓ Observed:</span>
+                                        <span>{art.observation}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            // Fallback for images and generic artifacts
+                            return (
+                              <div
+                                key={art.id}
+                                id={`experiment-artifact-${exp.id}-${art.id}`}
+                                className="p-3.5 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl flex items-center justify-between gap-3"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {art.type === 'image' && <ImageIcon className="w-4 h-4 text-purple-500" />}
+                                  <span className="font-mono text-xs font-semibold text-[var(--color-ink)]">{art.name}</span>
+                                  <span className="text-[0.625rem] font-mono px-1.5 py-0.5 rounded-full bg-[var(--color-paper)] text-[var(--color-ink-muted)] uppercase border border-[var(--color-rule)]">
+                                    {art.type}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenArtifact(exp, art)}
+                                  className="text-xs font-mono text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                                >
+                                  <Maximize2 size={11} /> View Artifact
+                                </button>
                               </div>
-                            </button>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -300,71 +440,14 @@ export const ExperimentsSurface: React.FC = () => {
         )))}
       </div>
 
-      {/* Artifact Overlay with Required "What did this show?" Field */}
+      {/* Rich Interactive Artifact Viewer Modal with Direct Plot/Table/Notes/Image & Observation Form */}
       {selectedArtifact && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-rule)] max-w-lg w-full p-6 rounded-2xl flex flex-col gap-4 shadow-2xl">
-            <div className="border-b border-[var(--color-rule)] pb-3">
-              <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-[var(--color-ink-muted)] font-semibold">
-                Artifact Observation
-              </span>
-              <h3 className="font-mono text-sm font-bold text-[var(--color-ink)] mt-1">
-                {selectedArtifact.artifact.name} ({selectedArtifact.artifact.type})
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-1 text-xs bg-[var(--color-paper)] p-3 rounded-lg border border-[var(--color-rule)]">
-              <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-                Locator Path: {tildePath(selectedArtifact.artifact.path)}
-              </span>
-              <span className="font-mono text-[0.6875rem] text-[var(--color-ink-muted)]">
-                SHA-256 Hash: {selectedArtifact.artifact.contentHash}
-              </span>
-            </div>
-
-            {/* Required "What did this show?" field */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="font-mono text-[0.75rem] uppercase text-[var(--color-ink)] font-bold">
-                  What did this show? (Required for Done status):
-                </label>
-                <span className="font-mono text-[0.6875rem] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/50">
-                  Authored by: user
-                </span>
-              </div>
-              <textarea
-                rows={3}
-                value={observationText}
-                onChange={e => setObservationText(e.target.value)}
-                placeholder="State clearly what physical or computational result was obtained from this artifact..."
-                className="p-3 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-lg font-serif text-[0.9375rem] text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-              />
-            </div>
-
-            {saveSuccess && (
-              <span className="font-mono text-xs text-emerald-600 flex items-center gap-1.5 font-semibold">
-                <CheckCircle2 className="w-4 h-4" />
-                Observation recorded.
-              </span>
-            )}
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-rule)]">
-              <button
-                onClick={() => setSelectedArtifact(null)}
-                className="px-3.5 py-1.5 font-mono text-xs border border-[var(--color-rule)] text-[var(--color-ink)] rounded-full hover:bg-[var(--color-paper)] transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleSaveObservation}
-                disabled={!observationText.trim()}
-                className="px-4 py-1.5 font-mono text-xs bg-sky-600 hover:bg-sky-700 text-white rounded-full font-medium transition-colors disabled:opacity-40 shadow-2xs"
-              >
-                Save Observation
-              </button>
-            </div>
-          </div>
-        </div>
+        <ArtifactViewerModal
+          experiment={selectedArtifact.experiment}
+          artifact={selectedArtifact.artifact}
+          onClose={() => setSelectedArtifact(null)}
+          onSaveObservation={handleSaveObservation}
+        />
       )}
     </section>
   );

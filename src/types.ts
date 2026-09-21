@@ -209,14 +209,54 @@ export interface Paper {
 
 export type ExperimentStatus = 'planned' | 'running' | 'done';
 
+export type ExperimentArtifactType = 'plot' | 'table' | 'notes' | 'checkpoint' | 'image';
+
+export interface ArtifactPlotPoint {
+  x: string | number;
+  y: number;
+  baseline?: number;
+}
+
+export interface ArtifactPlotData {
+  xAxisLabel: string;
+  yAxisLabel: string;
+  seriesName?: string;
+  baselineName?: string;
+  points: ArtifactPlotPoint[];
+  caption?: string;
+  targetThreshold?: string;
+}
+
+export interface ArtifactTableData {
+  headers: string[];
+  rows: string[][];
+  caption?: string;
+  notes?: string;
+}
+
+export interface ArtifactNotesData {
+  content: string;
+  language?: 'log' | 'python' | 'markdown' | 'json';
+}
+
+export interface ArtifactImageData {
+  url?: string;
+  caption?: string;
+  dimensions?: string;
+}
+
 export interface ExperimentArtifact {
   id: string;
   name: string;
-  type: 'plot' | 'table' | 'notes' | 'checkpoint';
+  type: ExperimentArtifactType;
   path: string;
   contentHash: string;
   observation?: string; // Required for 'done' status
   status: 'present' | 'missing';
+  plotData?: ArtifactPlotData;
+  tableData?: ArtifactTableData;
+  notesData?: ArtifactNotesData;
+  imageData?: ArtifactImageData;
 }
 
 export interface Experiment {

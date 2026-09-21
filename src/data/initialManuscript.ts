@@ -17,6 +17,8 @@ export const EMPTY_MANUSCRIPT: ManuscriptDocument = {
 };
 
 export const INITIAL_MANUSCRIPT: ManuscriptDocument = {
+  id: 'doc-1',
+  createdAt: 1718300000000,
   meta: {
     title: 'Preserving Initial Sinks: Structural and Empirical KV-Cache Stabilization for Infinite Autoregressive Streaming',
     subtitle: 'A Dialectic Framework from Attention Entropy Mechanics to Bounded-Memory Deployment',
@@ -347,3 +349,108 @@ By grounding each claim in rigorous derivations, empirical measurements, and hon
     }
   ]
 };
+
+export const SECOND_MANUSCRIPT: ManuscriptDocument = {
+  id: 'doc-2',
+  createdAt: 1718200000000,
+  meta: {
+    title: 'Exact Rejection Sampling for High-Throughput Speculative Decoding under Non-Zero Temperatures',
+    subtitle: 'Mathematical Equivalence Proofs and Concurrency Scaling on Modern Tensor Accelerators',
+    authors: [
+      { name: 'Research Team', affiliation: 'Thinking OS Laboratory', email: 'lab@thinkingos.local' },
+      { name: 'Verification Agent', affiliation: 'Inference Acceleration Group' }
+    ],
+    abstract: 'Speculative decoding accelerates autoregressive generation by using an efficient draft model to propose tokens that are verified in parallel by a larger target model. While greedy decoding guarantees fidelity trivially, sampling with non-zero temperature requires a modified rejection sampling procedure to guarantee exact output distribution invariance. In this work, we prove that sampling from the residual distribution norm(max(0, P(x) - Q(x))) recovers target density P(x) with zero distributional drift. We benchmark batch concurrency up to 32 streams on NVIDIA H100 GPUs, establishing a 2.1x to 2.8x wall-clock speedup without approximation error.',
+    keywords: ['Speculative Decoding', 'Rejection Sampling', 'Autoregressive Inference', 'H100 Acceleration', 'Throughput Scaling'],
+    targetVenue: 'ICML 2025 Proceedings',
+    status: 'review_ready',
+    lastEditedAt: 1718280000000
+  },
+  citations: [
+    {
+      key: 'leviathan2023fast',
+      title: 'Fast Inference from Transformers via Speculative Decoding',
+      authors: 'Yaniv Leviathan, Matan Kalman, Yossi Matias',
+      year: 2023,
+      venue: 'ICML 2023 Proceedings',
+      doi: '10.48550/arXiv.2211.17192',
+      abstract: 'Proves speculative sampling theorem ensuring exact output probability distribution equivalence between draft model and target model.',
+      bibtex: `@inproceedings{leviathan2023fast,
+  title={Fast Inference from Transformers via Speculative Decoding},
+  author={Leviathan, Yaniv and Kalman, Matan and Matias, Yossi},
+  booktitle={ICML},
+  year={2023}
+}`,
+      tags: ['inference', 'speculative', 'theory']
+    }
+  ],
+  artifacts: [
+    {
+      id: 'art-spec-speedup',
+      type: 'figure',
+      title: 'Figure 1: Speculative Decoding Wall-Clock Speedup vs Batch Size',
+      subtitle: 'Draft: Llama-3.2-1B, Target: Llama-3.3-70B on NVIDIA H100',
+      description: 'Speedup factors across batch concurrency sizes from 1 to 32.',
+      badge: 'Figure 1',
+      source: 'exp2/artifacts/batch_concurrency_profiling.log',
+      claimId: 'c2',
+      figure: {
+        figureType: 'plot',
+        caption: 'Figure 1: Wall-clock speedup remains strictly above 2.0x up to batch size 16 before verification memory bandwidth saturation.',
+        sourceExperimentId: 'exp2',
+        xAxisLabel: 'Batch Concurrency (Streams)',
+        yAxisLabel: 'Decoding Speedup Factor (x)',
+        dataPoints: [
+          { label: 'b=1', value: 2.45, baseline: 1.0 },
+          { label: 'b=4', value: 2.32, baseline: 1.0 },
+          { label: 'b=8', value: 2.18, baseline: 1.0 },
+          { label: 'b=16', value: 2.02, baseline: 1.0 },
+          { label: 'b=32', value: 1.68, baseline: 1.0 }
+        ]
+      },
+      tags: ['speedup', 'speculative', 'benchmarks'],
+      createdAt: 1718220000000
+    }
+  ],
+  sections: [
+    {
+      id: 'sec-spec-1',
+      sectionNumber: '1',
+      title: 'Introduction: Memory-Bandwidth Bottlenecks in Transformer Serving',
+      narrativeGoal: 'Argumentation: Establish that autoregressive generation is strictly memory-bandwidth bound rather than compute bound.',
+      argumentRole: 'hook_motivation',
+      content: `Autoregressive token generation in state-of-the-art Large Language Models requires reading full model weights from high-bandwidth memory for every single generated token. On accelerators like the NVIDIA H100, arithmetic intensity during single-token generation falls below 4 FLOPs/byte, leaving tensor cores substantially underutilized \\cite{leviathan2023fast}.
+      
+Speculative decoding resolves this mismatch by trading idle arithmetic capacity for latency reduction. By executing draft proposals speculatively, the target model verifies multiple candidates in a single parallel forward pass.`,
+      attachedClaimIds: ['c2'],
+      attachedCitationKeys: ['leviathan2023fast'],
+      attachedArtifactIds: ['art-spec-speedup'],
+      targetWordCount: 450,
+      isExpanded: true
+    },
+    {
+      id: 'sec-spec-2',
+      sectionNumber: '2',
+      title: 'Exact Invariance: The Speculative Rejection Sampling Theorem',
+      narrativeGoal: 'Argumentation: Formulate the mathematical proof showing why acceptance probability alpha = min(1, P(x)/Q(x)) leaves target distribution P(x) strictly invariant.',
+      argumentRole: 'methodology_system',
+      content: `Let $P(x)$ be the target model distribution and $Q(x)$ be the draft model proposal distribution. For any candidate token $\\tilde{x} \\sim Q(x)$, we accept with probability $\\alpha = \\min(1, P(\\tilde{x})/Q(\\tilde{x}))$.
+
+When rejected, a replacement token is sampled from the rectified residual distribution:
+$$P'(x) = \\frac{\\max(0, P(x) - Q(x))}{\\sum_y \\max(0, P(y) - Q(y))}$$
+
+Theorem 1 (Leviathan et al., 2023) proves that the marginal output distribution across all accepted and residual paths satisfies $\\mathbb{P}[X = x] \\equiv P(x)$ exactly. No approximation error, temperature drift, or vocabulary bias is introduced.`,
+      attachedClaimIds: ['c2'],
+      attachedCitationKeys: ['leviathan2023fast'],
+      attachedArtifactIds: [],
+      targetWordCount: 500,
+      isExpanded: true
+    }
+  ]
+};
+
+export const INITIAL_MANUSCRIPTS_VAULT: ManuscriptDocument[] = [
+  INITIAL_MANUSCRIPT,
+  SECOND_MANUSCRIPT
+];
+

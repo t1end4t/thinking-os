@@ -89,6 +89,8 @@ export interface ManuscriptMeta {
 }
 
 export interface ManuscriptDocument {
+  id?: string;
+  createdAt?: number;
   meta: ManuscriptMeta;
   sections: ManuscriptSection[];
   artifacts: SynthesisArtifact[];
