@@ -12,9 +12,9 @@ interface NodeCardProps {
   isRelated: boolean;
   isDimmed: boolean;
   onClick: () => void;
+  onEdit?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-  onAddToContext?: (e: React.MouseEvent) => void;
 }
 
 export const NodeCard: React.FC<NodeCardProps> = ({
@@ -25,9 +25,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   isRelated,
   isDimmed,
   onClick,
+  onEdit,
   onMouseEnter,
-  onMouseLeave,
-  onAddToContext
+  onMouseLeave
 }) => {
   const { activeClaimId, claimLifecycleStates } = useWorkspace();
 
@@ -145,17 +145,18 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         e.stopPropagation();
         onClick();
       }}
-      title={`[${node.type.toUpperCase()}] ${node.title}\nClick to edit in Detail view | Drag to Assistant Dock`}
+      title={`[${node.type.toUpperCase()}] ${node.title}\n${node.type === 'evidence' ? 'Click to open its source' : 'Click to open in Detail view'} | Drag to Assistant Dock`}
       className={`absolute pointer-events-auto cursor-pointer border rounded-lg transition-all duration-150 select-none overflow-hidden bg-[var(--color-surface)] group ${stateClasses} ${opacityClass}`}
     >
+      <button type="button" data-open-node aria-label={`Open ${node.type}: ${node.title}`} className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:outline-[var(--accent-indigo)]" onClick={event => { event.stopPropagation(); onClick(); }} />
       <div className="p-3 flex flex-col justify-between h-full relative">
         {/* Quick Action Buttons on Hover (Top Right) */}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-30">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex items-center gap-1 z-30">
           <button
             type="button"
             onClick={e => {
               e.stopPropagation();
-              onClick();
+              (onEdit ?? onClick)();
             }}
             title="Edit in Detail view"
             className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[0.7188rem] font-mono font-semibold cursor-pointer"
@@ -163,19 +164,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             <Pencil className="w-2.5 h-2.5" />
             <span>Edit</span>
           </button>
-          {onAddToContext && (
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                onAddToContext(e);
-              }}
-              title="Attach to Assistant context (+ Context)"
-              className="p-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 border border-[var(--color-rule)] shadow-2xs transition-colors flex items-center gap-0.5 text-[0.7188rem] font-mono font-semibold cursor-pointer"
-            >
-              <Plus className="w-2.5 h-2.5" />
-              <span>Chat</span>
-            </button>
-          )}
           <span
             title="Drag and drop to Assistant Dock"
             className="p-1 text-slate-400 cursor-grab hover:text-slate-600"

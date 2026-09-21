@@ -1,6 +1,7 @@
 # Papers
 
 - `PapersSurface.tsx` owns reader tabs, selection actions, and the vault UI. Entering Papers starts in Vault Library with no reader tabs; open papers only on selection. Closing the last tab must leave the library visible; never repopulate closed tabs automatically.
+- Opening an evidence source is an explicit paper selection: open that paper and its recorded page. Evidence extracted from a selection stores `paperId`, `pageNumber`, and `excerpt`; legacy evidence without a page opens the paper without guessing a location.
 - `PdfViewer.tsx` renders a continuous page stack, with canvases/text layers only near the viewport. `reader.css` includes the PDF.js scale and rotation rules required for aligned text selection.
 - Highlight `rects` store page numbers and PDF-coordinate rectangles, not screen pixels. Existing text-only highlights remain available in the sidebar. Mutations go through `WorkspaceContext`; paper metadata and highlights persist in vault JSON sidecars.
 - `AddPaperModal.tsx` offers title search, DOI, URL/arXiv, and PDF upload imports with editable review fields; no presets or separate manual-entry mode. Title search queries Crossref/DataCite and requires selecting a match before resolving metadata; never silently choose or add a paper. `paperMetadata.ts` resolves DOI/arXiv identifiers and extracts identifiers from PDF metadata/opening pages. Uploads stay local; only identifiers or explicit search titles are sent to registries. Publisher landing URLs must never be used as PDF URLs.

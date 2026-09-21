@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Renders and edits the canonical research chain `Question -> Claim -> Evidence`. Two views share one header: `Map` (read-only pan/zoom graph) and `Detail` (create, edit, connect, weaken).
+Renders and edits the canonical research chain `Question -> Claim -> Evidence`. Three views share one header: `Map` (read-only pan/zoom graph), `Claims` (coverage table), and `Detail` (create, edit, connect, weaken).
 
 ## Read First
 
@@ -16,6 +16,8 @@ Renders and edits the canonical research chain `Question -> Claim -> Evidence`. 
 ## Boundaries
 
 - The canvas stays read-only; all mutation lives in `DetailView.tsx` through workspace actions.
+- Evidence opens its explicitly linked Paper or Experiment/artifact. Missing sources and own reasoning open read-only Detail; Edit remains a separate action. Returning from a source preserves the Map view, pan, zoom, and selection.
+- Claims shows separate literature, experiment, and reasoning counts, plus the declared `failureThreshold`. Never infer thresholds from claim text or evidence quality from counts.
 - Every created link carries a non-empty `userReason`; new links start at `holds` only when the user commits a reason.
 - Detail edits questions, claims, evidence, and links only. Link check notes stay in `../shell/Inspector.tsx`.
 - Rejected claims keep their record and rejection reason.
@@ -28,5 +30,7 @@ Renders and edits the canonical research chain `Question -> Claim -> Evidence`. 
 
 - `npm run lint`
 - `npm run build`
+- `node src/utils/evidenceSource.check.mjs`: source resolution and legacy vault round-trip.
+- `direnv exec . node src/components/map/sources.test.mjs`: Claims, source navigation/linking, persistence, keyboard, both themes, desktop/narrow viewports. Uses a temporary vault and the dev server on `BASE_URL` (default `http://localhost:3000`).
 - `BROWSER_EXECUTABLE=<chrome> node gap.test.mjs` (dev server on `:3000`): gap cards in both themes, narrow viewport, enlarged base font, keyboard activation.
 - Verify: New question, New claim under a question, New evidence under a claim, link status change, link delete, weaken/reject claim, desktop and narrow widths, both themes.

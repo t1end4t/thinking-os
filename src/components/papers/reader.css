@@ -93,3 +93,19 @@
 .pdf-text-layer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
 .pdf-text-layer ::selection { background: #fbbf2473; }
 .pdf-text-layer br::selection { background: transparent; }
+
+.paper-open-problem-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 0.75rem;
+}
+
+.paper-open-problem-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.paper-open-problem-dialog textarea { resize: vertical; }
+.paper-open-problem-dialog :focus-visible { outline: 2px solid var(--accent-indigo); outline-offset: 2px; }

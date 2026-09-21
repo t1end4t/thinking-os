@@ -16,7 +16,7 @@ export interface PdfSelection {
 type PageRegistration = { element: HTMLDivElement; viewport: pdfjsLib.PageViewport };
 type FitMode = 'custom' | 'width' | 'page';
 
-function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlights, register, scrollRoot }: {
+function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlights, register, scrollRoot, onLayout }: {
   document: pdfjsLib.PDFDocumentProxy;
   pageNumber: number;
   scale: number;
@@ -26,6 +26,7 @@ function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlig
   highlights: PaperHighlight[];
   register: (pageNumber: number, registration: PageRegistration | null) => void;
   scrollRoot: React.RefObject<HTMLDivElement | null>;
+  onLayout: () => void;
 }) {
   const elementRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,6 +57,10 @@ function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlig
     fitMode === 'page' ? (size.height - 32) / base.height : Infinity) : scale;
   const actualScale = fitMode === 'custom' ? scale : Math.max(0.1, fittedScale);
   const viewport = page?.getViewport({ scale: actualScale, rotation });
+
+  useEffect(() => {
+    if (page) onLayout();
+  }, [page, onLayout]);
 
   useEffect(() => {
     if (!page || !nearby || !canvasRef.current || !textRef.current || !elementRef.current) return;
@@ -111,12 +116,13 @@ function PdfPage({ document, pageNumber, scale, rotation, fitMode, size, highlig
   );
 }
 
-export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelection, title }: {
+export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelection, title, initialPage }: {
   pdfUrl: string;
   highlights?: PaperHighlight[];
   onTextSelect: (selection: PdfSelection) => void;
   onClearSelection: () => void;
   title?: string;
+  initialPage?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pagesRef = useRef(new Map<number, PageRegistration>());
@@ -127,6 +133,8 @@ export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelect
   const [fitMode, setFitMode] = useState<FitMode>('width');
   const [error, setError] = useState('');
   const [size, setSize] = useState({ width: 800, height: 900 });
+  const [laidOutPages, setLaidOutPages] = useState(0);
+  const onPageLayout = useCallback(() => setLaidOutPages(count => count + 1), []);
   const register = useCallback((pageNumber: number, registration: PageRegistration | null) => {
     if (registration) pagesRef.current.set(pageNumber, registration);
     else pagesRef.current.delete(pageNumber);
@@ -135,6 +143,7 @@ export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelect
   useEffect(() => {
     let cancelled = false;
     setDocument(null);
+    setLaidOutPages(0);
     setError('');
     setCurrentPage(1);
     const task = pdfjsLib.getDocument({
@@ -208,6 +217,11 @@ export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelect
     setCurrentPage(pageNumber);
     onClearSelection();
   };
+  useEffect(() => {
+    if (!document || laidOutPages < document.numPages || !initialPage || !Number.isInteger(initialPage) || initialPage < 1 || initialPage > document.numPages) return;
+    containerRef.current?.querySelector<HTMLElement>(`[data-page-number="${initialPage}"]`)?.scrollIntoView({ block: 'start' });
+    setCurrentPage(initialPage);
+  }, [document, initialPage, laidOutPages]);
   const zoom = (delta: number) => {
     const actualScale = pagesRef.current.get(currentPage)?.viewport.scale || scale;
     setScale(Math.max(0.25, Math.min(3, actualScale + delta)));
@@ -217,6 +231,7 @@ export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelect
 
   return (
     <div className="pdf-reader">
+      {document && initialPage && initialPage > document.numPages && <p role="status" className="px-3 py-1 text-xs">Recorded source page {initialPage} is unavailable in this PDF.</p>}
       <div className="pdf-controls" aria-label="PDF controls">
         <div>
           <button onClick={() => navigate(currentPage - 1)} disabled={currentPage <= 1} title="Previous Page"><ChevronLeft size={16} /></button>
@@ -254,7 +269,7 @@ export function PdfViewer({ pdfUrl, highlights = [], onTextSelect, onClearSelect
           : !document ? <div className="pdf-message" role="status"><Loader2 className="animate-spin" /> Loading PDF…</div>
           : Array.from({ length: document.numPages }, (_, index) => <PdfPage key={index + 1} document={document}
             pageNumber={index + 1} scale={scale} rotation={rotation} fitMode={fitMode} size={size}
-            highlights={highlights} register={register} scrollRoot={containerRef} />)}
+            highlights={highlights} register={register} scrollRoot={containerRef} onLayout={onPageLayout} />)}
       </div>
     </div>
   );

@@ -44,3 +44,12 @@ Thinking OS is a dense, quiet research instrument. Compact controls, restrained 
 
 - Reuse existing CSS variables and component patterns before adding abstractions.
 - The visual system is currently distributed across `src/index.css` and surface CSS files; consolidate only when a requested change creates a concrete reusable boundary.
+
+## 9. Literature Workflow
+
+- Literature Survey separates Discover (remote results and the monitored inbox) from Synthesize (problems and candidate questions). Paper Vault remains the only saved-paper library.
+- Synthesize uses compact two-column cards on desktop and a single column on narrow screens. Problem cards stay visible after linking; drag and drop adds an association rather than moving records.
+- Every drag action has a labeled keyboard equivalent. Association dialogs require a relevance reason, support Escape, and restore focus. Multi-select creates a candidate from several problems.
+- Paper-reader capture keeps the source excerpt, page, and author-stated versus user-inferred attribution visible. It never claims that a problem remains unresolved without verification.
+- Agent Jobs owns schedules and run history. Discover can create a monitoring job but does not duplicate job management. Scheduler availability and server-local time zone remain explicit.
+- Use existing semantic surface, ink, rule, and accent tokens, the 4px spacing scale, and native focus states. No new animation, font, or dependency is required.

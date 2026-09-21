@@ -30,6 +30,8 @@ import {
 import { TabHelpTip } from '../common/TabHelpTip';
 import { PdfViewer, PdfSelection } from './PdfViewer';
 import { AddPaperModal } from './AddPaperModal';
+import { OpenProblemDialog } from './OpenProblemDialog';
+import type { OpenProblemCapture } from './OpenProblemDialog';
 import { getPaperPdfUrl } from '../../utils/pdfGenerator';
 
 export const PapersSurface: React.FC = () => {
@@ -43,14 +45,28 @@ export const PapersSurface: React.FC = () => {
     addPaper,
     removePaper,
     addPaperHighlight,
-    removePaperHighlight
+    removePaperHighlight,
+    sourceEvidenceId,
+    paperSource,
+    evidence
   } = useWorkspace();
 
+  const sourceEvidence = evidence.find(item => item.id === sourceEvidenceId && item.origin === 'literature');
+  const sourcePaperId = papers.find(paper => paper.id === (sourceEvidence?.paperId ?? paperSource?.paperId))?.id;
+  const sourcePage = sourceEvidence ? sourceEvidence.pageNumber : paperSource?.pageNumber;
+
   // Multi-tab state: open paper IDs
-  const [openTabIds, setOpenTabIds] = useState<string[]>([]);
+  const [openTabIds, setOpenTabIds] = useState<string[]>(() => sourcePaperId ? [sourcePaperId] : []);
 
   // Active view: 'vault' (full Vault card/list view) OR a paperId (reader tab)
-  const [activeTab, setActiveTab] = useState<string>('vault');
+  const [activeTab, setActiveTab] = useState<string>(sourcePaperId || 'vault');
+
+  useEffect(() => {
+    if (!sourcePaperId) return;
+    setOpenTabIds(previous => previous.includes(sourcePaperId) ? previous : [...previous, sourcePaperId]);
+    setActiveTab(sourcePaperId);
+    setFloatingToolbarPos(null);
+  }, [paperSource, sourcePaperId, sourceEvidenceId]);
 
   // Vault View Layout: 'cards' | 'list'
   const [vaultLayout, setVaultLayout] = useState<'cards' | 'list'>('cards');
@@ -64,6 +80,8 @@ export const PapersSurface: React.FC = () => {
   // Add Paper modal state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [paperToDelete, setPaperToDelete] = useState<Paper | null>(null);
+  const [openProblemCapture, setOpenProblemCapture] = useState<OpenProblemCapture | null>(null);
+  const captureButtonRef = useRef<HTMLButtonElement>(null);
 
   // Search and filter for vault
   const [searchVaultQuery, setSearchVaultQuery] = useState<string>('');
@@ -207,7 +225,9 @@ export const PapersSurface: React.FC = () => {
         origin: 'literature',
         form: evidenceForm,
         citation: `${activePaper.authors.split(',')[0]} ${activePaper.year}`,
-        paperId: activePaper.id
+        paperId: activePaper.id,
+        pageNumber: selectedPage,
+        excerpt: selectedText
       },
       selectedClaimId,
       userReason.trim()
@@ -294,6 +314,12 @@ export const PapersSurface: React.FC = () => {
       id="papers-surface"
       className="flex-1 h-full flex flex-col bg-[var(--color-surface)] overflow-hidden"
     >
+      {sourceEvidence && activeTab === sourcePaperId && (
+        <details className="shrink-0 border-b border-[var(--color-rule)] px-5 py-2 text-xs">
+          <summary className="cursor-pointer">Evidence: {sourceEvidence.title}{sourceEvidence.pageNumber ? ` · Page ${sourceEvidence.pageNumber}` : ' · No page recorded'}</summary>
+          {sourceEvidence.excerpt && <blockquote className="max-h-32 overflow-auto whitespace-pre-wrap py-2">{sourceEvidence.excerpt}</blockquote>}
+        </details>
+      )}
       {/* Top Header: Title, Global Actions, and Multi-Tab Bar */}
       <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-col gap-2 shrink-0 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -315,7 +341,7 @@ export const PapersSurface: React.FC = () => {
                     "Use tabs to read and navigate multiple papers simultaneously.",
                     "Toggle between Card View and List View in the Vault library.",
                     "Click 'Larger Reader' (or collapse sidebar) to expand the PDF viewing canvas.",
-                    "Select any text in the PDF to trigger [ Ask | Evidence | Highlight ].",
+                    "Select PDF text to ask, capture evidence, highlight, or record an open problem.",
                     "Add new research papers via DOI, URL, or local PDF upload."
                   ]}
                   placement="bottom"
@@ -333,6 +359,14 @@ export const PapersSurface: React.FC = () => {
             {/* If in reading mode: Reader Mode Toggle & Toggle Left Sidebar (Larger Reader) */}
             {activePaper && activeTab !== 'vault' && (
               <>
+                <button
+                  ref={captureButtonRef}
+                  type="button"
+                  className="kanban-modal-cancel-btn"
+                  onClick={event => setOpenProblemCapture({ paper: activePaper, returnFocus: event.currentTarget })}
+                >
+                  Record open problem
+                </button>
                 {/* Toggle Left Sidebar to give a Larger Reader */}
                 <button
                   type="button"
@@ -940,6 +974,19 @@ export const PapersSurface: React.FC = () => {
                           <p className="text-xs text-slate-800 dark:text-slate-200 italic leading-relaxed border-l-2 border-amber-500 pl-2">
                             "{hl.text}"
                           </p>
+                          <button
+                            type="button"
+                            className="text-xs underline underline-offset-2 text-[var(--color-ink)]"
+                            onClick={event => setOpenProblemCapture({
+                              paper: activePaper,
+                              pageNumber: hl.pageNumber,
+                              excerpt: hl.text,
+                              highlightId: hl.id,
+                              returnFocus: event.currentTarget
+                            })}
+                          >
+                            Record open problem
+                          </button>
                           <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-mono">
                             <span>{hl.pageNumber ? `Page ${hl.pageNumber}` : 'Excerpt'}</span>
                             <button
@@ -1008,6 +1055,7 @@ export const PapersSurface: React.FC = () => {
             <PdfViewer
               key={activePaper.id}
               pdfUrl={getPaperPdfUrl(activePaper)}
+              initialPage={activeTab === sourcePaperId ? sourcePage : undefined}
               highlights={activePaper.highlights}
               title={activePaper.title}
               onTextSelect={handlePdfTextSelect}
@@ -1026,10 +1074,10 @@ export const PapersSurface: React.FC = () => {
           aria-label="Selected passage actions"
           onPointerDown={event => event.preventDefault()}
           style={{
-            left: `${floatingToolbarPos.x}px`,
+            left: `clamp(min(16.5rem, 50vw), ${floatingToolbarPos.x}px, max(calc(100vw - 16.5rem), 50vw))`,
             top: `${floatingToolbarPos.y}px`
           }}
-          className="fixed -translate-x-1/2 z-50 flex items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-2xl text-xs font-sans select-none border border-slate-700/80 animate-in fade-in zoom-in-95 duration-150"
+          className="fixed -translate-x-1/2 z-50 flex flex-wrap justify-center w-[32rem] max-w-[calc(100vw-1rem)] items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-2xl text-xs font-sans select-none border border-slate-700/80 animate-in fade-in zoom-in-95 duration-150"
         >
           {/* 1. Ask */}
           <button
@@ -1064,7 +1112,32 @@ export const PapersSurface: React.FC = () => {
             <Highlighter className="w-3.5 h-3.5 text-amber-300" />
             <span>Highlight</span>
           </button>
+          <button
+            type="button"
+            className="px-3 py-1 rounded-full hover:bg-white/20 focus-visible:outline focus-visible:outline-2"
+            onClick={event => {
+              if (!activePaper) return;
+              setOpenProblemCapture({
+                paper: activePaper,
+                pageNumber: selectedPage,
+                excerpt: selectedText,
+                returnFocus: event.currentTarget
+              });
+              setFloatingToolbarPos(null);
+              window.getSelection()?.removeAllRanges();
+            }}
+          >
+            Record open problem
+          </button>
         </div>
+      )}
+
+      {openProblemCapture && (
+        <OpenProblemDialog
+          capture={openProblemCapture}
+          fallbackFocus={captureButtonRef}
+          onClose={() => setOpenProblemCapture(null)}
+        />
       )}
 
       {/* Gate 5: Evidence Creation Modal */}

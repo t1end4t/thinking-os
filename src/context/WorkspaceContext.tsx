@@ -5,6 +5,7 @@ import {
   Evidence,
   Link,
   SurveyOpenProblem,
+  SurveyProblemSource,
   SurveyCandidateQuestion,
   Paper,
   PaperHighlight,
@@ -41,6 +42,9 @@ import { normalizeLearningUnit, scheduleCard } from '../utils/learnBlocks';
 import { loadVault, saveVault, type VaultSnapshot } from '../vaultClient';
 import { useCodexAssistant } from './useCodexAssistant';
 import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
+import { getEvidenceSource } from '../utils/evidenceSource';
+import { normalizeSurvey, linkSurveyProblems, unlinkSurveyProblem } from '../utils/survey';
+import { paperIdentity } from '../utils/paperIdentity';
 import {
   ManuscriptWorkspaceValue,
   useManuscriptWorkspace
@@ -126,6 +130,10 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   // Navigation & Shell
   activeSurface: SurfaceId;
   setActiveSurface: (surface: SurfaceId) => void;
+  sourceEvidenceId: string | null;
+  openEvidenceSource: (id: string) => boolean;
+  paperSource: { paperId: string; pageNumber?: number } | null;
+  openPaperSource: (paperId: string, pageNumber?: number) => boolean;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   darkVariant: 'claude' | 'mocha';
@@ -190,8 +198,8 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   addQuestion: (title: string, tags: string[]) => { success: boolean; error?: string; questionId?: string };
   addClaim: (text: string, questionId: string, userReason: string) => { success: boolean; error?: string; claimId?: string };
   updateQuestion: (id: string, changes: { title?: string; tags?: string[] }) => void;
-  updateClaim: (id: string, changes: { text?: string }) => void;
-  updateEvidence: (id: string, changes: Partial<Pick<Evidence, 'title' | 'origin' | 'form' | 'citation'>>) => void;
+  updateClaim: (id: string, changes: { text?: string; failureThreshold?: string }) => void;
+  updateEvidence: (id: string, changes: Partial<Pick<Evidence, 'title' | 'origin' | 'form' | 'citation' | 'paperId' | 'pageNumber' | 'excerpt' | 'experimentId' | 'artifactId'>>) => { success: boolean; error?: string };
   connectNodes: (kind: LinkKind, parentId: string, childId: string, userReason: string) => { success: boolean; error?: string };
   setLinkStatus: (linkId: string, status: LinkStatus) => void;
   deleteLink: (linkId: string) => void;
@@ -208,7 +216,11 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   ) => { success: boolean; error?: string; evidenceId?: string };
 
   // Actions on Survey
-  addSurveyOpenProblem: (text: string, citation: string) => { success: boolean; error?: string };
+  addSurveyOpenProblem: (text: string, citation: string, source?: SurveyProblemSource) => { success: boolean; error?: string };
+  addSurveyCandidate: (title: string, problemIds: string[], userReason: string) => { success: boolean; error?: string };
+  updateSurveyCandidate: (id: string, title: string) => { success: boolean; error?: string };
+  linkSurveyProblemsToCandidate: (candidateId: string, problemIds: string[], userReason: string) => { success: boolean; error?: string };
+  unlinkSurveyProblemFromCandidate: (candidateId: string, problemId: string) => void;
   retireSurveyOpenProblem: (id: string, reason: SurveyRetireReason) => void;
   retireSurveyCandidateQuestion: (id: string, reason: SurveyRetireReason) => void;
   promoteCandidateQuestion: (
@@ -223,7 +235,7 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   updateArtifactObservation: (experimentId: string, artifactId: string, observation: string) => void;
 
   // Actions on Papers & Real PDF Reader
-  addPaper: (paperData: Omit<Paper, 'id'> & { id?: string }) => { success: boolean; paper: Paper; error?: string };
+  addPaper: (paperData: Omit<Paper, 'id'> & { id?: string }) => { success: true; paper: Paper } | { success: false; paper?: undefined; error: string };
   removePaper: (paperId: string) => { success: boolean; error?: string };
   updatePaper: (paperId: string, updates: Partial<Paper>) => void;
   addPaperHighlight: (paperId: string, highlight: Omit<PaperHighlight, 'id' | 'createdAt'>) => PaperHighlight;
@@ -290,7 +302,14 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [workspaceLoading, setWorkspaceLoading] = useState(true);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [vaultReady, setVaultReady] = useState(false);
-  const [activeSurface, setActiveSurface] = useState<SurfaceId>('tasks');
+  const [activeSurface, setActiveSurfaceState] = useState<SurfaceId>('tasks');
+  const [sourceEvidenceId, setSourceEvidenceId] = useState<string | null>(null);
+  const [paperSource, setPaperSource] = useState<{ paperId: string; pageNumber?: number } | null>(null);
+  const setActiveSurface = useCallback((surface: SurfaceId) => {
+    setSourceEvidenceId(null);
+    setPaperSource(null);
+    setActiveSurfaceState(surface);
+  }, []);
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   );
@@ -319,6 +338,23 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [candidateQuestions, setCandidateQuestions] = useState<SurveyCandidateQuestion[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const openPaperSource = useCallback((paperId: string, pageNumber?: number) => {
+    if (!papers.some(paper => paper.id === paperId)) return false;
+    setSourceEvidenceId(null);
+    setPaperSource({ paperId, pageNumber });
+    setActiveSurfaceState('papers');
+    return true;
+  }, [papers]);
+  const openEvidenceSource = useCallback((id: string) => {
+    const item = evidence.find(entry => entry.id === id);
+    if (!item) return false;
+    const source = getEvidenceSource(item, papers, experiments);
+    if (source.kind !== 'paper' && source.kind !== 'experiment') return false;
+    setSourceEvidenceId(id);
+    setPaperSource(null);
+    setActiveSurfaceState(source.kind === 'paper' ? 'papers' : 'experiments');
+    return true;
+  }, [evidence, papers, experiments]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [goals, setGoals] = useState<GoalItem[]>([]);
   const [weeklyReviews, setWeeklyReviews] = useState<WeeklyReviewItem[]>([]);
@@ -471,7 +507,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   latestSnapshot.current = snapshot;
 
   const applySnapshot = useCallback((data: VaultSnapshot) => {
-    const normalized = { ...data, tasks: data.tasks.map(task => ({
+    const normalized = { ...data, ...normalizeSurvey(data.openProblems, data.candidateQuestions), tasks: data.tasks.map(task => ({
       ...task, author: task.author ?? 'user', lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
     })), learningUnits: data.learningUnits.map(normalizeLearningUnit) };
     savedSnapshot.current = JSON.stringify(normalized);
@@ -514,8 +550,9 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setClaims(SAMPLE_SNAPSHOT.claims);
       setEvidence(SAMPLE_SNAPSHOT.evidence);
       setLinks(SAMPLE_SNAPSHOT.links);
-      setOpenProblems(SAMPLE_SNAPSHOT.openProblems);
-      setCandidateQuestions(SAMPLE_SNAPSHOT.candidateQuestions);
+      const survey = normalizeSurvey(SAMPLE_SNAPSHOT.openProblems, SAMPLE_SNAPSHOT.candidateQuestions);
+      setOpenProblems(survey.openProblems);
+      setCandidateQuestions(survey.candidateQuestions);
       setPapers(SAMPLE_SNAPSHOT.papers);
       setExperiments(SAMPLE_SNAPSHOT.experiments);
       setTasks(SAMPLE_SNAPSHOT.tasks.map(task => ({
@@ -834,7 +871,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   // Unclustered open problems count (for the 15-note gate)
-  const unclusteredOpenProblemsCount = openProblems.filter(op => !op.candidateId).length;
+  const unclusteredOpenProblemsCount = openProblems.filter(problem => !problem.retireReason &&
+    !candidateQuestions.some(candidate => !candidate.retireReason && candidate.openProblemIds.includes(problem.id))).length;
 
   // Create a question (root of the research chain)
   const addQuestion = useCallback((title: string, tags: string[]) => {
@@ -887,13 +925,39 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setQuestions(prev => prev.map(q => (q.id === id ? { ...q, ...changes } : q)));
   }, []);
 
-  const updateClaim = useCallback((id: string, changes: { text?: string }) => {
+  const updateClaim = useCallback((id: string, changes: { text?: string; failureThreshold?: string }) => {
     setClaims(prev => prev.map(c => (c.id === id ? { ...c, ...changes } : c)));
   }, []);
 
-  const updateEvidence = useCallback((id: string, changes: Partial<Pick<Evidence, 'title' | 'origin' | 'form' | 'citation'>>) => {
-    setEvidence(prev => prev.map(item => (item.id === id ? { ...item, ...changes } : item)));
-  }, []);
+  const updateEvidence = useCallback<WorkspaceContextValue['updateEvidence']>((id, changes) => {
+    const current = evidence.find(item => item.id === id);
+    if (!current) return { success: false, error: 'Evidence not found.' };
+    const updated = { ...current, ...changes };
+    if (changes.origin !== undefined && changes.origin !== current.origin) {
+      updated.paperId = undefined;
+      updated.pageNumber = undefined;
+      updated.excerpt = undefined;
+      updated.experimentId = undefined;
+      updated.artifactId = undefined;
+    }
+    if ('paperId' in changes && changes.paperId !== current.paperId) {
+      updated.pageNumber = undefined;
+      updated.excerpt = undefined;
+    }
+    if ('experimentId' in changes && changes.experimentId !== current.experimentId) updated.artifactId = undefined;
+    if ('pageNumber' in changes && updated.pageNumber !== undefined && (!Number.isInteger(updated.pageNumber) || updated.pageNumber < 1)) {
+      return { success: false, error: 'Page must be a positive whole number.' };
+    }
+    if (changes.paperId || changes.experimentId || changes.artifactId) {
+      const source = getEvidenceSource(updated, papers, experiments);
+      if (source.kind === 'missing') return { success: false, error: source.message };
+      if ((changes.paperId && source.kind !== 'paper') || ((changes.experimentId || changes.artifactId) && source.kind !== 'experiment')) {
+        return { success: false, error: 'Source must match the evidence origin.' };
+      }
+    }
+    setEvidence(prev => prev.map(item => item.id === id ? updated : item));
+    return { success: true };
+  }, [evidence, papers, experiments]);
 
   // Connect two existing entities; reason is mandatory, duplicates rejected
   const connectNodes = useCallback((kind: LinkKind, parentId: string, childId: string, userReason: string) => {
@@ -1074,9 +1138,11 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Actions on Papers & Real PDF Reader
   const addPaper = useCallback((paperData: Omit<Paper, 'id'> & { id?: string }) => {
     if (!paperData.title?.trim()) {
-      return { success: false, error: 'A paper title is required.', paper: null as unknown as Paper };
+      return { success: false as const, error: 'A paper title is required.' };
     }
-    const cleanId = paperData.id?.trim() || `p-${Date.now()}`;
+    const existing = latestSnapshot.current.papers.find(paper => paperIdentity(paper) === paperIdentity(paperData));
+    if (existing) return { success: true as const, paper: existing };
+    const cleanId = paperData.id?.trim() || `p-${crypto.randomUUID()}`;
     const newPaper: Paper = {
       ...paperData,
       id: cleanId,
@@ -1102,7 +1168,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return [newPaper, ...prev];
     });
-    return { success: true, paper: newPaper };
+    return { success: true as const, paper: newPaper };
   }, []);
 
   const removePaper = useCallback((paperId: string) => {
@@ -1141,28 +1207,54 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }));
   }, []);
 
-  // Add survey note (Gate 2: 15-note stop gate!)
-  const addSurveyOpenProblem = useCallback((text: string, citation: string) => {
-    const unclustered = openProblems.filter(op => !op.candidateId).length;
-    const candidatesCount = candidateQuestions.length;
-
-    // Hard stop at 15 loose notes with fewer than 3 candidates
-    if (unclustered >= 15 && candidatesCount < 3) {
-      return {
-        success: false,
-        error: 'Survey Stop: 15 loose notes reached with fewer than 3 candidates. You must cluster existing notes before adding new ones.'
-      };
-    }
-
+  const addSurveyOpenProblem = useCallback((text: string, citation: string, source: SurveyProblemSource = {}) => {
+    if (!text.trim()) return { success: false, error: 'Describe the open problem.' };
+    if (source.paperId && !papers.some(paper => paper.id === source.paperId)) return { success: false, error: 'Source paper is unavailable.' };
+    if (source.pageNumber !== undefined && (!Number.isInteger(source.pageNumber) || source.pageNumber < 1)) return { success: false, error: 'Source page must be a positive integer.' };
     const newOp: SurveyOpenProblem = {
-      id: `op-${Date.now()}`,
+      ...source,
+      id: `op-${crypto.randomUUID()}`,
       text: text.trim(),
       citation: citation.trim() || 'User observation',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      author: 'user'
     };
     setOpenProblems(prev => [...prev, newOp]);
     return { success: true };
-  }, [openProblems, candidateQuestions.length]);
+  }, [papers]);
+
+  const addSurveyCandidate = useCallback((title: string, problemIds: string[], userReason: string) => {
+    if (!title.trim()) return { success: false, error: 'Write a candidate question.' };
+    if (problemIds.some(id => !openProblems.some(problem => problem.id === id && !problem.retireReason))) return { success: false, error: 'Select available active problems.' };
+    if (problemIds.length && !userReason.trim()) return { success: false, error: 'Explain why these problems matter to the question.' };
+    const candidate: SurveyCandidateQuestion = {
+      id: `cq-${crypto.randomUUID()}`, title: title.trim(), openProblemIds: [], problemLinks: [], createdAt: Date.now(), author: 'user'
+    };
+    setCandidateQuestions(previous => [...previous, problemIds.length ? linkSurveyProblems(candidate, problemIds, userReason) : candidate]);
+    return { success: true };
+  }, [openProblems]);
+
+  const updateSurveyCandidate = useCallback((id: string, title: string) => {
+    if (!title.trim()) return { success: false, error: 'Write a candidate question.' };
+    const candidate = candidateQuestions.find(item => item.id === id);
+    if (!candidate || candidate.promotedQuestionId || candidate.retireReason) return { success: false, error: 'Only active, unpromoted candidates can be edited.' };
+    setCandidateQuestions(previous => previous.map(item => item.id === id ? { ...item, title: title.trim() } : item));
+    return { success: true };
+  }, [candidateQuestions]);
+
+  const linkSurveyProblemsToCandidate = useCallback((candidateId: string, problemIds: string[], userReason: string) => {
+    const candidate = candidateQuestions.find(item => item.id === candidateId);
+    if (!candidate || candidate.retireReason || candidate.promotedQuestionId) return { success: false, error: 'Select an active, unpromoted candidate.' };
+    if (!problemIds.length || problemIds.some(id => !openProblems.some(problem => problem.id === id && !problem.retireReason))) return { success: false, error: 'Select available active problems.' };
+    if (!userReason.trim()) return { success: false, error: 'Explain why these problems matter to the question.' };
+    setCandidateQuestions(previous => previous.map(item => item.id === candidateId ? linkSurveyProblems(item, problemIds, userReason) : item));
+    return { success: true };
+  }, [candidateQuestions, openProblems]);
+
+  const unlinkSurveyProblemFromCandidate = useCallback((candidateId: string, problemId: string) => {
+    setCandidateQuestions(previous => previous.map(item => item.id === candidateId && !item.retireReason && !item.promotedQuestionId
+      ? unlinkSurveyProblem(item, problemId) : item));
+  }, []);
 
   // Promote candidate question (Gate 3: requires user claim + falsifiability + 1-year confirmations)
   const promoteCandidateQuestion = useCallback((
@@ -1188,6 +1280,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!candidate) {
       return { success: false, error: 'Candidate not found.' };
     }
+    if (candidate.retireReason || candidate.promotedQuestionId) return { success: false, error: 'This candidate is retired or already promoted.' };
 
     const newQId = `q-${Date.now()}`;
     const newCId = `c-${Date.now()}`;
@@ -1434,6 +1527,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setWorkspaceDir,
         activeSurface,
         setActiveSurface,
+        sourceEvidenceId,
+        openEvidenceSource,
+        paperSource,
+        openPaperSource,
         theme,
         darkVariant,
         setDarkVariant,
@@ -1493,6 +1590,10 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addPaperHighlight,
         removePaperHighlight,
         addSurveyOpenProblem,
+        addSurveyCandidate,
+        updateSurveyCandidate,
+        linkSurveyProblemsToCandidate,
+        unlinkSurveyProblemFromCandidate,
         retireSurveyOpenProblem,
         retireSurveyCandidateQuestion,
         promoteCandidateQuestion,

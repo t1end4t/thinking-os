@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { EvidenceSourceFields } from './EvidenceSourceFields';
 import {
   Claim,
   Evidence,
@@ -80,6 +81,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
     questions,
     claims,
     evidence,
+    openEvidenceSource,
     links,
     selectedNodeId,
     setSelectedNodeId,
@@ -396,6 +398,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             onSelect={id => {
               setSelectedNodeId(id);
               setSelectedLinkId(null);
+              if (evidence.some(item => item.id === id) && openEvidenceSource(id)) return;
               setLinkTargetId('');
               setLinkReason('');
               setWeakenNote('');
@@ -882,7 +885,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   {/* Claim Fields */}
                   {selection.kind === 'claim' &&
                     (editing ? (
-                      <label className="argument-field-label">
+                      <><label className="argument-field-label">
                         <span>Claim Text</span>
                         <textarea
                           value={selection.entity.text}
@@ -894,6 +897,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
                           className="argument-textarea font-sans text-sm"
                         />
                       </label>
+                      <label className="argument-field-label">
+                        <span>Declared falsification condition</span>
+                        <textarea className="argument-textarea" rows={2} value={selection.entity.failureThreshold || ''} onChange={event => updateClaim(selection.entity.id, { failureThreshold: event.target.value })} />
+                      </label></>
                     ) : (
                       <div className="flex flex-col gap-2">
                         <p className="font-sans text-sm text-[var(--color-ink)] leading-relaxed font-medium">
@@ -909,6 +916,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                         <label className="argument-field-label">
                           <span>Evidence Title</span>
                           <textarea
+                            aria-label="Evidence Title"
                             value={selection.entity.title}
                             onChange={e =>
                               updateEvidence(selection.entity.id, { title: e.target.value })
@@ -1009,6 +1017,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       </div>
                     ))}
                 </section>
+
+                {selection.kind === 'evidence' && <EvidenceSourceFields key={selection.entity.id} evidence={selection.entity} editing={editing} />}
 
                 {/* Epistemic Controls for Claims: Weaken and Reject */}
                 {selection.kind === 'claim' && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Experiment, ExperimentArtifact, ExperimentStatus } from '../../types';
 import { tildePath } from '../../utils/paths';
@@ -21,8 +21,20 @@ export const ExperimentsSurface: React.FC = () => {
     experiments,
     claims,
     updateArtifactObservation,
-    setActiveContext
+    setActiveContext,
+    evidence,
+    sourceEvidenceId
   } = useWorkspace();
+
+  const sourceEvidence = evidence.find(item => item.id === sourceEvidenceId && item.origin === 'experiment');
+  const sourceExperimentId = sourceEvidence?.experimentId;
+  const sourceArtifactId = sourceEvidence?.artifactId;
+  useEffect(() => {
+    if (!sourceExperimentId) return;
+    const target = document.getElementById(sourceArtifactId ? `experiment-artifact-${sourceExperimentId}-${sourceArtifactId}` : `experiment-card-${sourceExperimentId}`);
+    target?.scrollIntoView({ block: 'center' });
+    target?.focus({ preventScroll: true });
+  }, [sourceExperimentId, sourceArtifactId]);
 
   const [statusFilter, setStatusFilter] = useState<'all' | ExperimentStatus>('all');
   const [selectedArtifact, setSelectedArtifact] = useState<{
@@ -187,6 +199,7 @@ export const ExperimentsSurface: React.FC = () => {
                   <div
                     key={exp.id}
                     id={`experiment-card-${exp.id}`}
+                    tabIndex={-1}
                     className="p-4 md:p-5 bg-[var(--color-paper)] border border-[var(--color-rule)] rounded-xl flex flex-col gap-3.5"
                   >
                     {/* Experiment Title & Status */}
@@ -249,10 +262,12 @@ export const ExperimentsSurface: React.FC = () => {
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           {exp.artifacts.map(art => (
-                            <div
+                            <button
+                              type="button"
                               key={art.id}
+                              id={`experiment-artifact-${exp.id}-${art.id}`}
                               onClick={() => handleOpenArtifact(exp, art)}
-                              className="p-3 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg flex flex-col justify-between gap-2.5 hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-2xs cursor-pointer transition-all"
+                              className="p-3 text-left bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-lg flex flex-col justify-between gap-2.5 hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-2xs cursor-pointer transition-all"
                             >
                               <div className="flex items-center gap-2">
                                 {art.type === 'plot' && <FileBarChart className="w-4 h-4 text-indigo-500" />}
@@ -268,8 +283,11 @@ export const ExperimentsSurface: React.FC = () => {
                                 <span className={art.observation ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-amber-600 dark:text-amber-400 font-semibold'}>
                                   {art.observation ? 'Observed ✓' : 'Observation required'}
                                 </span>
+                                {sourceExperimentId === exp.id && sourceArtifactId === art.id && (
+                                  <span className="whitespace-pre-wrap text-[var(--color-ink)]">{art.observation || 'No observation recorded.'}</span>
+                                )}
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )}

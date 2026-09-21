@@ -76,6 +76,10 @@ export interface Evidence {
   form: EvidenceForm;
   citation: string;
   paperId?: string;
+  pageNumber?: number;
+  excerpt?: string;
+  experimentId?: string;
+  artifactId?: string;
   validity?: DerivationValidity;
   validityReason?: string;
   createdAt: number;
@@ -122,12 +126,30 @@ export interface SurveyRetireReason {
   retiredAt: number;
 }
 
-export interface SurveyOpenProblem {
+export interface SurveyProblemSource {
+  paperId?: string;
+  pageNumber?: number;
+  excerpt?: string;
+  highlightId?: string;
+  attribution?: 'paper-author' | 'user-inference';
+}
+
+export interface SurveyProblemLink {
+  id: string;
+  problemId: string;
+  userReason: string;
+  createdAt: number;
+  author: EntityAuthor;
+  legacy?: boolean;
+}
+
+export interface SurveyOpenProblem extends SurveyProblemSource {
   id: string;
   text: string;
   citation: string;
   createdAt: number;
   candidateId?: string;
+  author?: EntityAuthor;
   retireReason?: SurveyRetireReason;
 }
 
@@ -135,6 +157,8 @@ export interface SurveyCandidateQuestion {
   id: string;
   title: string;
   openProblemIds: string[];
+  problemLinks?: SurveyProblemLink[];
+  author?: EntityAuthor;
   createdAt: number;
   promotedQuestionId?: string;
   retireReason?: SurveyRetireReason;

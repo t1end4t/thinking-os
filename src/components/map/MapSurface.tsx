@@ -34,7 +34,8 @@ export const MapSurface: React.FC = () => {
     setSelectedLinkId,
     clearSelection,
     setActiveContext,
-    addAttachedContext
+    addAttachedContext,
+    openEvidenceSource
   } = useWorkspace();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -295,6 +296,14 @@ export const MapSurface: React.FC = () => {
   };
 
   // Handle Node Click
+  const handleNodeEdit = (node: LayoutNode) => {
+    setSelectedNodeId(node.id);
+    setSelectedLinkId(null);
+    setCreating(false);
+    setInitialEditMode(true);
+    setActiveView('detail');
+  };
+
   const handleNodeClick = (node: LayoutNode) => {
     // If clicking an argument gap ghost node: navigate directly to Detail creator
     if (node.isGhost) {
@@ -311,11 +320,11 @@ export const MapSurface: React.FC = () => {
       return;
     }
 
-    // Standard node: navigate to Detail view with this entity selected and ready to edit
     setSelectedNodeId(node.id);
     setSelectedLinkId(null);
+    if (node.type === 'evidence' && openEvidenceSource(node.id)) return;
     setCreating(false);
-    setInitialEditMode(true);
+    setInitialEditMode(false);
     setActiveView('detail');
 
     const nodeObj = {
@@ -325,22 +334,6 @@ export const MapSurface: React.FC = () => {
       secondaryLabel: `Type: ${node.type}`
     };
     setActiveContext(nodeObj);
-  };
-
-  // Add node to attached context in chat
-  const handleAddNodeToContext = (node: LayoutNode, e: React.MouseEvent) => {
-    e.stopPropagation();
-    addAttachedContext({
-      type: 'node',
-      id: node.id,
-      label: `[${node.type.toUpperCase()}] ${node.title}`,
-      secondaryLabel: node.type === 'evidence' ? node.citation : node.tags?.join(', '),
-      metadata: {
-        nodeType: node.type,
-        nodeId: node.id,
-        title: node.title
-      }
-    });
   };
 
   return (
@@ -397,7 +390,7 @@ export const MapSurface: React.FC = () => {
               }}
               className={`px-3 py-1 rounded-lg text-xs font-mono transition-colors ${activeView === 'ledger' ? 'bg-[var(--color-ink)] text-[var(--color-surface)] font-semibold' : 'text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]'}`}
             >
-              Ledger
+              Claims
             </button>
             <button
               type="button"
@@ -733,9 +726,9 @@ export const MapSurface: React.FC = () => {
               isRelated={isRelated}
               isDimmed={isDimmed}
               onClick={() => handleNodeClick(node)}
+              onEdit={() => handleNodeEdit(node)}
               onMouseEnter={() => setHoveredNodeId(node.id)}
               onMouseLeave={() => setHoveredNodeId(null)}
-              onAddToContext={e => handleAddNodeToContext(node, e)}
             />
           );
         })}

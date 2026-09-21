@@ -17,6 +17,8 @@ import { TaskEditorPanel } from './components/shell/TaskEditorPanel';
 const WorkspaceShell: React.FC = () => {
   const {
     activeSurface,
+    sourceEvidenceId,
+    setActiveSurface,
     selectedLinkId,
     setSelectedLinkId,
     clearSelection,
@@ -67,8 +69,16 @@ const WorkspaceShell: React.FC = () => {
 
         {/* Central Work Canvas / Active Surface */}
         <div inert={workspaceSyncing} className="flex-1 flex flex-col overflow-hidden relative">
+          {sourceEvidenceId && (
+            <div className="flex items-center gap-3 border-b border-[var(--color-rule)] px-4 py-2 text-xs">
+              <button type="button" className="argument-micro-btn" onClick={() => setActiveSurface('map')}>Back to Graph</button>
+              <span className="truncate text-[var(--color-ink-muted)]">Evidence source · {sourceEvidenceId}</span>
+            </div>
+          )}
           <div className="flex-1 flex overflow-hidden relative">
-            {activeSurface === 'map' && <MapSurface />}
+            {(activeSurface === 'map' || sourceEvidenceId) && (
+              <div className={activeSurface === 'map' ? 'flex min-w-0 flex-1' : 'hidden'}><MapSurface /></div>
+            )}
             {activeSurface === 'survey' && <SurveySurface />}
             {activeSurface === 'papers' && <PapersSurface />}
             {activeSurface === 'experiments' && <ExperimentsSurface />}

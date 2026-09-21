@@ -47,6 +47,7 @@ import {
   ServiceProcessStatus
 } from '../../runtimeClient';
 import { AgentEnvironmentView } from './AgentEnvironmentView';
+import { AgentJobsView } from './AgentJobsView';
 import type { AssistantContextObject } from '../../types';
 
 interface ExecutionEngineViewProps {
@@ -582,9 +583,7 @@ export function ExecutionEngineView({
       <div className={`engine-content-scroll ${currentSubTab === 'agent-environment' ? 'agent-env-scroll' : ''}`}>
         {currentSubTab === 'agent-environment' && <AgentEnvironmentView onContextChange={onEnvironmentContextChange} />}
         {currentSubTab === 'agent-jobs' && (
-          <div className="objects-grid" id="agent-jobs-grid">
-            <div className="engine-empty-results">No agent jobs yet.</div>
-          </div>
+          <AgentJobsView />
         )}
 
         {/* SERVICES SECTION */}
