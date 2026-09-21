@@ -5,7 +5,7 @@
   flex-direction: column;
   min-height: 100%;
   container-type: inline-size;
-  background: var(--color-surface);
+  background: var(--color-paper);
   color: var(--color-ink);
 }
 
@@ -958,7 +958,8 @@ section.literature {
 
 .discovery-direct-search-header p {
   margin: 2px 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
   color: var(--color-ink-muted);
 }
 
@@ -985,8 +986,7 @@ section.literature {
 .discovery-empty-report p {
   max-width: 480px;
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.78125rem;
   line-height: 1.5;
   color: var(--color-ink-muted);
 }
-

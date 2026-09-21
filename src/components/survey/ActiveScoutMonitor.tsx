@@ -17,6 +17,7 @@ import {
   Search,
   Sparkles,
   StopCircle,
+  Trash2,
   X
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -106,8 +107,6 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
       .sort((a, b) => b.startedAt - a.startedAt),
     [scouts.snapshot?.runs]
   );
-  const lastFinishedRun: ScoutRun | undefined = recentRuns[0];
-
   // Timer for active runs
   useEffect(() => {
     if (!activeRun) {
@@ -203,7 +202,7 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
                 <span>{formatElapsed(elapsed)} elapsed</span>
               </span>
             </div>
-            <h3>“{runTitle}”</h3>
+            <h3 title={runTitle}>“{runTitle}”</h3>
             <p>{STAGE_LABELS[activeStage ?? ''] || activeStage} · {activeRun.inputSnapshot.purpose}</p>
           </div>
 
@@ -435,14 +434,9 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
                 </span>
               </h3>
               <p>
-                {lastFinishedRun ? (
-                  <span>
-                    Last scout: “{'question' in lastFinishedRun.inputSnapshot ? lastFinishedRun.inputSnapshot.question : lastFinishedRun.inputSnapshot.name}”
-                    {' '}({lastFinishedRun.state} · {lastFinishedRun.counters.screened} screened)
-                  </span>
-                ) : (
-                  <span>No scout runs yet. Problem scouts return short screened recommendations with evidence.</span>
-                )}
+                {recentRuns.length > 0
+                  ? `${recentRuns.length} completed ${recentRuns.length === 1 ? 'run' : 'runs'} · ${totalReports} ${totalReports === 1 ? 'report' : 'reports'} · ${activeWatches}/${totalWatches} watches active`
+                  : 'No scout runs yet. Problem scouts return short screened recommendations with evidence.'}
               </p>
             </div>
           </div>
@@ -473,18 +467,6 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
               </button>
             )}
 
-            {lastFinishedRun?.reportId && onSelectReport && (
-              <button
-                type="button"
-                className="survey-btn"
-                onClick={() => onSelectReport(lastFinishedRun.reportId!)}
-                title="View results for the most recent scout"
-              >
-                <FileSearch size={12} />
-                <span>View Latest Report</span>
-              </button>
-            )}
-
             {recentRuns.length > 0 && (
               <button
                 type="button"
@@ -502,53 +484,73 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
         {/* Expandable Run History */}
         {showHistory && recentRuns.length > 0 && (
           <div className="scout-history-panel animate-in fade-in" aria-label="Recent scout runs">
-            <table className="scout-history-table">
-              <thead>
-                <tr>
-                  <th>Topic / Inquiry</th>
-                  <th>Source</th>
-                  <th>Outcome</th>
-                  <th>Screened</th>
-                  <th>Executed Queries</th>
-                  <th>Completed</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentRuns.slice(0, 5).map(run => {
-                  const title = 'question' in run.inputSnapshot ? run.inputSnapshot.question : run.inputSnapshot.name;
-                  return (
-                    <tr key={run.id}>
-                      <td className="font-semibold">{title}</td>
-                      <td>
-                        <span className="survey-pill font-mono text-[0.625rem]">
-                          {run.source.kind}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="survey-pill font-mono text-[0.625rem] text-amber-600 dark:text-amber-400">
-                          {run.state}
-                        </span>
-                      </td>
-                      <td className="font-mono">{run.counters.screened} works</td>
-                      <td className="font-mono">{run.executedQueries.length}</td>
-                      <td>{new Date(run.finishedAt || run.updatedAt).toLocaleTimeString()}</td>
-                      <td>
-                        {run.reportId && onSelectReport && (
-                          <button
-                            type="button"
-                            className="survey-btn text-[0.625rem] py-0.5 px-1.5"
-                            onClick={() => onSelectReport(run.reportId!)}
-                          >
-                            View report
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="scout-history-list">
+              {recentRuns.slice(0, 5).map(run => {
+                const title = 'question' in run.inputSnapshot ? run.inputSnapshot.question : run.inputSnapshot.name;
+                const completedAt = run.finishedAt || run.updatedAt;
+                const sourceExists = run.source.kind === 'watch'
+                  ? (scouts.snapshot?.watches ?? []).some(watch => watch.id === run.source.id)
+                  : (scouts.snapshot?.briefs ?? []).some(brief => brief.id === run.source.id);
+                return (
+                  <article key={run.id} className="scout-history-item">
+                    <div className="scout-history-item-header">
+                      <div className="scout-history-item-heading">
+                        <span className="scout-history-item-kicker">{run.source.kind} run</span>
+                        <h4>{title}</h4>
+                      </div>
+                      <span className={`scout-history-state scout-history-state-${run.state}`}>{run.state}</span>
+                    </div>
+
+                    <div className="scout-history-metrics" aria-label="Run metrics">
+                      <span><strong>{run.counters.screened}</strong> screened</span>
+                      <span><strong>{run.executedQueries.length}</strong> queries</span>
+                      <time dateTime={new Date(completedAt).toISOString()}>{new Date(completedAt).toLocaleString()}</time>
+                    </div>
+
+                    <div className="scout-history-actions">
+                      {run.reportId && onSelectReport && (
+                        <button
+                          type="button"
+                          className="survey-btn scout-history-action"
+                          onClick={() => onSelectReport(run.reportId!)}
+                        >
+                          <ExternalLink size={11} />
+                          <span>View report</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="survey-btn scout-history-action"
+                        disabled={scouts.busy !== null || !sourceExists}
+                        onClick={() => void scouts.startRun(run.source.id, run.source.kind)}
+                        title={sourceExists
+                          ? `Run this ${run.source.kind === 'watch' ? 'topic watch' : 'brief'} again with its saved parameters`
+                          : `The source ${run.source.kind === 'watch' ? 'topic watch' : 'brief'} no longer exists`}
+                      >
+                        <RefreshCw size={11} />
+                        <span>Run again</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="survey-btn scout-history-action scout-history-action-danger"
+                        disabled={scouts.busy !== null}
+                        onClick={() => {
+                          if (window.confirm('Delete this run and its report? Saved papers and the source brief are kept.')) {
+                            void scouts.deleteRun(run.id);
+                          }
+                        }}
+                        title="Remove this run and its report from history"
+                      >
+                        <Trash2 size={11} />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

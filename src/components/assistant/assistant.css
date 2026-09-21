@@ -58,7 +58,7 @@
 .assistant-markdown pre { white-space: pre; overflow-wrap: normal; }
 .assistant-markdown pre code { font-size: inherit; }
 .assistant-markdown a { display: inline; }
-.assistant-scout-card { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-indigo) 35%, var(--color-rule)); border-radius: 10px; background: var(--color-paper); }
+.agent-run-card { display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent-indigo) 35%, var(--color-rule)); border-radius: 10px; background: var(--color-paper); }
 .agent-run-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--color-rule); padding-bottom: 8px; }
 .agent-identity { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .agent-avatar { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: var(--accent-indigo-soft); border: 1px solid color-mix(in srgb, var(--accent-indigo) 30%, var(--color-rule)); shrink: 0; }

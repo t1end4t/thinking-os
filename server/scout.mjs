@@ -5,6 +5,7 @@ import { DEFAULT_VAULT, resolveVaultDir, withVaultLock } from './vault.mjs';
 import {
   deleteScoutBrief,
   deleteScoutReport,
+  deleteScoutRun,
   deleteTopicWatch,
   interruptScoutRuns,
   loadScoutState,
@@ -47,6 +48,12 @@ function send(response, status, payload) {
 
 const TERMINAL_STATES = new Set(['completed', 'partial', 'failed', 'cancelled', 'interrupted']);
 
+const CARD_TEXT_LIMIT = 500;
+
+function cardText(value) {
+  return value.length <= CARD_TEXT_LIMIT ? value : `${value.slice(0, CARD_TEXT_LIMIT - 1).trimEnd()}\u2026`;
+}
+
 function candidateKeys(candidate) {
   return new Set([candidate.id, ...candidate.identities.map(identity => `${identity.kind}:${identity.value.toLowerCase()}`)]);
 }
@@ -88,8 +95,8 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
       const liveCandidates = (result.candidates || []).slice(0, 20).map(c => ({
         id: c.id,
-        title: c.title,
-        authors: c.authors || '',
+        title: cardText(c.title),
+        authors: cardText(c.authors || ''),
         ...(c.year ? { year: c.year } : {}),
         sources: c.sources || [],
         status: 'retrieved'
@@ -249,6 +256,21 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
             await withVaultLock(root, () => saveScoutRun(root, cancelling));
             controller.abort(new DOMException('Cancelled', 'AbortError'));
             return send(response, 202, { run: cancelling });
+          }
+          if (input.action === 'delete-run') {
+            if (!validScoutId(input.id)) throw new Error('Invalid scout run id.');
+            const result = await withVaultLock(root, async () => {
+              const state = await loadScoutState(root, now());
+              const run = state.runs.find(item => item.id === input.id);
+              if (!run) return { missing: true };
+              if (activeRuns.has(`${root}:${run.source.kind}:${run.source.id}`)) return { active: true };
+              await deleteScoutRun(root, run.id);
+              if (run.reportId) await deleteScoutReport(root, run.reportId);
+              return { ok: true };
+            });
+            if (result.missing) return send(response, 404, { error: 'Scout run not found.' });
+            if (result.active) return send(response, 409, { error: 'Cancel the run before deleting it.' });
+            return send(response, 200, { ok: true });
           }
           if (input.action === 'decide-candidate') {
             if (!validScoutId(input.reportId) || !validScoutId(input.candidateId) || !['saved', 'dismissed'].includes(input.decision)) throw new Error('Invalid candidate decision.');

@@ -15,7 +15,7 @@ export type ScoutMutation =
     }
   | { readonly action: 'request-inspection'; readonly reportId: string; readonly candidateId: string };
 
-export type ScoutControlAction = ScoutMutation['action'] | 'save-brief' | 'save-watch' | 'delete-watch' | 'start-run' | 'cancel-run';
+export type ScoutControlAction = ScoutMutation['action'] | 'save-brief' | 'save-watch' | 'delete-watch' | 'start-run' | 'cancel-run' | 'delete-run';
 
 async function request(dir: string, signal: AbortSignal, mutation?: ScoutMutation): Promise<Record<string, unknown>> {
   const response = await fetch(`/api/scouts?${new URLSearchParams({ dir })}`, {
@@ -69,6 +69,10 @@ export async function startScoutRunRequest(dir: string, id: string, signal: Abor
 
 export async function cancelScoutRunRequest(dir: string, id: string, signal: AbortSignal): Promise<ScoutRun> {
   return parseRun((await controlRequest(dir, signal, { action: 'cancel-run', id })).run);
+}
+
+export async function deleteScoutRunRequest(dir: string, id: string, signal: AbortSignal): Promise<void> {
+  await controlRequest(dir, signal, { action: 'delete-run', id });
 }
 
 export function activeScoutRun(state: ScoutRunState): boolean {

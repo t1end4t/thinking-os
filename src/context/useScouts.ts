@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { activeScoutRun, cancelScoutRunRequest, deleteTopicWatchRequest, loadScouts, mutateScout, saveScoutBriefRequest, saveTopicWatchRequest, startScoutRunRequest, type ScoutControlAction, type ScoutMutation } from '../scoutClient';
+import { activeScoutRun, cancelScoutRunRequest, deleteScoutRunRequest, deleteTopicWatchRequest, loadScouts, mutateScout, saveScoutBriefRequest, saveTopicWatchRequest, startScoutRunRequest, type ScoutControlAction, type ScoutMutation } from '../scoutClient';
 import type { ScoutBriefInput, ScoutSnapshot, TopicWatchInput } from '../scoutTypes';
 
 type ScoutState = {
@@ -142,6 +142,7 @@ export function useScouts(dir: string) {
     deleteWatch: (id: string) => control('delete-watch', signal => deleteTopicWatchRequest(dir, id, signal)),
     startRun: (id: string, kind: 'brief' | 'watch' = 'brief') => control('start-run', signal => startScoutRunRequest(dir, id, signal, kind)),
     cancelRun: (id: string) => control('cancel-run', signal => cancelScoutRunRequest(dir, id, signal)),
+    deleteRun: (id: string) => control('delete-run', signal => deleteScoutRunRequest(dir, id, signal)),
     decideCandidate: (mutation: Omit<Extract<ScoutMutation, { action: 'decide-candidate' }>, 'action'>) => mutate({ action: 'decide-candidate', ...mutation }),
     requestInspection: (reportId: string, candidateId: string) => mutate({ action: 'request-inspection', reportId, candidateId })
   };

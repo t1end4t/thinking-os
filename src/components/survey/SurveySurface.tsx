@@ -55,7 +55,7 @@ export function SurveySurface() {
   };
 
   return (
-    <section id="survey-surface" className="flex-1 h-full flex flex-col bg-[var(--color-surface)] overflow-hidden survey-surface">
+    <section id="survey-surface" className="flex-1 h-full flex flex-col bg-[var(--color-paper)] overflow-hidden survey-surface">
       {/* Top Header matching PapersSurface / PDF Vault design language */}
       <header className="border-b border-[var(--color-rule)] bg-[var(--color-surface)] px-6 py-4 flex flex-col gap-3 shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-4">

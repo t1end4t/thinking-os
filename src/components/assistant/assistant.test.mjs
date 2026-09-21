@@ -73,6 +73,7 @@ try {
   const send = page.getByRole('button', { name: 'Send message', exact: true });
   await expect(panel).toBeVisible();
   await expect(panel.locator('details.assistant-mode-menu')).toHaveCount(1);
+  await expect(panel.getByRole('button', { name: 'Sample Card', exact: true })).toHaveCount(0);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const theme of ['light', 'dark']) {

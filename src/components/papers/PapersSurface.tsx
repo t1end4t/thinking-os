@@ -464,7 +464,7 @@ export const PapersSurface: React.FC = () => {
   return (
     <div
       id="papers-surface"
-      className="flex-1 h-full flex flex-col bg-[var(--color-surface)] overflow-hidden"
+      className="flex-1 h-full flex flex-col bg-[var(--color-paper)] overflow-hidden"
     >
       {sourceEvidence && activeTab === sourcePaperId && (
         <details className="shrink-0 border-b border-[var(--color-rule)] px-5 py-2 text-xs">
@@ -760,7 +760,7 @@ export const PapersSurface: React.FC = () => {
         /* ========================================================================= */
         /* VAULT EXPLORER: CARD VIEW OR LIST VIEW                                     */
         /* ========================================================================= */
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-[var(--color-surface)]">
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-[var(--color-paper)]">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Vault Controls & Filters Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
@@ -872,12 +872,12 @@ export const PapersSurface: React.FC = () => {
 
             {/* Empty state if no papers match query */}
             {filteredVaultPapers.length === 0 ? (
-              <div className="py-16 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 p-8">
-                <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                <h3 className="font-serif text-base font-bold text-slate-800 dark:text-slate-200">
+              <div className="py-16 text-center rounded-2xl border border-dashed border-[var(--color-rule)] bg-[var(--color-surface)] p-8">
+                <BookOpen className="w-12 h-12 text-[var(--color-ink-muted)] opacity-60 mx-auto mb-3" />
+                <h3 className="font-serif text-base font-bold text-[var(--color-ink)]">
                   No matching papers found
                 </h3>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+                <p className="text-xs text-[var(--color-ink-muted)] max-w-sm mx-auto mt-1 mb-4">
                   {searchVaultQuery
                     ? `No papers in your vault matched "${searchVaultQuery}".`
                     : 'Your paper vault is empty.'}
@@ -886,7 +886,7 @@ export const PapersSurface: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSearchVaultQuery('')}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 rounded-lg text-xs font-medium transition-colors"
+                    className="px-3 py-1.5 bg-[var(--color-paper)] hover:bg-[var(--color-surface)] text-[var(--color-ink)] border border-[var(--color-rule)] rounded-lg text-xs font-medium transition-colors"
                   >
                     Clear Search
                   </button>
@@ -907,7 +907,7 @@ export const PapersSurface: React.FC = () => {
                   return (
                     <div
                       key={paper.id}
-                      className="group bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-teal-500/50 transition-all flex flex-col justify-between gap-4 relative"
+                      className="group bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-2xl p-5 shadow-2xs hover:shadow-md hover:border-teal-500/50 transition-all flex flex-col justify-between gap-4 relative"
                     >
                       {/* Top Bar: Year Badge, Citation, and Delete */}
                       <div className="flex items-start justify-between gap-2">

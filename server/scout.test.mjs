@@ -8,6 +8,7 @@ import test from 'node:test';
 import { scoutPlugin } from './scout.mjs';
 import {
   deleteScoutBrief,
+  deleteScoutRun,
   deleteTopicWatch,
   loadScoutState,
   interruptScoutRuns,
@@ -309,4 +310,93 @@ test('candidate decisions and deeper-inspection requests persist in reports', as
   assert.equal(report.recommendations[0].decision, 'saved');
   assert.equal(report.recommendations[0].paperId, 'p-decision');
   assert.equal(report.recommendations[0].inspection.status, 'requested');
+});
+
+test('deleting a run removes its report and keeps the source brief', async context => {
+  const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-scout-delete-run-'));
+  const server = createServer();
+  scoutPlugin({
+    retrieve: async () => ({ candidates: [], attempts: [], limitations: [], partial: false, executedQueries: ['query'] }),
+    screen: async () => ({ assessed: [], unscreened: [], failures: [], model: 'fixture', instructionsVersion: 'fixture-v1' })
+  }).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  context.after(async () => { server.closeAllConnections(); server.close(); await rm(root, { recursive: true, force: true }); });
+
+  const endpoint = `http://127.0.0.1:${server.address().port}/api/scouts?${new URLSearchParams({ dir: root })}`;
+  const origin = new URL(endpoint).origin;
+  const post = body => fetch(endpoint, { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+  const created = await (await post({ action: 'save-brief', brief: briefInput })).json();
+  const started = await (await post({ action: 'start-run', id: created.brief.id })).json();
+  const { snapshot: before } = await waitForRun(endpoint, origin, started.run.id, 'completed');
+  assert.equal(before.reports.length, 1);
+
+  assert.equal((await post({ action: 'delete-run', id: started.run.id })).status, 200);
+
+  const after = await (await fetch(endpoint, { headers: { origin } })).json();
+  assert.equal(after.runs.some(run => run.id === started.run.id), false);
+  assert.equal(after.reports.length, 0);
+  assert.equal(after.briefs.some(brief => brief.id === created.brief.id), true);
+
+  assert.equal((await post({ action: 'delete-run', id: started.run.id })).status, 404);
+});
+
+test('an active run cannot be deleted before it is cancelled', async context => {
+  const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-scout-delete-active-'));
+  const server = createServer();
+  scoutPlugin({ retrieve: async (_brief, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  }) }).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  context.after(async () => { server.closeAllConnections(); server.close(); await rm(root, { recursive: true, force: true }); });
+
+  const endpoint = `http://127.0.0.1:${server.address().port}/api/scouts?${new URLSearchParams({ dir: root })}`;
+  const origin = new URL(endpoint).origin;
+  const post = body => fetch(endpoint, { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+  const created = await (await post({ action: 'save-brief', brief: briefInput })).json();
+  const started = await (await post({ action: 'start-run', id: created.brief.id })).json();
+
+  assert.equal((await post({ action: 'delete-run', id: started.run.id })).status, 409);
+
+  await post({ action: 'cancel-run', id: started.run.id });
+  await waitForRun(endpoint, origin, started.run.id, 'cancelled');
+  assert.equal((await post({ action: 'delete-run', id: started.run.id })).status, 200);
+});
+
+test('long author lists are truncated for live cards instead of failing the run', async context => {
+  const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-scout-long-authors-'));
+  const server = createServer();
+  const authors = Array.from({ length: 80 }, (_, index) => `Author Number ${index}`).join(', ');
+  const candidate = { id: 'candidate-long-authors', title: 'Crowded collaboration paper', authors, year: 2026, identities: [],
+    matchingQueries: ['query'], sources: ['OpenAlex'], provenance: [{ provider: 'OpenAlex', lane: 'lexical', query: 'query', retrievedAt: 2 }],
+    metadataConflicts: [], limitations: [], assessmentState: 'unscreened' };
+  scoutPlugin({
+    retrieve: async () => ({ candidates: [candidate], attempts: [{ provider: 'OpenAlex', lane: 'lexical', query: 'query', status: 'completed', attempts: 1, resultCount: 1, startedAt: 1, completedAt: 2, truncated: false }],
+      limitations: [], partial: false, executedQueries: ['query'] }),
+    screen: async () => ({ assessed: [{ ...candidate, relevance: 'direct', evidenceExcerpt: candidate.title,
+      relevanceAssessment: 'Direct.', expectedValue: 'Useful.', qualityConfidence: 'medium', qualityEvidence: [candidate.title], limitations: [],
+      outcome: 'recommend', recommendationReason: 'Useful.', coverageTags: ['method'], suggestedNextAction: 'save', assessmentState: 'screened' }],
+      unscreened: [], failures: [], model: 'fixture', instructionsVersion: 'fixture-v1' })
+  }).configureServer({ httpServer: server, middlewares: { use: (_route, handler) => server.on('request', handler) } });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  context.after(async () => { server.closeAllConnections(); server.close(); await rm(root, { recursive: true, force: true }); });
+
+  const endpoint = `http://127.0.0.1:${server.address().port}/api/scouts?${new URLSearchParams({ dir: root })}`;
+  const origin = new URL(endpoint).origin;
+  const post = body => fetch(endpoint, { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+
+  assert.ok(authors.length > 500);
+  const created = await (await post({ action: 'save-brief', brief: briefInput })).json();
+  const started = await (await post({ action: 'start-run', id: created.brief.id })).json();
+  const { run, snapshot } = await waitForRun(endpoint, origin, started.run.id, 'completed');
+
+  assert.equal(run.error, undefined);
+  assert.equal(run.liveCandidates.length, 1);
+  assert.equal(run.liveCandidates[0].authors.length, 500);
+  assert.match(run.liveCandidates[0].authors, /\u2026$/);
+  assert.equal(snapshot.reports[0].recommendations[0].authors, authors);
 });

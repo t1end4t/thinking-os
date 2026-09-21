@@ -104,6 +104,13 @@ export const deleteScoutBrief = (root, id) => deletePair(root, BRIEFS, id);
 export const deleteTopicWatch = (root, id) => deletePair(root, WATCHES, id);
 export const deleteScoutReport = (root, id) => deletePair(root, REPORTS, id);
 
+export async function deleteScoutRun(root, id) {
+  if (!validScoutId(id)) throw new Error('Invalid scout record id.');
+  await unlink(path.join(root, RUNS, `${id}.json`)).catch(error => {
+    if (error.code !== 'ENOENT') throw error;
+  });
+}
+
 export async function updateScoutCandidate(root, reportId, candidateId, changes) {
   if (!validScoutId(reportId) || !validScoutId(candidateId)) throw new Error('Invalid scout candidate reference.');
   const state = await loadCurrentState(root);

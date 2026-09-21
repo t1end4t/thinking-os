@@ -1,6 +1,7 @@
 /* Scout Monitor & Live Telemetry Styles */
 
 .scout-monitor {
+  container-type: inline-size;
   margin-bottom: 20px;
   border: 1px solid var(--color-rule);
   border-radius: 12px;
@@ -96,9 +97,9 @@
 
 .scout-monitor-title-block p {
   margin: 2px 0 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--color-ink-muted);
-  line-height: 1.3;
+  line-height: 1.45;
 }
 
 .scout-monitor-actions-row {
@@ -329,33 +330,193 @@
 /* History Drawer */
 .scout-history-panel {
   border-top: 1px solid var(--color-rule);
-  padding: 12px 16px;
+  padding: 12px;
   background: var(--color-paper);
+  max-height: min(460px, 55vh);
+  overflow-y: auto;
 }
 
-.scout-history-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.6875rem;
+.scout-history-list {
+  display: grid;
+  gap: 8px;
 }
 
-.scout-history-table th {
-  text-align: left;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--color-rule);
+.scout-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.scout-history-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scout-history-item-heading {
+  min-width: 0;
+}
+
+.scout-history-item-kicker {
+  display: block;
+  margin-bottom: 3px;
   font: 600 0.625rem var(--font-mono, monospace);
   text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-ink-muted);
 }
 
-.scout-history-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--color-rule);
+.scout-history-item h4 {
+  margin: 0;
   color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.scout-history-table tr:last-child td {
-  border-bottom: 0;
+.scout-history-state {
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border: 1px solid var(--color-rule);
+  border-radius: 5px;
+  color: var(--color-ink-muted);
+  font: 600 0.625rem var(--font-mono, monospace);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.scout-history-state-completed,
+.scout-history-state-partial {
+  border-color: color-mix(in srgb, #10b981 40%, var(--color-rule));
+  color: #059669;
+}
+
+.scout-history-state-failed {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--color-rule));
+  color: #dc2626;
+}
+
+.scout-history-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--color-ink-muted);
+  font: 0.6875rem var(--font-mono, monospace);
+}
+
+.scout-history-metrics strong {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.scout-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scout-history-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 0.6875rem;
+}
+
+.scout-history-action-danger {
+  color: #dc2626;
+}
+
+.scout-history-action-danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--color-rule));
+}
+
+.scout-history-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scout-history-item time {
+  color: var(--color-ink-muted);
+}
+
+@container (max-width: 680px) {
+  .scout-stepper-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scout-telemetry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scout-live-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scout-monitor-running-header {
+    padding: 12px;
+  }
+
+  .scout-monitor-running-header p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+
+  .scout-live-feed,
+  .scout-history-panel {
+    padding-inline: 12px;
+  }
+}
+
+@container (max-width: 460px) {
+  .scout-monitor-running-header h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+  }
+
+  .scout-monitor-running-header p {
+    -webkit-line-clamp: 2;
+  }
+
+  .scout-stepper-track {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .scout-step-item {
+    flex: 0 0 132px;
+    min-height: 38px;
+    padding: 7px 10px;
+  }
+
+  .scout-metric-cell {
+    padding: 9px 10px;
+  }
+
+  .scout-history-item-header {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .scout-history-state {
+    align-self: flex-start;
+  }
+
+  .scout-live-feed-empty {
+    padding: 10px;
+  }
 }
 
 /* Section Jump Anchor Bar */

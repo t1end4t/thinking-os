@@ -2,25 +2,18 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   BookOpen,
   CheckCircle2,
-  FileSearch,
   Loader2,
   Pencil,
   Play,
   Square,
   X,
-  Sparkles,
   Bot,
-  Sliders,
   Check,
-  RotateCcw,
-  Layers,
   ChevronDown,
-  ChevronUp,
-  ExternalLink
 } from 'lucide-react';
 import type { ScoutBrief, ScoutBriefInput, ScoutReport, ScoutRun, ScoutRunState } from '../../scoutTypes';
 
-export type AgentKind = 'scout' | 'research' | 'writer' | 'synthesis';
+export type AgentKind = 'scout' | 'research' | 'writer' | 'data-analysis' | 'synthesis';
 
 const ACTIVE_STAGES: Readonly<Partial<Record<ScoutRunState, string>>> = {
   queued: 'Preparing queries',
@@ -92,6 +85,71 @@ export interface AgentRunCardProps {
   readonly onOpenReport: () => void;
 }
 
+export interface AgentRunCardFrameProps {
+  readonly agentKind: AgentKind;
+  readonly agentTitle: string;
+  readonly status: string;
+  readonly active?: boolean;
+  readonly editable?: boolean;
+  readonly className?: string;
+  readonly ariaLabel?: string;
+  readonly onEdit?: () => void;
+  readonly children: React.ReactNode;
+}
+
+export function AgentRunCardFrame({
+  agentKind,
+  agentTitle,
+  status,
+  active = false,
+  editable = false,
+  className = '',
+  ariaLabel,
+  onEdit,
+  children
+}: AgentRunCardFrameProps) {
+  return (
+    <article
+      className={`agent-run-card ${className}`.trim()}
+      aria-label={ariaLabel ?? `${agentTitle} run card`}
+      data-agent-kind={agentKind}
+    >
+      <header className="agent-run-header">
+        <div className="agent-identity">
+          <span className="agent-avatar">
+            <Bot size={13} className="text-[var(--accent-indigo)]" />
+          </span>
+          <div className="agent-meta">
+            <span className="agent-title">{agentTitle}</span>
+            <span className="agent-type-badge">Agent Run Card</span>
+          </div>
+        </div>
+
+        <div className="agent-status-cluster">
+          <span className={`agent-status-badge ${active ? 'running' : status}`}>
+            {active && <span className="agent-status-dot animate-pulse" />}
+            {status}
+          </span>
+          {editable && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="agent-quick-edit-btn"
+              title="Edit parameters directly on this card"
+              aria-label="Quick edit parameters"
+            >
+              <Pencil size={11} />
+              <span>Edit</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {children}
+    </article>
+  );
+}
+
 export function AgentRunCard({
   brief,
   run,
@@ -113,6 +171,7 @@ export function AgentRunCard({
 
   const stage = run ? ACTIVE_STAGES[run.state] : undefined;
   const active = Boolean(stage);
+  const status = report ? 'completed' : run?.state ?? 'draft';
 
   useEffect(() => {
     setDraft(draftOf(brief));
@@ -153,43 +212,16 @@ export function AgentRunCard({
   };
 
   return (
-    <article
-      className="agent-run-card assistant-scout-card"
-      aria-label="Scout brief"
-      data-agent-kind={agentKind}
+    <AgentRunCardFrame
+      agentKind={agentKind}
+      agentTitle={agentTitle}
+      status={status}
+      active={active}
+      editable={!active && !isInlineEditing}
+      className="assistant-scout-card"
+      ariaLabel="Scout brief"
+      onEdit={() => setIsInlineEditing(true)}
     >
-      {/* Agent Identity Header */}
-      <header className="agent-run-header">
-        <div className="agent-identity">
-          <span className="agent-avatar">
-            <Bot size={13} className="text-[var(--accent-indigo)]" />
-          </span>
-          <div className="agent-meta">
-            <span className="agent-title">{agentTitle}</span>
-            <span className="agent-type-badge">Agent Run Card</span>
-          </div>
-        </div>
-
-        <div className="agent-status-cluster">
-          <span className={`agent-status-badge ${active ? 'running' : report ? 'completed' : run ? run.state : 'draft'}`}>
-            {active && <span className="agent-status-dot animate-pulse" />}
-            {run?.state ?? 'draft'}
-          </span>
-          {!active && !isInlineEditing && (
-            <button
-              type="button"
-              onClick={() => setIsInlineEditing(true)}
-              className="agent-quick-edit-btn"
-              title="Edit parameters directly on this card"
-              aria-label="Quick edit parameters"
-            >
-              <Pencil size={11} />
-              <span>Edit</span>
-            </button>
-          )}
-        </div>
-      </header>
-
       {/* Main Content: Display or Inline Editor */}
       {isInlineEditing ? (
         <div className="agent-inline-editor">
@@ -560,6 +592,6 @@ export function AgentRunCard({
           </footer>
         </form>
       </dialog>
-    </article>
+    </AgentRunCardFrame>
   );
 }
