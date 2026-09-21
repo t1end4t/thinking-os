@@ -123,6 +123,9 @@ test('agent, fixed 9router provider, context, and resumed session reach the SDK'
   assert.equal((await post({ ...body, agent: 'other' })).status, 400);
   assert.equal((await post({ ...body, message: '', contexts: undefined })).status, 400);
   assert.equal((await post({ ...body, contexts: [{ ...attached[0], type: 'unknown' }] })).status, 400);
+  for (const type of ['direction', 'pipeline', 'weekly-review', 'runtime', 'environment']) {
+    assert.equal((await post({ ...body, conversationId: randomUUID(), contexts: [{ ...attached[0], type }] })).status, 200, `${type} context is accepted`);
+  }
   assert.equal((await post({ ...body, contexts: Array(13).fill(attached[0]) })).status, 400);
   assert.equal((await post({ ...body, dir: '/nonexistent-thinking-os-folder' })).status, 400);
   assert.equal((await post({ ...body, message: 'x'.repeat(65_536) })).status, 413);

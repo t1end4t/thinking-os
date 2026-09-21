@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { TaskItem, TaskStatus, WeeklyReviewItem } from '../../productivityTypes';
+import { setAssistantContextData } from '../../utils/dragDrop';
 
 interface WeeklyReviewViewProps {
   onNavigateToPipeline?: (goalId?: string) => void;
@@ -272,11 +273,25 @@ export function WeeklyReviewView({ onNavigateToPipeline, onNavigateToDirection }
                     return (
                       <button
                         key={review.id}
+                        draggable
+                        data-assistant-draggable="weekly-review"
+                        data-assistant-label={review.title}
+                        onDragStart={event => setAssistantContextData(event, {
+                          type: 'weekly-review',
+                          id: review.id,
+                          label: review.title,
+                          secondaryLabel: `Week of ${review.weekOf} · ${review.status}`,
+                          metadata: {
+                            sourceId: review.id,
+                            excerpt: review.notes.slice(0, 4_000)
+                          }
+                        })}
                         onClick={() => {
                           setSelectedId(review.id);
                           setLocalNotes(review.notes);
                         }}
-                        className={`flex w-full items-center justify-between rounded-lg border p-2.5 text-left transition-all ${
+                        title={`Open ${review.title}. Drag into the assistant to attach it.`}
+                        className={`flex w-full cursor-grab items-center justify-between rounded-lg border p-2.5 text-left transition-all active:cursor-grabbing ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-50/70 text-indigo-900 shadow-xs dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200'
                             : 'border-[var(--color-rule)] bg-[var(--color-paper)] text-[var(--color-ink)] hover:border-slate-400'

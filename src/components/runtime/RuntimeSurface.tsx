@@ -4,6 +4,8 @@ import { EngineSubTab } from '../../productivityTypes';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { TabHelpTip } from '../common/TabHelpTip';
 import { Cpu, ServerCog, Bot, Settings2 } from 'lucide-react';
+import { setAssistantContextData } from '../../utils/dragDrop';
+import type { AssistantContextObject } from '../../types';
 import {
   LocalModelStatus,
   ModelDownloadRequest,
@@ -20,7 +22,7 @@ import {
 
 export function RuntimeSurface() {
   const [currentSubTab, setCurrentSubTab] = useState<EngineSubTab>('services');
-  const { workspaceDir, services, addService, updateService, deleteService, runs, automations, setAutomations, targets } = useWorkspace();
+  const { workspaceDir, services, addService, updateService, deleteService, runs, automations, setAutomations, targets, setActiveContext } = useWorkspace();
   const [processes, setProcesses] = useState<Record<string, ServiceProcessStatus>>({});
   const [execEnabled, setExecEnabled] = useState(false);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
@@ -32,6 +34,60 @@ export function RuntimeSurface() {
   const [modelHardware, setModelHardware] = useState<ModelHardwareStatus | null>(null);
   const [llamaServerAvailable, setLlamaServerAvailable] = useState(false);
   const [busyModelId, setBusyModelId] = useState<string | null>(null);
+  const [environmentContext, setEnvironmentContext] = useState<AssistantContextObject | null>(null);
+
+  const summarize = (lines: string[]) => lines.join('\n').slice(0, 4_000);
+
+  const tabContext = (tab: 'services' | 'llm-models' | 'agent-environment'): AssistantContextObject => {
+    if (tab === 'services') return {
+      type: 'runtime',
+      id: 'tab:runtime-engine',
+      label: 'Runtime Engine tab',
+      secondaryLabel: `${services.length} configured service${services.length === 1 ? '' : 's'}`,
+      metadata: {
+        excerpt: summarize([
+          `Workspace: ${workspaceDir}`,
+          `Runtime execution: ${execEnabled ? 'enabled' : 'disabled'}`,
+          ...services.map(service => {
+            const process = processes[service.id];
+            return `[${process?.activeState ?? service.status}] ${service.name} — ${service.command}${service.port ? ` — port ${service.port}` : ''}`;
+          })
+        ])
+      }
+    };
+    if (tab === 'llm-models') return {
+      type: 'model',
+      id: 'tab:llm-models',
+      label: 'LLM Models tab',
+      secondaryLabel: `${localModels.length} local model${localModels.length === 1 ? '' : 's'}`,
+      metadata: {
+        excerpt: summarize([
+          `Models directory: ${modelsDir}`,
+          `llama-server: ${llamaServerAvailable ? 'available' : 'unavailable'}`,
+          ...(modelHardware ? [`GPU: ${modelHardware.gpuName ?? 'none'} · VRAM ${modelHardware.vramFree}/${modelHardware.vramTotal} free`] : []),
+          ...localModels.map(model => `[${model.status}] ${model.name} — ${model.quantization || 'unknown quantization'} — ${model.size}`)
+        ])
+      }
+    };
+    return environmentContext ?? {
+      type: 'environment',
+      id: 'tab:agent-environment',
+      label: 'Environment tab',
+      secondaryLabel: 'Agent instructions, settings, MCP, skills, and templates',
+      metadata: {
+        excerpt: 'No environment file is selected yet. Open this tab and select an instruction or configuration file before asking the assistant to edit it.'
+      }
+    };
+  };
+
+  const selectContextTab = (tab: 'services' | 'llm-models' | 'agent-environment') => {
+    setCurrentSubTab(tab);
+    setActiveContext(tabContext(tab));
+  };
+
+  useEffect(() => {
+    if (currentSubTab === 'agent-environment') setActiveContext(tabContext('agent-environment'));
+  }, [currentSubTab, environmentContext, setActiveContext]);
 
   const refresh = useCallback(async () => {
     const { enabled, services: statuses } = await loadServiceStatuses(workspaceDir);
@@ -164,7 +220,10 @@ export function RuntimeSurface() {
         <nav aria-label="Runtime Engine Subtabs" className="flex items-center gap-1 p-1 rounded-xl bg-[var(--color-paper)] border border-[var(--color-rule)] shadow-2xs overflow-x-auto max-w-full">
           <button
             type="button"
-            onClick={() => setCurrentSubTab('services')}
+            draggable
+            onDragStart={event => setAssistantContextData(event, tabContext('services'))}
+            onClick={() => selectContextTab('services')}
+            title="Open Runtime Engine. Drag into the assistant to attach its current snapshot."
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium flex items-center gap-1.5 transition-all whitespace-nowrap ${
               currentSubTab === 'services'
                 ? 'bg-[var(--color-surface)] text-violet-700 dark:text-violet-300 border border-violet-300/60 dark:border-violet-700/60 font-semibold shadow-xs'
@@ -179,7 +238,10 @@ export function RuntimeSurface() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentSubTab('llm-models')}
+            draggable
+            onDragStart={event => setAssistantContextData(event, tabContext('llm-models'))}
+            onClick={() => selectContextTab('llm-models')}
+            title="Open LLM Models. Drag into the assistant to attach its current snapshot."
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium flex items-center gap-1.5 transition-all whitespace-nowrap ${
               currentSubTab === 'llm-models'
                 ? 'bg-[var(--color-surface)] text-violet-700 dark:text-violet-300 border border-violet-300/60 dark:border-violet-700/60 font-semibold shadow-xs'
@@ -209,7 +271,10 @@ export function RuntimeSurface() {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentSubTab('agent-environment')}
+            draggable
+            onDragStart={event => setAssistantContextData(event, tabContext('agent-environment'))}
+            onClick={() => selectContextTab('agent-environment')}
+            title="Open Environment. Drag into the assistant to attach the selected file."
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium flex items-center gap-1.5 transition-all whitespace-nowrap ${
               currentSubTab === 'agent-environment'
                 ? 'bg-[var(--color-surface)] text-violet-700 dark:text-violet-300 border border-violet-300/60 dark:border-violet-700/60 font-semibold shadow-xs'
@@ -248,6 +313,7 @@ export function RuntimeSurface() {
         onModelDownload={handleModelDownload}
         automations={automations}
         targets={targets}
+        onEnvironmentContextChange={setEnvironmentContext}
         onToggleAutomation={id =>
           setAutomations(current =>
             current.map(automation =>

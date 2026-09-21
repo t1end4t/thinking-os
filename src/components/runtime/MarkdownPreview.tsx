@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import katex from 'katex';
 import { common, createLowlight } from 'lowlight';
 import { CopyButton } from './CopyButton';
 import './markdown.css';
@@ -20,6 +21,33 @@ const HighlightedCode: React.FC<{ code: string; language: string }> = ({ code, l
   const highlighted = useMemo(() => lowlight.registered(language.toLowerCase()) && code.length <= 100000
     ? renderTokens(lowlight.highlight(language.toLowerCase(), code).children) : code, [code, language]);
   return <code className="syntax-code">{highlighted}</code>;
+};
+
+const MATH_SEGMENT = String.raw`\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$(?!\s)(?:[^$\n]*[^$\s])?\$`;
+
+function parseMath(part: string): { latex: string; display: boolean } | null {
+  if (part.length >= 4 && part.startsWith('$$') && part.endsWith('$$')) return { latex: part.slice(2, -2), display: true };
+  if (part.length >= 4 && part.startsWith('\\[') && part.endsWith('\\]')) return { latex: part.slice(2, -2), display: true };
+  if (part.length >= 4 && part.startsWith('\\(') && part.endsWith('\\)')) return { latex: part.slice(2, -2), display: false };
+  if (part.length >= 2 && part.startsWith('$') && part.endsWith('$')) return { latex: part.slice(1, -1), display: false };
+  return null;
+}
+
+const MathSegment: React.FC<{ latex: string; display: boolean }> = ({ latex, display }) => {
+  const html = useMemo(() => {
+    try {
+      return katex.renderToString(latex, { displayMode: display, throwOnError: false, strict: false, trust: false });
+    } catch {
+      return null;
+    }
+  }, [latex, display]);
+  if (!html) return <code className="font-mono text-[0.8125rem]">{latex}</code>;
+  return (
+    <span
+      className={display ? 'markdown-math-display' : 'markdown-math-inline'}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 };
 
 interface TableData {
@@ -181,10 +209,14 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content, class
   // Helper to format inline markdown (bold, italic, code, link)
   const renderInline = (text: string) => {
     // Break down inline tokens
-    const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g);
+    const parts = text.split(new RegExp(`(\`[^\`]+\`|${MATH_SEGMENT}|\\*\\*[^*]+\\*\\*|\\*[^*]+\\*|\\[[^\\]]+\\]\\([^)]+\\))`, 'g'));
 
     return parts.map((part, idx) => {
       if (!part) return null;
+
+      // Math
+      const math = parseMath(part);
+      if (math) return <MathSegment key={idx} latex={math.latex} display={math.display} />;
 
       // Inline code
       if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {

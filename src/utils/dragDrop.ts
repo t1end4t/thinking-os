@@ -1,20 +1,26 @@
-import { DragEvent } from 'react';
-import { WorkspaceObject, WorkspaceObjectType } from '../productivityTypes';
+import type { DragEvent } from 'react';
+import type { WorkspaceObject, WorkspaceObjectType } from '../productivityTypes';
+import type { AssistantContextObject } from '../types';
 
 export const WORKSPACE_OBJECT_MIME = 'application/x-productivity-os-object';
 
+export function setAssistantContextData(e: DragEvent, context: AssistantContextObject, text = context.label) {
+  e.dataTransfer.setData('application/json', JSON.stringify(context));
+  e.dataTransfer.setData('text/plain', text);
+  e.dataTransfer.effectAllowed = 'copy';
+}
+
 export function setDragObjectData(e: DragEvent, object: WorkspaceObject) {
   const json = JSON.stringify(object);
-  const assistantContext = JSON.stringify({
+  const assistantContext: AssistantContextObject = {
     type: object.objectType,
     id: object.id,
     label: object.title,
     secondaryLabel: object.subtitle,
     metadata: object.meta
-  });
+  };
   e.dataTransfer.setData(WORKSPACE_OBJECT_MIME, json);
-  e.dataTransfer.setData('application/json', assistantContext);
-  e.dataTransfer.setData('text/plain', `[${object.objectType.toUpperCase()}: ${object.title}] ${object.subtitle || ''} ${object.details || ''}`);
+  setAssistantContextData(e, assistantContext, `[${object.objectType.toUpperCase()}: ${object.title}] ${object.subtitle || ''} ${object.details || ''}`);
   e.dataTransfer.effectAllowed = 'copyMove';
 }
 

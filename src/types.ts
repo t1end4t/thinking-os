@@ -228,7 +228,12 @@ export type AssistantContextType =
   | 'automation'
   | 'target'
   | 'learn'
-  | 'unit';
+  | 'unit'
+  | 'direction'
+  | 'pipeline'
+  | 'weekly-review'
+  | 'runtime'
+  | 'environment';
 
 export interface AssistantContextObject {
   type: AssistantContextType;

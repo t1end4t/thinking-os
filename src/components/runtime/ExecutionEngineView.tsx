@@ -47,6 +47,7 @@ import {
   ServiceProcessStatus
 } from '../../runtimeClient';
 import { AgentEnvironmentView } from './AgentEnvironmentView';
+import type { AssistantContextObject } from '../../types';
 
 interface ExecutionEngineViewProps {
   currentSubTab: EngineSubTab;
@@ -75,6 +76,7 @@ interface ExecutionEngineViewProps {
   automations: AutomationItem[];
   targets: TargetItem[];
   onToggleAutomation?: (id: string) => void;
+  onEnvironmentContextChange?: (context: AssistantContextObject | null) => void;
 }
 
 export function ExecutionEngineView({
@@ -103,7 +105,8 @@ export function ExecutionEngineView({
   onModelDownload,
   automations,
   targets,
-  onToggleAutomation
+  onToggleAutomation,
+  onEnvironmentContextChange
 }: ExecutionEngineViewProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -577,7 +580,7 @@ export function ExecutionEngineView({
 
       {/* Main Grid Views for Each Section */}
       <div className={`engine-content-scroll ${currentSubTab === 'agent-environment' ? 'agent-env-scroll' : ''}`}>
-        {currentSubTab === 'agent-environment' && <AgentEnvironmentView />}
+        {currentSubTab === 'agent-environment' && <AgentEnvironmentView onContextChange={onEnvironmentContextChange} />}
         {currentSubTab === 'agent-jobs' && (
           <div className="objects-grid" id="agent-jobs-grid">
             <div className="engine-empty-results">No agent jobs yet.</div>

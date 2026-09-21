@@ -4,3 +4,6 @@
 .syntax-code :is(.hljs-title, .hljs-built_in, .hljs-type, .hljs-selector-class) { color: var(--accent-sky); }
 .syntax-code :is(.hljs-variable, .hljs-meta, .hljs-deletion) { color: var(--accent-rose); }
 .syntax-code :is(.hljs-comment, .hljs-quote) { color: var(--color-ink-muted); font-style: italic; }
+
+.markdown-math-display { display: block; overflow-x: auto; padding: 0.25rem 0; }
+.markdown-math-inline .katex { font-size: 1em; }

@@ -24,9 +24,9 @@ const ContextIcon: React.FC<{ type: string; className?: string }> = ({ type, cla
 
 function turnContext(context: AssistantContextObject): AssistantTurnContext {
   const metadata = context.metadata;
-  const sourceId = [metadata?.nodeId, metadata?.linkId, metadata?.paperId, metadata?.taskId, metadata?.unitId]
+  const sourceId = [metadata?.sourceId, metadata?.nodeId, metadata?.linkId, metadata?.paperId, metadata?.taskId, metadata?.unitId]
     .find((value): value is string => typeof value === 'string' && Boolean(value.trim()));
-  const excerpt = [metadata?.passage, metadata?.latex]
+  const excerpt = [metadata?.excerpt, metadata?.passage, metadata?.latex]
     .find((value): value is string => typeof value === 'string' && Boolean(value.trim()));
   return {
     type: context.type,
@@ -141,7 +141,7 @@ export const AssistantDock: React.FC = () => {
   } = useWorkspace();
   const {
     sessions, openSessions, session, messages, running, status, error, storageWarning,
-    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir, mode
+    send, newConversation, selectSession, closeSession, deleteSession, stop, preferences, projectDir, mode, setMode
   } = codexAssistant;
 
   const [input, setInput] = useState('');
@@ -280,17 +280,21 @@ export const AssistantDock: React.FC = () => {
     if (event.dataTransfer.files.length) { void attachImages(Array.from(event.dataTransfer.files)); return; }
     const payload = event.dataTransfer.getData('application/json');
     if (payload) {
-      if (mode === 'codex') { setToast('Switch to Chat to attach app objects.'); return; }
       try {
         const parsed: AssistantContextObject = JSON.parse(payload);
         if (!parsed || typeof parsed !== 'object' || typeof parsed.id !== 'string' || !parsed.id.trim() || typeof parsed.label !== 'string' || !parsed.label.trim() || typeof parsed.type !== 'string') throw new Error('Invalid attachment');
+        if (mode === 'codex') {
+          if (running) { setToast('Wait for the current turn to finish before attaching.'); return; }
+          setMode('chat');
+        }
         addAttachedContext(parsed);
-        setToast(`Attached ${parsed.label}`);
+        setToast(mode === 'codex' ? `Switched to Chat and attached ${parsed.label}` : `Attached ${parsed.label}`);
         return;
       } catch { setToast('Could not attach this item.'); }
     }
     const text = event.dataTransfer.getData('text/plain');
     if (!text) return;
+    if (mode === 'codex') { setToast('Switch to Chat to attach app objects.'); return; }
     addAttachedContext({ type: 'passage', id: `drop-${Date.now()}`, label: `${text.slice(0, 40)}${text.length > 40 ? '…' : ''}`, secondaryLabel: 'Dropped selection' });
     setToast('Attached snippet');
   }

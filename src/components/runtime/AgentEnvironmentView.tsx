@@ -40,7 +40,9 @@ import {
 } from '../../runtimeClient';
 import { WorkspaceDirListing, listWorkspaceDirs } from '../../vaultClient';
 import { tildePath } from '../../utils/paths';
+import { setAssistantContextData } from '../../utils/dragDrop';
 import { MarkdownPreview } from './MarkdownPreview';
+import type { AssistantContextObject } from '../../types';
 
 type AgentFilter = 'all' | AgentEnvEntry['agent'];
 
@@ -87,7 +89,7 @@ const categories = [
   }
 ] as const;
 
-export function AgentEnvironmentView() {
+export function AgentEnvironmentView({ onContextChange }: { onContextChange?: (context: AssistantContextObject | null) => void }) {
   const [snapshot, setSnapshot] = useState<AgentEnvSnapshot | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [content, setContent] = useState('');
@@ -217,6 +219,29 @@ export function AgentEnvironmentView() {
   const canSave = loadedId === selectedId && !loading && !saving &&
     (isDirty || (selectedEntry?.category === 'template' && !selectedEntry.exists));
   const activeProject = snapshot?.projects.find(project => project.id === scope) ?? null;
+
+  const entryId = selectedEntry?.id ?? null;
+  const entryLabel = selectedEntry?.label ?? '';
+  const entryPath = selectedEntry?.path ?? '';
+  const entryKind = selectedEntry?.kind ?? '';
+  const entryMeta = selectedEntry ? `${selectedEntry.agent} · ${selectedEntry.scope} · ${selectedEntry.category}` : '';
+  useEffect(() => {
+    if (!entryId || loadedId !== entryId) {
+      onContextChange?.(null);
+      return;
+    }
+    onContextChange?.({
+      type: 'environment',
+      id: `environment:${entryId}`,
+      label: entryLabel,
+      secondaryLabel: `${entryMeta}${isDirty ? ' · unsaved draft' : ''}`,
+      metadata: {
+        sourceId: entryPath,
+        nodeType: entryKind,
+        excerpt: content.slice(0, 4_000)
+      }
+    });
+  }, [content, entryId, entryKind, entryLabel, entryMeta, entryPath, isDirty, loadedId, onContextChange]);
 
   const save = async () => {
     if (!selectedId || !canSave) return;
@@ -618,6 +643,16 @@ export function AgentEnvironmentView() {
               <button
                 key={entry.id}
                 type="button"
+                draggable
+                data-assistant-draggable="environment"
+                data-assistant-label={entry.label}
+                onDragStart={event => setAssistantContextData(event, {
+                  type: 'environment',
+                  id: `environment:${entry.id}`,
+                  label: entry.label,
+                  secondaryLabel: `${entry.agent} · ${entry.scope} · ${entry.category}`,
+                  metadata: { sourceId: entry.path, nodeType: entry.kind }
+                }, entry.path)}
                 onClick={() => setSelectedId(entry.id)}
                 className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left border transition-all ${
                   isSelected

@@ -5,13 +5,15 @@ import { WeeklyReviewView } from './WeeklyReviewView';
 import { TabHelpTip } from '../common/TabHelpTip';
 import { CalendarCheck2, Columns3, Compass, ListChecks, Target, Star, AlertCircle, Sparkles } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { setAssistantContextData } from '../../utils/dragDrop';
+import type { AssistantContextObject } from '../../types';
 
 type TasksView = 'direction' | 'pipeline' | 'reviews';
 
 export function TasksSurface() {
   const [view, setView] = useState<TasksView>('pipeline');
   const [activeGoalFilter, setActiveGoalFilter] = useState<string | null>(null);
-  const { goals, tasks, weeklyReviews } = useWorkspace();
+  const { goals, tasks, weeklyReviews, setActiveContext } = useWorkspace();
 
   const oneYearGoals = goals.filter(g => g.horizon === 'one-year');
   const fiveYearGoals = goals.filter(g => g.horizon === 'five-year');
@@ -24,8 +26,53 @@ export function TasksSurface() {
 
   const latestReview = [...weeklyReviews].sort((a, b) => b.weekOf.localeCompare(a.weekOf))[0];
 
+  const summarize = (lines: string[]) => lines.join('\n').slice(0, 4_000);
+
+  const tabContext = (target: TasksView): AssistantContextObject => {
+    if (target === 'direction') return {
+      type: 'direction',
+      id: 'tab:direction',
+      label: 'Direction tab',
+      secondaryLabel: `${fiveYearGoals.length} five-year · ${oneYearGoals.length} one-year`,
+      metadata: {
+        excerpt: summarize([
+          `Current focus: ${currentFocusGoal?.title ?? 'none'}`,
+          ...fiveYearGoals.map(goal => `[five-year] ${goal.title} — ${goal.status}`),
+          ...oneYearGoals.map(goal => `[one-year] ${goal.title} — ${goal.status}${goal.targetDate ? ` (due ${goal.targetDate})` : ''}`)
+        ])
+      }
+    };
+    if (target === 'pipeline') return {
+      type: 'pipeline',
+      id: 'tab:pipeline',
+      label: 'Pipeline tab',
+      secondaryLabel: `${inFlightTasks.length} active · ${doneTasks.length}/${tasks.length} done`,
+      metadata: {
+        excerpt: summarize([
+          `Alignment: ${alignmentPercent}% of tasks linked to a milestone`,
+          `Unassigned drift: ${unassignedTasks.length}`,
+          ...tasks.map(task => `[${task.status}] ${task.title} — priority ${task.priority}${task.goalId ? '' : ' (unassigned)'}`)
+        ])
+      }
+    };
+    return {
+      type: 'weekly-review',
+      id: 'tab:weekly-review',
+      label: 'Weekly Review tab',
+      secondaryLabel: latestReview ? `Latest: ${latestReview.title} (${latestReview.status})` : 'No reviews yet',
+      metadata: {
+        ...(latestReview ? { sourceId: latestReview.id } : {}),
+        excerpt: summarize([
+          `Reviews recorded: ${weeklyReviews.length}`,
+          ...(latestReview ? [`Latest week of ${latestReview.weekOf} — ${latestReview.status}`, latestReview.notes] : [])
+        ])
+      }
+    };
+  };
+
   const handleNavigate = (targetView: TasksView, goalId?: string) => {
     setView(targetView);
+    setActiveContext(tabContext(targetView));
     if (goalId !== undefined) {
       setActiveGoalFilter(goalId);
     }
@@ -110,6 +157,7 @@ export function TasksSurface() {
           <ViewTab
             active={view === 'direction'}
             onClick={() => handleNavigate('direction')}
+            onDragStart={event => setAssistantContextData(event, tabContext('direction'))}
             icon={<Compass size={14} />}
             label="Direction"
             badge={`${oneYearGoals.length + fiveYearGoals.length}`}
@@ -117,6 +165,7 @@ export function TasksSurface() {
           <ViewTab
             active={view === 'pipeline'}
             onClick={() => handleNavigate('pipeline')}
+            onDragStart={event => setAssistantContextData(event, tabContext('pipeline'))}
             icon={<Columns3 size={14} />}
             label="Pipeline"
             badge={`${inFlightTasks.length} active`}
@@ -124,6 +173,7 @@ export function TasksSurface() {
           <ViewTab
             active={view === 'reviews'}
             onClick={() => handleNavigate('reviews')}
+            onDragStart={event => setAssistantContextData(event, tabContext('reviews'))}
             icon={<CalendarCheck2 size={14} />}
             label="Weekly Review"
             badge={latestReview?.status === 'complete' ? 'Completed' : 'Draft / Due'}
@@ -165,6 +215,7 @@ export function TasksSurface() {
 function ViewTab({
   active,
   onClick,
+  onDragStart,
   icon,
   label,
   badge,
@@ -172,6 +223,7 @@ function ViewTab({
 }: {
   active: boolean;
   onClick: () => void;
+  onDragStart?: (event: React.DragEvent) => void;
   icon: React.ReactNode;
   label: string;
   badge?: string;
@@ -186,6 +238,9 @@ function ViewTab({
   return (
     <button
       onClick={onClick}
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
+      title={onDragStart ? `Open ${label}. Drag into the assistant to attach it as context.` : undefined}
       className={`inline-flex h-8 items-center gap-2 rounded-md border px-3 font-mono text-xs transition-colors ${
         active
           ? 'border-indigo-300 bg-indigo-50 font-semibold text-indigo-700 shadow-2xs dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'

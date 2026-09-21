@@ -47,7 +47,7 @@ try {
         { type: 'item.completed', item: { id: 'command', type: 'command_execution', command: 'pwd', status: 'completed', aggregated_output: '/tmp/assistant-ui-test', exit_code: 0 } },
         { type: 'item.completed', item: { id: 'warning', type: 'error', message: 'Nonfatal provider metadata notice.' } },
         { type: 'item.completed', item: { id: 'interim', type: 'agent_message', text: 'Interim update before the final answer.' } },
-        { type: 'item.completed', item: { id: 'reply', type: 'agent_message', text: '## Capabilities\n\n**Review** code safely.\n\n- Read files\n- Run checks\n\n```python\nprint("hello")\n```\n\n| Task | Status |\n| --- | --- |\n| Review | Ready |\n\n[Safe](https://example.com) [Unsafe](javascript:alert)\n\n<script>alert("bad")</script>' } },
+        { type: 'item.completed', item: { id: 'reply', type: 'agent_message', text: '## Capabilities\n\n**Review** code safely.\n\n\\[\\text{Data} \\rightarrow \\text{Model}\\]\n\nInline $x^2 + y^2$.\n\n- Read files\n- Run checks\n\n```python\nprint("hello")\n```\n\n| Task | Status |\n| --- | --- |\n| Review | Ready |\n\n[Safe](https://example.com) [Unsafe](javascript:alert)\n\n<script>alert("bad")</script>' } },
         { type: 'turn.completed', usage: {} }
       ];
       return new Response(new ReadableStream({
@@ -140,6 +140,13 @@ try {
   await panel.dispatchEvent('drop', { dataTransfer: imageTransfer });
   await expect(panel.getByRole('button', { name: 'Remove image pasted.png' })).toBeVisible();
   await expect(panel.getByRole('button', { name: 'Remove Private claim' })).toBeVisible();
+  const taskViews = page.getByRole('navigation', { name: 'Tasks workspace views' });
+  const pipelineTab = taskViews.getByRole('button', { name: /^Pipeline/ });
+  for (const name of [/^Direction/, /^Pipeline/, /^Weekly Review/]) {
+    await expect(taskViews.getByRole('button', { name })).toHaveAttribute('draggable', 'true');
+  }
+  await pipelineTab.dragTo(panel);
+  await expect(panel.getByRole('button', { name: 'Remove Pipeline tab' })).toBeVisible();
   const modeMenu = panel.locator('details.assistant-mode-menu');
   await expect(modeMenu.locator('summary')).toHaveAttribute('aria-label', 'Assistant mode: Chat');
   await modeMenu.locator('summary').click();
@@ -148,6 +155,12 @@ try {
   await expect(modeMenu.getByRole('navigation', { name: 'Assistant modes' })).toBeHidden();
   await expect(modeMenu.locator('summary')).toHaveAttribute('aria-label', 'Assistant mode: Codex');
   await expect(panel.getByRole('button', { name: 'Remove Private claim' })).toHaveCount(0);
+  await pipelineTab.dragTo(panel);
+  await expect(modeMenu.locator('summary')).toHaveAttribute('aria-label', 'Assistant mode: Chat');
+  await expect(panel.getByRole('button', { name: 'Remove Pipeline tab' })).toBeVisible();
+  await modeMenu.locator('summary').click();
+  await modeMenu.getByRole('button', { name: /^Codex/ }).click();
+  await expect(panel.getByRole('button', { name: 'Remove Pipeline tab' })).toHaveCount(0);
   await panel.getByRole('button', { name: 'Remove image pasted.png' }).click();
   await panel.getByLabel('Choose images').setInputFiles({ name: 'diagram.png', mimeType: 'image/png', buffer: png });
   await expect(panel.getByRole('button', { name: 'Remove image diagram.png' })).toBeVisible();
@@ -175,6 +188,8 @@ try {
   await steps.scrollIntoViewIfNeeded();
   await panel.screenshot({ path: '/tmp/thinking-os-assistant-steps-collapsed.png' });
   await expect(transcript.getByText('Interim update before the final answer.')).toBeHidden();
+  await expect(transcript.locator('.markdown-math-display .katex')).toHaveCount(1);
+  await expect(transcript.locator('.markdown-math-inline .katex')).toHaveCount(1);
   await steps.click();
   await expect(panel.getByRole('button', { name: /Reasoning summary/ })).toBeVisible();
   await expect(transcript.getByText('Interim update before the final answer.')).toBeVisible();

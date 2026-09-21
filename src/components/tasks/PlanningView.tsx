@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { GoalHorizon, GoalItem, GoalStatus, TaskItem, TaskStatus } from '../../productivityTypes';
+import { setAssistantContextData } from '../../utils/dragDrop';
 
 interface PlanningViewProps {
   onNavigateToPipeline?: (goalId: string) => void;
@@ -158,7 +159,21 @@ export function PlanningView({ onNavigateToPipeline }: PlanningViewProps) {
       <article
         key={goal.id}
         id={`goal-card-${goal.id}`}
-        className={`rounded-xl border bg-[var(--color-surface)] p-4 transition-all shadow-sm ${
+        draggable={!isEditing}
+        data-assistant-draggable="goal"
+        data-assistant-label={goal.title}
+        onDragStart={event => setAssistantContextData(event, {
+          type: 'direction',
+          id: goal.id,
+          label: goal.title,
+          secondaryLabel: `${goal.horizon} · ${goal.status}${goal.isCurrentFocus ? ' · current focus' : ''}`,
+          metadata: {
+            sourceId: goal.id,
+            excerpt: [goal.description, goal.targetDate ? `Target date: ${goal.targetDate}` : '', `${doneCount}/${linkedTasks.length} linked tasks done`].filter(Boolean).join('\n')
+          }
+        })}
+        title={isEditing ? undefined : `Drag ${goal.title} into the assistant`}
+        className={`rounded-xl border bg-[var(--color-surface)] p-4 transition-all shadow-sm ${!isEditing ? 'cursor-grab active:cursor-grabbing' : ''} ${
           goal.isCurrentFocus
             ? 'border-indigo-500 ring-2 ring-indigo-500/20'
             : 'border-[var(--color-rule)] hover:border-slate-400 dark:hover:border-slate-600'
