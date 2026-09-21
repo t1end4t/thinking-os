@@ -41,7 +41,6 @@ import { LearningUnit, LearnBlock, LearnSource, LearnViewMode } from '../learnTy
 import { normalizeLearningUnit, scheduleCard } from '../utils/learnBlocks';
 import { loadVault, saveVault, type VaultSnapshot } from '../vaultClient';
 import { useCodexAssistant } from './useCodexAssistant';
-import { SAMPLE_SNAPSHOT } from '../data/sampleVault';
 import { getEvidenceSource } from '../utils/evidenceSource';
 import { normalizeSurvey, linkSurveyProblems, unlinkSurveyProblem } from '../utils/survey';
 import { paperIdentity } from '../utils/paperIdentity';
@@ -269,8 +268,6 @@ interface WorkspaceContextValue extends ManuscriptWorkspaceValue {
   sendAssistantMessage: (contextId: string, userText: string, attachedList?: AssistantContextObject[]) => void;
   checkLinkWithAssistant: (linkId: string) => void;
   clearThread: (contextId: string) => void;
-  loadSampleData: () => Promise<void>;
-
   // Learn: source boards and visual blocks
   activeLearnTab: LearnViewMode;
   setActiveLearnTab: (tab: LearnViewMode) => void;
@@ -542,44 +539,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return pendingSave.current;
   }, []);
 
-  const loadSampleData = useCallback(async (targetDir?: string) => {
-    const dirToPersist = targetDir || workspaceDir;
-    setWorkspaceLoading(true);
-    try {
-      setQuestions(SAMPLE_SNAPSHOT.questions);
-      setClaims(SAMPLE_SNAPSHOT.claims);
-      setEvidence(SAMPLE_SNAPSHOT.evidence);
-      setLinks(SAMPLE_SNAPSHOT.links);
-      const survey = normalizeSurvey(SAMPLE_SNAPSHOT.openProblems, SAMPLE_SNAPSHOT.candidateQuestions);
-      setOpenProblems(survey.openProblems);
-      setCandidateQuestions(survey.candidateQuestions);
-      setPapers(SAMPLE_SNAPSHOT.papers);
-      setExperiments(SAMPLE_SNAPSHOT.experiments);
-      setTasks(SAMPLE_SNAPSHOT.tasks.map(task => ({
-        ...task,
-        author: task.author ?? 'user',
-        lastEditedBy: task.lastEditedBy ?? task.author ?? 'user'
-      })));
-      setGoals(SAMPLE_SNAPSHOT.goals);
-      setWeeklyReviews(SAMPLE_SNAPSHOT.weeklyReviews);
-      setServices(SAMPLE_SNAPSHOT.services);
-      setRuns(SAMPLE_SNAPSHOT.runs);
-      setModels(SAMPLE_SNAPSHOT.models);
-      setAutomations(SAMPLE_SNAPSHOT.automations);
-      setTargets(SAMPLE_SNAPSHOT.targets);
-      setReproductions(SAMPLE_SNAPSHOT.reproductions ?? []);
-      setAlternatives(SAMPLE_SNAPSHOT.alternatives ?? []);
-      setLearningUnits(SAMPLE_SNAPSHOT.learningUnits);
-      setThreads(INITIAL_THREADS);
-      manuscriptWorkspace.resetManuscriptToSample();
-      await persistSnapshot(dirToPersist, { ...SAMPLE_SNAPSHOT, learningUnits: SAMPLE_SNAPSHOT.learningUnits });
-    } catch (err) {
-      console.error('Failed to load sample data:', err);
-    } finally {
-      setWorkspaceLoading(false);
-    }
-  }, [workspaceDir, manuscriptWorkspace, persistSnapshot]);
-
   const setWorkspaceDir = useCallback(async (dir: string) => {
     if (savePaused.current) return;
     const requestedDir = dir.trim() || '~/second-brain';
@@ -592,15 +551,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setWorkspaceDirState(loaded.dir);
       localStorage.setItem('thinking_os_workspace_dir', loaded.dir);
       
-      const isCompletelyEmpty = Object.values(loaded.data).every(
-        v => !Array.isArray(v) || v.length === 0
-      );
-
-      if (isCompletelyEmpty) {
-        await loadSampleData(loaded.dir);
-      } else {
-        applySnapshot(loaded.data);
-      }
+      applySnapshot(loaded.data);
       pendingSave.current = Promise.resolve();
       setVaultReady(true);
     } catch (error) {
@@ -608,7 +559,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } finally {
       setWorkspaceLoading(false);
     }
-  }, [applySnapshot, loadSampleData]);
+  }, [applySnapshot]);
 
   const codexAssistant = useCodexAssistant(workspaceDir, async dir => {
     if (dir !== workspaceDir) return;
@@ -1626,7 +1577,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         sendAssistantMessage,
         checkLinkWithAssistant,
         clearThread,
-        loadSampleData,
         learningUnits,
         setLearningUnits,
         activeLearningUnitId,

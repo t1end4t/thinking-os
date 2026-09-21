@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readdir, readFile, writeFile, rename } from 'node:fs/pr
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { readVault, writeVault, resolveVaultDir, DEFAULT_VAULT, listDirs } from './vault.mjs';
+import { buildVaultIndex, readVault, writeVault, resolveVaultDir, DEFAULT_VAULT, listDirs } from './vault.mjs';
 
 const root = await mkdtemp(path.join(tmpdir(), 'thinking-os-vault-'));
 
@@ -32,6 +32,13 @@ const snapshot = {
 await writeVault(root, snapshot);
 const roundTripped = await readVault(root);
 
+const generatedIndex = await readFile(path.join(root, 'INDEX.md'), 'utf8');
+assert.equal(generatedIndex, buildVaultIndex(snapshot).replace('<!-- thinking-os:workspace-summary:start -->', '# Workspace Index\n\n<!-- thinking-os:workspace-summary:start -->') + '\n');
+assert.match(generatedIndex, /Publish the result \[id: g1, status: active\]/);
+assert.match(generatedIndex, /Ship it \[id: t1, status: todo, priority: low\]/);
+assert.match(generatedIndex, /Experiment \[id: exp1, status: queued, question: missing, claim: c1\]/);
+assert.match(generatedIndex, /Run \[id: r1, run queued\]/);
+
 assert.deepEqual(roundTripped.questions, snapshot.questions);
 assert.deepEqual(roundTripped.tasks, snapshot.tasks);
 assert.deepEqual(roundTripped.goals, snapshot.goals);
@@ -55,6 +62,14 @@ assert.deepEqual((await readVault(root)).papers, [highlightedPaper]);
 await writeVault(root, { ...snapshot, papers: [{ ...highlightedPaper, highlights: [] }] });
 assert.deepEqual((await readVault(root)).papers[0].highlights, []);
 
+await writeFile(path.join(root, 'INDEX.md'), `# My navigation\n\nKeep this note.\n\n${buildVaultIndex(snapshot)}\n`);
+await writeVault(root, { ...snapshot, tasks: [{ ...snapshot.tasks[0], title: 'Updated task title' }] });
+const updatedIndex = await readFile(path.join(root, 'INDEX.md'), 'utf8');
+assert.match(updatedIndex, /^# My navigation\n\nKeep this note\./);
+assert.match(updatedIndex, /Updated task title \[id: t1/);
+assert.doesNotMatch(updatedIndex, /Ship it \[id: t1/);
+assert.equal(updatedIndex.match(/thinking-os:workspace-summary:start/g)?.length, 1);
+
 // prose stays plain markdown, no frontmatter noise
 assert.equal(await readFile(path.join(root, 'research/map/questions/q1.md'), 'utf8'), 'Does it round-trip?\n');
 assert.ok(existsSync(path.join(root, 'research/map/links/q1--c1.json')));
@@ -63,7 +78,7 @@ assert.ok(existsSync(path.join(root, 'tasks/direction/g1.md')));
 assert.ok(existsSync(path.join(root, 'learn/board/u1.md')));
 assert.deepEqual(
   (await readdir(root)).filter(name => !name.startsWith('.')).sort(),
-  ['learn', 'research', 'runtime', 'tasks']
+  ['INDEX.md', 'learn', 'research', 'runtime', 'tasks']
 );
 
 // deletions propagate to disk
@@ -161,6 +176,7 @@ await writeFile(path.join(conflictRoot, 'research/map/claims/c9.md'), 'legacy te
 await writeVault(conflictRoot, { tasks: snapshot.tasks });
 assert.deepEqual((await readVault(conflictRoot)).claims, [{ id: 'c9', text: 'legacy text' }]);
 assert.ok(!existsSync(path.join(conflictRoot, 'claims')));
+assert.match(await readFile(path.join(conflictRoot, 'INDEX.md'), 'utf8'), /\| Claims \| 1 \|/);
 
 await mkdir(path.join(root, 'visible-folder'));
 await mkdir(path.join(root, '.hidden-folder'));

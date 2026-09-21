@@ -103,6 +103,10 @@ test('agent, fixed 9router provider, context, and resumed session reach the SDK'
   const events = (await (await post(body)).text()).trim().split('\n').map(line => JSON.parse(line));
   assert.deepEqual(events.map(event => event.type), ['thread.started', 'item.completed', 'item.completed', 'turn.completed']);
   assert.deepEqual(messages, [buildTurnMessage('hello\nworld', attached, 'chat')]);
+  assert.match(messages[0], /Read INDEX\.md first/);
+  assert.match(messages[0], /Direction -> Task/);
+  assert.match(messages[0], /paper-backed evidence and a claim-evidence link/);
+  assert.match(messages[0], /attached objects as the user's current focus, not as the complete workspace/);
   assert.deepEqual(clientOptions, [{ config: { model_provider: '9router' } }]);
   assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true }]);
 

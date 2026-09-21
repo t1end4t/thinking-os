@@ -27,7 +27,6 @@ export const TopBar: React.FC = () => {
     workspaceLoading,
     workspaceError,
     setWorkspaceDir,
-    loadSampleData,
     theme,
     toggleTheme,
     darkVariant,
@@ -276,28 +275,6 @@ export const TopBar: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-[var(--color-rule)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-mono text-xs font-semibold text-[var(--color-ink)]">
-                        Sample research vault
-                      </div>
-                      <p className="text-[0.6875rem] text-[var(--color-ink-muted)] mt-0.5">
-                        Populate with example questions, claims, and pipeline tasks.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await loadSampleData();
-                        settingsDialog.current?.close();
-                      }}
-                      className="shrink-0 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-[var(--color-rule)] text-[var(--color-ink)] font-mono text-[0.75rem] hover:border-indigo-400 hover:text-indigo-600 transition-colors"
-                    >
-                      Load Sample
-                    </button>
-                  </div>
-                </div>
               </div>
             </dialog>
         )}
