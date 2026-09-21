@@ -52,4 +52,5 @@ Thinking OS is a dense, quiet research instrument. Compact controls, restrained 
 - Every drag action has a labeled keyboard equivalent. Association dialogs require a relevance reason, support Escape, and restore focus. Multi-select creates a candidate from several problems.
 - Paper-reader capture keeps the source excerpt, page, and author-stated versus user-inferred attribution visible. It never claims that a problem remains unresolved without verification.
 - Agent Jobs owns schedules and run history. Discover can create a monitoring job but does not duplicate job management. Scheduler availability and server-local time zone remain explicit.
+- Research tabs may expose a named agent profile and its responsibility boundary. The profile is descriptive until a real provider is connected; execution state, schedules, and history remain owned by Runtime / Agent Jobs.
 - Use existing semantic surface, ink, rule, and accent tokens, the 4px spacing scale, and native focus states. No new animation, font, or dependency is required.

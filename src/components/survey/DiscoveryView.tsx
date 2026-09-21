@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLiterature } from '../../context/useLiterature';
 import { sameDiscoveryPaper } from '../../literatureClient';
@@ -19,12 +19,8 @@ import {
   FilePlus2,
   Compass,
   ArrowRight,
-  SlidersHorizontal,
   Layers,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Bookmark
+  ListFilter
 } from 'lucide-react';
 import './literature.css';
 
@@ -248,9 +244,17 @@ export function DiscoveryView() {
   return (
     <div className="discovery-surface">
       <div className="discovery-container">
+        <section className="discovery-mission" aria-labelledby="discovery-mission-title">
+          <div>
+            <span className="discovery-section-index">Discover</span>
+            <h2 id="discovery-mission-title">Describe the research question.</h2>
+            <p>Include the mechanism, population, constraint, comparison, or evidence gap. Paper Scout formulates retrieval queries; you judge relevance and quality.</p>
+          </div>
+        </section>
+
         {/* Global Feedback Notifications */}
         {notice && (
-          <div role="status" className="p-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-xs animate-in fade-in">
+          <div role="status" className="discovery-feedback p-3 rounded-xl border border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span className="font-medium">{notice}</span>
@@ -262,7 +266,7 @@ export function DiscoveryView() {
         )}
 
         {errorMsg && (
-          <div role="alert" className="p-3 rounded-xl border border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 flex items-center justify-between text-xs animate-in fade-in">
+          <div role="alert" className="discovery-feedback p-3 rounded-xl border border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <AlertCircle size={15} className="text-rose-600 dark:text-rose-400 shrink-0" />
               <span className="font-medium">{errorMsg}</span>
@@ -288,7 +292,7 @@ export function DiscoveryView() {
               type="text"
               value={searchPrompt}
               onChange={e => setSearchPrompt(e.target.value)}
-              placeholder="Search literature with natural research questions, empirical mechanisms, or keywords…"
+              placeholder="Example: Which TinyML methods reduce transformer memory without losing anomaly-detection recall?"
               disabled={busy}
               className="scholar-search-input"
             />
@@ -318,7 +322,7 @@ export function DiscoveryView() {
                 ) : (
                   <>
                     <Sparkles size={13} />
-                    <span>Search</span>
+                    <span>Scout papers</span>
                   </>
                 )}
               </button>
@@ -354,7 +358,7 @@ export function DiscoveryView() {
                   className="accent-[var(--accent-indigo)]"
                 />
                 <span className="text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
-                  AI Query Expansion
+                  Codex query expansion
                 </span>
               </label>
 
@@ -364,7 +368,7 @@ export function DiscoveryView() {
                 className="inline-flex items-center gap-1 text-[0.6875rem] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
               >
                 <Clock size={12} />
-                <span>Monitoring Job</span>
+                <span>Schedule job</span>
               </button>
 
               <button
@@ -383,7 +387,11 @@ export function DiscoveryView() {
 
         {/* 2. AI Synthesis & Query Strategy Banner (Visible after search or when queries exist) */}
         {(lastSearchedPrompt || literature.searchQueries.length > 0) && (
-          <section className="scholar-ai-banner animate-in fade-in slide-in-from-top-2">
+          <details className="scholar-ai-banner animate-in fade-in" aria-label="Search strategy">
+            <summary>
+              <span>Search strategy</span>
+              <strong>{literature.searchQueries.length} queries · {literature.searchResults.length} candidates</strong>
+            </summary>
             <div className="scholar-ai-banner-header">
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[var(--accent-indigo)] flex items-center justify-center shrink-0">
@@ -391,10 +399,10 @@ export function DiscoveryView() {
                 </span>
                 <div>
                   <h3 className="text-xs font-bold text-[var(--color-ink)]">
-                    {lastSearchedPrompt ? `Search Scope: "${lastSearchedPrompt}"` : 'Academic Query Formulation'}
+                    {lastSearchedPrompt ? `Search brief: "${lastSearchedPrompt}"` : 'Search strategy'}
                   </h3>
                   <p className="text-[0.6875rem] text-[var(--color-ink-muted)]">
-                    Cross-referenced academic repositories across Crossref & arXiv. Found {literature.searchResults.length} matching publications.
+                    Retrieval queries sent to Crossref and arXiv. {literature.searchResults.length} candidate publications require review.
                   </p>
                 </div>
               </div>
@@ -427,11 +435,18 @@ export function DiscoveryView() {
                 </button>
               ))}
             </div>
-          </section>
+          </details>
         )}
 
         {/* 3. Integrated Paper Catalog Section */}
-        <section className="flex flex-col gap-3">
+        <section className="literature-inbox flex flex-col gap-3" aria-labelledby="literature-inbox-heading">
+          <header className="literature-inbox-heading">
+            <div>
+              <span className="discovery-section-index">Evidence inbox</span>
+              <h2 id="literature-inbox-heading">Review before saving.</h2>
+            </div>
+            <p><ListFilter size={12} aria-hidden="true" />Metadata is discovered. Relevance and scientific quality are not inferred automatically.</p>
+          </header>
           {/* Catalog Toolbar & Filters */}
           <div className="catalog-toolbar">
             <div className="catalog-filter-group">
@@ -495,7 +510,10 @@ export function DiscoveryView() {
 
               <select
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
+                onChange={event => {
+                  const value = event.target.value;
+                  if (value === 'year-desc' || value === 'year-asc' || value === 'title') setSortBy(value);
+                }}
                 className="text-xs py-1.5 px-2 rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] text-[var(--color-ink)] font-mono"
               >
                 <option value="year-desc">Newest Year</option>
@@ -515,7 +533,7 @@ export function DiscoveryView() {
               <p className="text-xs text-[var(--color-ink-muted)] max-w-md mx-auto mt-1">
                 {catalogFilter
                   ? 'Try clearing or changing your keyword search filter.'
-                  : 'Enter a research topic in the search box above to discover publications across arXiv and Crossref.'}
+                  : 'Write a research brief on the left. The resulting candidates will retain the queries and job provenance that found them.'}
               </p>
             </div>
           )}
