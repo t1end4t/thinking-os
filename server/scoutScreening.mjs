@@ -108,7 +108,7 @@ export async function screenScoutCandidates(brief, candidates, { batchSize = 6, 
         values = validateBatchOutput(await screenBatch(brief, batch, { signal, repairError: firstError?.message }), batch);
         break;
       } catch (error) {
-        if (signal?.aborted || error?.name === 'AbortError') throw error;
+        if (signal?.aborted) throw error;
         firstError = error instanceof Error ? error : new Error(String(error));
       }
     }

@@ -112,6 +112,16 @@ test('screening cancellation aborts without repair', async () => {
   await assert.rejects(promise, /Cancelled/);
 });
 
+test('screening timeout-shaped abort errors leave the batch unscreened', async () => {
+  const result = await screenScoutCandidates(brief, [candidates[0]], {
+    screenBatch: async () => { throw new DOMException('Timed out', 'AbortError'); }
+  });
+  assert.equal(result.assessed.length, 0);
+  assert.deepEqual(result.unscreened.map(item => item.id), [candidates[0].id]);
+  assert.equal(result.failures.length, 1);
+  assert.match(result.failures[0].error, /Timed out/);
+});
+
 test('Codex screening invocation uses an isolated read-only thread and JSON schema', async () => {
   let clientOptions;
   let threadOptions;

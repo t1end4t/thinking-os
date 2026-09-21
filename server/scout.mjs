@@ -142,7 +142,7 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
           reportId: run.id, updatedAt: finishedAt, finishedAt });
       });
     } catch (error) {
-      const cancelled = controller.signal.aborted || error?.name === 'AbortError';
+      const cancelled = controller.signal.aborted;
       const interrupted = cancelled && controller.signal.reason?.message === 'Server closed';
       const finishedAt = now();
       await withVaultLock(root, async () => {
