@@ -1,8 +1,10 @@
 import type {
   ScoutAuthor,
   ScoutBrief,
+  ScoutLiveCandidate,
   ScoutProviderAttempt,
   ScoutRun,
+  ScoutRunActivity,
   ScoutSearchDirection,
   ScoutSource,
   ScoutSourceContext,
@@ -92,6 +94,7 @@ export function parseBrief(value: unknown): ScoutBrief {
     searchDirections: list(item.searchDirections, 'brief.searchDirections', parseDirection),
     screeningCriteria: texts(item.screeningCriteria, 'brief.screeningCriteria'),
     maxRecommendations: integer(item.maxRecommendations, 'brief.maxRecommendations'),
+    recencyPolicy: item.recencyPolicy === undefined ? 'recent' : literal(item.recencyPolicy, ['recent', 'mixed', 'foundational-gap'] as const, 'brief recency policy'),
     createdFrom: parseSourceContext(item.createdFrom),
     author: parseAuthor(item.author),
     createdAt: number(item.createdAt, 'brief.createdAt'),
@@ -158,6 +161,27 @@ export function parseInputSnapshot(value: unknown): ScoutBrief | TopicWatch {
   return item.question === undefined ? parseWatch(item) : parseBrief(item);
 }
 
+function parseLiveCandidate(value: unknown, index: number): ScoutLiveCandidate {
+  const item = record(value, `run.liveCandidates[${index}]`);
+  return {
+    id: identifier(item.id, `run.liveCandidates[${index}].id`),
+    title: identifier(item.title, `run.liveCandidates[${index}].title`),
+    authors: text(item.authors ?? '', `run.liveCandidates[${index}].authors`),
+    year: optional(item.year, input => integer(input, `run.liveCandidates[${index}].year`)),
+    sources: texts(item.sources ?? [], `run.liveCandidates[${index}].sources`),
+    status: literal(item.status ?? 'retrieved', ['retrieved', 'screening', 'screened', 'recommended', 'uncertain', 'rejected'] as const, `run.liveCandidates[${index}].status`)
+  };
+}
+
+function parseRunActivity(value: unknown): ScoutRunActivity {
+  const item = record(value, 'run.currentActivity');
+  return {
+    label: identifier(item.label, 'run.currentActivity.label'),
+    detail: text(item.detail, 'run.currentActivity.detail'),
+    startedAt: number(item.startedAt, 'run.currentActivity.startedAt')
+  };
+}
+
 export function parseRun(value: unknown): ScoutRun {
   const item = record(value, 'run');
   const counters = record(item.counters, 'run.counters');
@@ -181,6 +205,8 @@ export function parseRun(value: unknown): ScoutRun {
     finishedAt: optional(item.finishedAt, input => number(input, 'run.finishedAt')),
     reportId: optional(item.reportId, input => identifier(input, 'run.reportId')),
     cancellationReason: optional(item.cancellationReason, input => text(input, 'run.cancellationReason')),
-    error: optional(item.error, input => text(input, 'run.error'))
+    error: optional(item.error, input => text(input, 'run.error')),
+    liveCandidates: optional(item.liveCandidates, input => list(input, 'run.liveCandidates', parseLiveCandidate)),
+    currentActivity: optional(item.currentActivity, parseRunActivity)
   };
 }

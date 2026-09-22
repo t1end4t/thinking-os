@@ -113,18 +113,18 @@ export function useScouts(dir: string) {
     }
   }, [dir, store]);
 
-  const control = useCallback(async (action: ScoutControlAction, operation: (signal: AbortSignal) => Promise<unknown>): Promise<boolean> => {
+  const control = useCallback(async <T>(action: ScoutControlAction, operation: (signal: AbortSignal) => Promise<T>): Promise<T | false> => {
     if (store.state.busy) return false;
     const controller = new AbortController();
     store.controllers.add(controller);
     store.revision++;
     publish(store, { busy: action, error: null });
     try {
-      await operation(controller.signal);
+      const result = await operation(controller.signal);
       if (controller.signal.aborted) return false;
       const snapshot = await loadScouts(dir, controller.signal);
       if (!controller.signal.aborted) publish(store, { snapshot, loading: false, error: null });
-      return true;
+      return result;
     } catch (error) {
       if (!controller.signal.aborted) publish(store, { error: errorMessage(error) });
       return false;
@@ -137,7 +137,7 @@ export function useScouts(dir: string) {
   return {
     ...state,
     refresh,
-    saveBrief: (id: string, brief: ScoutBriefInput) => control('save-brief', signal => saveScoutBriefRequest(dir, id, brief, signal)),
+    saveBrief: (id: string | undefined, brief: ScoutBriefInput) => control('save-brief', signal => saveScoutBriefRequest(dir, id, brief, signal)),
     saveWatch: (id: string | undefined, watch: TopicWatchInput) => control('save-watch', signal => saveTopicWatchRequest(dir, id, watch, signal)),
     deleteWatch: (id: string) => control('delete-watch', signal => deleteTopicWatchRequest(dir, id, signal)),
     startRun: (id: string, kind: 'brief' | 'watch' = 'brief') => control('start-run', signal => startScoutRunRequest(dir, id, signal, kind)),

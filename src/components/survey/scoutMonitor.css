@@ -566,6 +566,58 @@
   border-top: 1px solid var(--color-rule);
 }
 
+.scout-current-activity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--color-rule);
+  background: color-mix(in srgb, var(--accent-amber, #d97706) 7%, var(--color-paper));
+}
+
+.scout-current-activity-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent-amber, #d97706);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-amber, #d97706) 16%, transparent);
+}
+
+.scout-current-activity-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.scout-current-activity-kicker,
+.scout-current-activity-freshness {
+  font: 600 0.625rem var(--font-mono, monospace);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.scout-current-activity-copy strong {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scout-current-activity-copy > span:last-child {
+  overflow: hidden;
+  color: var(--color-ink-muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scout-current-activity-freshness {
+  white-space: nowrap;
+}
+
 .scout-live-feed-header {
   display: flex;
   align-items: center;
@@ -727,5 +779,11 @@
   }
   .scout-telemetry-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .scout-current-activity {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .scout-current-activity-freshness {
+    grid-column: 2;
   }
 }

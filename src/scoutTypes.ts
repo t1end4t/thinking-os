@@ -28,6 +28,7 @@ export type ScoutBriefInput = {
   readonly searchDirections: readonly ScoutSearchDirection[];
   readonly screeningCriteria: readonly string[];
   readonly maxRecommendations: number;
+  readonly recencyPolicy?: 'recent' | 'mixed' | 'foundational-gap';
   readonly createdFrom: ScoutSourceContext;
   readonly author: ScoutAuthor;
 };
@@ -97,6 +98,12 @@ export type ScoutLiveCandidate = {
   readonly status: 'retrieved' | 'screening' | 'screened' | 'recommended' | 'uncertain' | 'rejected';
 };
 
+export type ScoutRunActivity = {
+  readonly label: string;
+  readonly detail: string;
+  readonly startedAt: number;
+};
+
 export type ScoutRun = {
   readonly id: string;
   readonly source: ScoutSource;
@@ -118,6 +125,7 @@ export type ScoutRun = {
   readonly cancellationReason?: string;
   readonly error?: string;
   readonly liveCandidates?: readonly ScoutLiveCandidate[];
+  readonly currentActivity?: ScoutRunActivity;
 };
 
 export type ScoutExternalIdentity = {

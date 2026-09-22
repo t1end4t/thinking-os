@@ -17,6 +17,21 @@ const decodeXml = value => clean(value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$
 const normalizeDoi = value => clean(value).replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, '').toLowerCase();
 const normalizeTitle = value => clean(value).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const candidateId = value => createHash('sha256').update(value).digest('hex');
+const arxivStopWords = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'by', 'can', 'do', 'for', 'from', 'how', 'in', 'is', 'it', 'of', 'on', 'or', 'that', 'the', 'their', 'them', 'these', 'this', 'to', 'what', 'which', 'with']);
+const arxivQuery = value => {
+  const terms = clean(value).toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const uniqueTerms = [...new Set(terms)];
+  const has = (...values) => values.some(term => uniqueTerms.includes(term));
+  const clauses = [
+    has('llm', 'llms') ? 'all:LLM' : '',
+    has('agent', 'agents') ? 'all:agent' : '',
+    has('hypothesis', 'hypotheses') ? '(all:hypothesis OR all:hypotheses)' : '',
+    has('experiment', 'experiments', 'evaluation', 'evaluations') ? '(all:experiment OR all:experiments OR all:evaluation OR all:evaluations)' : ''
+  ].filter(Boolean);
+  if (clauses.length >= 2) return clauses.join(' AND ');
+  return clean(value).split(/\s+/).map(term => term.replace(/[()]/g, '')).filter(Boolean)
+    .filter(term => !arxivStopWords.has(term.toLowerCase())).slice(0, 8).map(term => `all:${term}`).join(' AND ');
+};
 
 async function readBody(response, provider, limit = 4_000_000) {
   if (!response.ok) throw Object.assign(new Error(`${provider} failed (HTTP ${response.status}).`), { status: response.status });
@@ -31,7 +46,7 @@ async function readBody(response, provider, limit = 4_000_000) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function request(url, provider, { fetchImpl, signal, sleep }) {
+async function request(url, provider, { fetchImpl, signal, sleep, minRetryMs = 250 }) {
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -39,15 +54,19 @@ async function request(url, provider, { fetchImpl, signal, sleep }) {
       const response = await fetchImpl(url, { signal: requestSignal, headers: { accept: 'application/json, application/atom+xml;q=0.9', 'user-agent': 'Thinking-OS/0.1 paper-scout' } });
       if (response.ok) return { response, attempt };
       if (!TRANSIENT_STATUS.has(response.status) || attempt === 3) {
-        throw Object.assign(new Error(`${provider} failed (HTTP ${response.status}).`), { status: response.status, attempts: attempt });
+        throw Object.assign(new Error(response.status === 429
+          ? `${provider} rate-limited this run (HTTP 429). Results from this source were skipped.`
+          : `${provider} failed (HTTP ${response.status}).`), { status: response.status, attempts: attempt });
       }
       const retryAfter = Number(response.headers.get('retry-after'));
-      await sleep(Number.isFinite(retryAfter) ? retryAfter * 1000 : 250 * (2 ** (attempt - 1)), signal);
+      await sleep(Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : Math.max(minRetryMs, 250) * (2 ** (attempt - 1)), signal);
     } catch (error) {
       if (signal?.aborted || error?.name === 'AbortError') throw error;
       lastError = Object.assign(error instanceof Error ? error : new Error(String(error)), { attempts: attempt });
       if (attempt === 3) throw error;
-      await sleep(250 * (2 ** (attempt - 1)), signal);
+      await sleep(Math.max(minRetryMs, 250) * (2 ** (attempt - 1)), signal);
     }
   }
   throw lastError ?? new Error(`${provider} request failed.`);
@@ -151,7 +170,7 @@ function mergeCandidates(candidates) {
 export async function retrieveScoutCandidates(brief, { fetchImpl = fetch, now = Date.now, sleep = (milliseconds, signal) => new Promise((resolve, reject) => {
   const timer = setTimeout(resolve, milliseconds);
   signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason ?? new DOMException('Aborted', 'AbortError')); }, { once: true });
-}), signal, budget = DEFAULT_BUDGET } = {}) {
+}), signal, budget = DEFAULT_BUDGET, onProgress } = {}) {
   const attempts = [];
   const limitations = [];
   const candidates = [];
@@ -167,13 +186,18 @@ export async function retrieveScoutCandidates(brief, { fetchImpl = fetch, now = 
   for (const lane of lanes) {
     const startedAt = now();
     let attemptCount = 1;
+    await onProgress?.({ status: 'running', provider: lane.provider, lane: lane.lane, query: lane.query, startedAt,
+      attempts: [...attempts], candidates: mergeCandidates(candidates).slice(0, budget.maxCandidates) });
     try {
       if (lane.provider === 'OpenAlex' && previousOpenAlexAt) await sleep(1000, signal);
-      const recentFilter = brief.recencyPolicy === 'recent' ? `${new Date(now()).getUTCFullYear() - 2}-01-01` : undefined;
+      const currentYear = new Date(now()).getUTCFullYear();
+      const recentYear = currentYear - 1;
+      const recentFilter = brief.recencyPolicy === 'recent' ? `${recentYear}-01-01` : undefined;
+      const arxivFilter = recentFilter ? ` AND submittedDate:[${recentYear}01010000 TO ${currentYear}12312359]` : '';
       const url = lane.provider === 'OpenAlex'
-        ? new URL(`https://api.openalex.org/works?${new URLSearchParams({ [lane.parameter]: lane.query, 'per-page': String(budget.perLane), ...(recentFilter ? { filter: `from_publication_date:${recentFilter}` } : {}) })}`)
-        : new URL(`https://export.arxiv.org/api/query?${new URLSearchParams({ search_query: `all:"${lane.query}"`, start: '0', max_results: String(budget.perLane), sortBy: 'submittedDate', sortOrder: 'descending' })}`);
-      const { response, attempt } = await request(url, `${lane.provider} ${lane.lane}`, { fetchImpl, signal, sleep });
+        ? new URL(`https://api.openalex.org/works?${new URLSearchParams({ [lane.parameter]: lane.query, 'per-page': String(budget.perLane), sort: 'publication_date:desc', ...(recentFilter ? { filter: `from_publication_date:${recentFilter}` } : {}) })}`)
+        : new URL(`https://export.arxiv.org/api/query?${new URLSearchParams({ search_query: `${arxivQuery(lane.query)}${arxivFilter}`, start: '0', max_results: String(budget.perLane), sortBy: 'submittedDate', sortOrder: 'descending' })}`);
+      const { response, attempt } = await request(url, `${lane.provider} ${lane.lane}`, { fetchImpl, signal, sleep, minRetryMs: lane.provider === 'arXiv' ? 3_000 : 250 });
       attemptCount = attempt;
       const body = await readBody(response, `${lane.provider} ${lane.lane}`);
       const found = lane.provider === 'OpenAlex'
@@ -187,28 +211,35 @@ export async function retrieveScoutCandidates(brief, { fetchImpl = fetch, now = 
       attempts.push({ provider: lane.provider, lane: lane.lane, query: lane.query, status: 'failed', attempts: error?.attempts ?? attemptCount, resultCount: 0, startedAt, completedAt: now(), error: error instanceof Error ? error.message : String(error), truncated: false });
       limitations.push(`${lane.provider} ${lane.lane} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+    await onProgress?.({ status: attempts.at(-1)?.status ?? 'failed', provider: lane.provider, lane: lane.lane, query: lane.query, startedAt,
+      attempts: [...attempts], candidates: mergeCandidates(candidates).slice(0, budget.maxCandidates) });
   }
   let merged = mergeCandidates(candidates).slice(0, budget.maxCandidates);
-  let verificationCount = 0;
-  for (const candidate of merged) {
-    const doi = candidate.identities.find(identity => identity.kind === 'doi')?.value;
-    if (!doi || verificationCount >= budget.crossrefVerifications) continue;
-    verificationCount++;
+  const verifiable = merged.filter(candidate => candidate.identities.some(identity => identity.kind === 'doi')).slice(0, budget.crossrefVerifications);
+  if (verifiable.length) {
     const startedAt = now();
-    let attemptCount = 1;
+    const dois = verifiable.map(candidate => candidate.identities.find(identity => identity.kind === 'doi')?.value).filter(Boolean);
+    await onProgress?.({ status: 'running', provider: 'Crossref', lane: 'doi-verification', query: `${dois.length} DOI records`, startedAt,
+      attempts: [...attempts], candidates: merged, verificationCount: 0, verificationTotal: dois.length });
     try {
-      const url = `https://api.crossref.org/works/${doi.split('/').map(encodeURIComponent).join('/')}`;
+      const url = new URL('https://api.crossref.org/works');
+      url.search = new URLSearchParams({ filter: dois.map(doi => `doi:${doi}`).join(','), rows: String(dois.length), select: 'DOI,title,author,issued,published,abstract' }).toString();
       const { response, attempt } = await request(url, 'Crossref DOI verification', { fetchImpl, signal, sleep });
-      attemptCount = attempt;
-      const message = JSON.parse(await readBody(response, 'Crossref DOI verification')).message;
-      const updated = crossrefCandidate(message, candidate, now());
-      merged = merged.map(item => item.id === candidate.id ? updated : item);
-      attempts.push({ provider: 'Crossref', lane: 'doi-verification', query: doi, status: 'completed', attempts: attempt, resultCount: 1, startedAt, completedAt: now(), truncated: false });
+      const items = JSON.parse(await readBody(response, 'Crossref DOI verification')).message?.items ?? [];
+      const byDoi = new Map(items.map(message => [normalizeDoi(message.DOI), message]));
+      merged = merged.map(candidate => {
+        const doi = candidate.identities.find(identity => identity.kind === 'doi')?.value;
+        const message = doi ? byDoi.get(doi) : undefined;
+        return message ? crossrefCandidate(message, candidate, now()) : candidate;
+      });
+      attempts.push({ provider: 'Crossref', lane: 'doi-verification', query: `${dois.length} DOI records`, status: 'completed', attempts: attempt, resultCount: items.length, startedAt, completedAt: now(), truncated: items.length < dois.length });
     } catch (error) {
       if (signal?.aborted || error?.name === 'AbortError') throw error;
-      attempts.push({ provider: 'Crossref', lane: 'doi-verification', query: doi, status: 'failed', attempts: error?.attempts ?? attemptCount, resultCount: 0, startedAt, completedAt: now(), error: error instanceof Error ? error.message : String(error), truncated: false });
-      limitations.push(`Crossref DOI verification failed for ${doi}: ${error instanceof Error ? error.message : String(error)}`);
+      attempts.push({ provider: 'Crossref', lane: 'doi-verification', query: `${dois.length} DOI records`, status: 'failed', attempts: error?.attempts ?? 1, resultCount: 0, startedAt, completedAt: now(), error: error instanceof Error ? error.message : String(error), truncated: false });
+      limitations.push(`Crossref DOI verification failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+    await onProgress?.({ status: attempts.at(-1)?.status ?? 'failed', provider: 'Crossref', lane: 'doi-verification', query: `${dois.length} DOI records`, startedAt,
+      attempts: [...attempts], candidates: merged, verificationCount: dois.length, verificationTotal: dois.length });
   }
   return { candidates: merged, retrievedCount: candidates.length, normalizedCount: merged.length, attempts, limitations,
     partial: limitations.length > 0, executedQueries: [...new Set(lanes.map(lane => lane.query))] };

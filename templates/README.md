@@ -12,6 +12,7 @@ The files below are not active assistant prompts and are never automatically ins
 | thinking-mode.md | Research workspace AGENTS.md |
 | coding-mode.md | Coding repository AGENTS.md |
 | vault-operation.md | Research workspace VAULT_OPERATIONS.md, read before record changes |
+| assistant-chat.md | Research workspace agents/chat.md |
 | local-agent.md | AGENTS.md in a directory needing distinct rules; includes Nushell and direnv command guidance |
 | index.md | INDEX.md for navigation |
 

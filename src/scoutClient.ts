@@ -51,8 +51,8 @@ export async function mutateScout(dir: string, mutation: ScoutMutation, signal: 
   return parseScoutReport((await request(dir, signal, mutation)).report);
 }
 
-export async function saveScoutBriefRequest(dir: string, id: string, brief: ScoutBriefInput, signal: AbortSignal): Promise<ScoutBrief> {
-  return parseBrief((await controlRequest(dir, signal, { action: 'save-brief', id, brief })).brief);
+export async function saveScoutBriefRequest(dir: string, id: string | undefined, brief: ScoutBriefInput, signal: AbortSignal): Promise<ScoutBrief> {
+  return parseBrief((await controlRequest(dir, signal, { action: 'save-brief', ...(id ? { id } : {}), brief })).brief);
 }
 
 export async function saveTopicWatchRequest(dir: string, id: string | undefined, watch: TopicWatchInput, signal: AbortSignal): Promise<TopicWatch> {

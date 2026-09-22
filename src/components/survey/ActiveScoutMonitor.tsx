@@ -44,6 +44,8 @@ const PIPELINE_STEPS = [
   { id: 'assembling', label: '5. Shortlist Assembly' }
 ] as const;
 
+const PROVIDERS = ['OpenAlex', 'arXiv', 'Crossref'] as const;
+
 function stageStepIndex(stage?: ScoutRunState): number {
   switch (stage) {
     case 'queued': return 0;
@@ -64,6 +66,13 @@ function formatElapsed(seconds: number): string {
   return `${mins}m ${secs.toString().padStart(2, '0')}s`;
 }
 
+function formatFreshness(timestamp: number): string {
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 5) return 'updated now';
+  if (seconds < 60) return `updated ${seconds}s ago`;
+  return `updated ${Math.floor(seconds / 60)}m ago`;
+}
+
 type BriefDraft = {
   question: string;
   purpose: string;
@@ -71,6 +80,7 @@ type BriefDraft = {
   scope: string;
   exclusions: string;
   maxRecommendations: number;
+  recencyPolicy: 'recent' | 'mixed' | 'foundational-gap';
 };
 
 const defaultDraft: BriefDraft = {
@@ -79,7 +89,8 @@ const defaultDraft: BriefDraft = {
   directions: '',
   scope: '',
   exclusions: '',
-  maxRecommendations: 5
+  maxRecommendations: 5,
+  recencyPolicy: 'recent'
 };
 
 export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport?: (reportId: string) => void }) {
@@ -130,6 +141,13 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
 
   const activeStage = activeRun?.activeStage ?? activeRun?.state;
   const currentStep = stageStepIndex(activeStage);
+  const providerSummaries = useMemo(() => PROVIDERS.map(provider => {
+    const attempts = activeRun?.providerAttempts.filter(attempt => attempt.provider === provider) ?? [];
+    const completed = attempts.filter(attempt => attempt.status === 'completed').reduce((total, attempt) => total + attempt.resultCount, 0);
+    const failed = attempts.filter(attempt => attempt.status === 'failed');
+    const latest = attempts.at(-1);
+    return { provider, completed, failed, latest, attempts };
+  }), [activeRun?.providerAttempts]);
 
   const handleCancel = async () => {
     if (!activeRun || scouts.busy) return;
@@ -174,15 +192,15 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
       searchDirections,
       screeningCriteria: ['Direct problem relevance', 'Methodological clarity and explicit findings'],
       maxRecommendations: briefDraft.maxRecommendations,
+      recencyPolicy: briefDraft.recencyPolicy,
       createdFrom: { kind: 'user', reference: 'Literature survey active monitor' },
       author: 'user'
     };
 
-    const briefId = `brief-${crypto.randomUUID()}`;
-    const saved = await scouts.saveBrief(briefId, briefInput);
+    const saved = await scouts.saveBrief(undefined, briefInput);
     if (saved) {
       briefDialog.current?.close();
-      await scouts.startRun(briefId, 'brief');
+      await scouts.startRun(saved.id, 'brief');
     }
   };
 
@@ -239,6 +257,16 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
           })}
         </div>
 
+        <div className="scout-current-activity" role="status" aria-live="polite">
+          <span className="scout-current-activity-pulse" aria-hidden="true" />
+          <div className="scout-current-activity-copy">
+            <span className="scout-current-activity-kicker">Now running</span>
+            <strong>{activeRun.currentActivity?.label ?? STAGE_LABELS[activeStage ?? ''] ?? activeStage}</strong>
+            <span>{activeRun.currentActivity?.detail ?? 'The scout is working on this pipeline stage.'}</span>
+          </div>
+          <span className="scout-current-activity-freshness">{formatFreshness(activeRun.updatedAt)}</span>
+        </div>
+
         {/* Live Counters Telemetry */}
         <div className="scout-telemetry-grid">
           <div className="scout-metric-cell">
@@ -271,38 +299,25 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
           <div className="scout-provider-lane">
             <h4>Academic Providers</h4>
             <div className="scout-provider-chips">
-              {activeRun.providerAttempts.length > 0 ? (
-                activeRun.providerAttempts.map((attempt, idx) => (
+              {providerSummaries.map(summary => (
                   <span
-                    key={idx}
+                    key={summary.provider}
                     className="scout-provider-chip"
-                    data-status={attempt.status}
-                    title={attempt.error || `${attempt.query} (${attempt.lane})`}
+                    data-status={summary.failed.length > 0 ? 'failed' : summary.attempts.length > 0 ? 'completed' : 'pending'}
+                    title={summary.failed.map(attempt => attempt.error).filter(Boolean).join('\n') || summary.latest?.query || `${summary.provider} has not started`}
                   >
-                    {attempt.status === 'completed' ? (
+                    {summary.failed.length > 0 ? (
+                      <AlertTriangle size={11} className="text-rose-500" />
+                    ) : summary.attempts.length > 0 ? (
                       <CheckCircle2 size={11} className="text-emerald-500" />
                     ) : (
-                      <AlertTriangle size={11} className="text-rose-500" />
+                      <Loader2 size={10} className="animate-spin text-amber-500" />
                     )}
-                    <span>{attempt.provider}: {attempt.resultCount} results</span>
+                    <span>{summary.provider}: {summary.failed.length > 0
+                      ? summary.failed.some(attempt => attempt.error?.includes('rate-limited')) ? 'rate limited' : `${summary.failed.length} failed`
+                      : `${summary.completed} results`}</span>
                   </span>
-                ))
-              ) : (
-                <>
-                  <span className="scout-provider-chip" data-status="pending">
-                    <Loader2 size={10} className="animate-spin text-amber-500" />
-                    <span>OpenAlex</span>
-                  </span>
-                  <span className="scout-provider-chip" data-status="pending">
-                    <Loader2 size={10} className="animate-spin text-amber-500" />
-                    <span>arXiv</span>
-                  </span>
-                  <span className="scout-provider-chip" data-status="pending">
-                    <Loader2 size={10} className="animate-spin text-amber-500" />
-                    <span>Crossref</span>
-                  </span>
-                </>
-              )}
+                ))}
             </div>
           </div>
 
@@ -648,12 +663,27 @@ export function ActiveScoutMonitor({ onSelectReport }: { readonly onSelectReport
               <label>
                 <span>Max Recommendations</span>
                 <select
-                  value={briefDraft.maxRecommendations}
-                  onChange={e => setBriefDraft({ ...briefDraft, maxRecommendations: Number(e.target.value) })}
+                value={briefDraft.maxRecommendations}
+                onChange={e => setBriefDraft({ ...briefDraft, maxRecommendations: Number(e.target.value) })}
                 >
                   <option value={3}>3 papers (Focused)</option>
                   <option value={5}>5 papers (Standard)</option>
                   <option value={8}>8 papers (Broad)</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Publication Recency</span>
+                <select
+                  value={briefDraft.recencyPolicy}
+                  onChange={e => {
+                    const value = e.target.value as BriefDraft['recencyPolicy'];
+                    setBriefDraft({ ...briefDraft, recencyPolicy: value });
+                  }}
+                >
+                  <option value="recent">Recent (last 2 years)</option>
+                  <option value="mixed">Mixed (include foundational work)</option>
+                  <option value="foundational-gap">Foundational gap search</option>
                 </select>
               </label>
             </div>

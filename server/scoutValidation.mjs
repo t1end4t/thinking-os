@@ -57,6 +57,7 @@ export function parseScoutBriefInput(value) {
     scope: texts(input.scope, 'scope'), exclusions: texts(input.exclusions, 'exclusions'), constraints: texts(input.constraints, 'constraints'),
     searchDirections: directions(input.searchDirections), screeningCriteria: texts(input.screeningCriteria, 'screeningCriteria'),
     maxRecommendations: integer(input.maxRecommendations, 'maxRecommendations', 1, 5),
+    recencyPolicy: literal(input.recencyPolicy, ['recent', 'mixed', 'foundational-gap'], 'recent', 'recencyPolicy'),
     createdFrom: { kind: createdFrom.kind, reference: text(createdFrom.reference, 'createdFrom.reference', 500) }, author: author(input.author)
   };
 }
@@ -123,6 +124,15 @@ function liveCandidate(value, index) {
   };
 }
 
+function currentActivity(value) {
+  const input = object(value, 'currentActivity');
+  return {
+    label: text(input.label, 'currentActivity.label', 200),
+    detail: text(input.detail, 'currentActivity.detail', 1000),
+    startedAt: number(input.startedAt, 'currentActivity.startedAt')
+  };
+}
+
 export function parseScoutRun(value) {
   const input = object(value, 'run');
   if (!RUN_STATES.has(input.state) || (input.activeStage !== undefined && !RUN_STATES.has(input.activeStage))) throw new Error('Invalid run state.');
@@ -137,7 +147,8 @@ export function parseScoutRun(value) {
     ...(input.reportId === undefined ? {} : { reportId: identifier(input.reportId, 'reportId') }),
     ...(input.cancellationReason === undefined ? {} : { cancellationReason: text(input.cancellationReason, 'cancellationReason', 2000) }),
     ...(input.error === undefined ? {} : { error: text(input.error, 'error', 4000) }),
-    ...(Array.isArray(input.liveCandidates) ? { liveCandidates: input.liveCandidates.map(liveCandidate) } : {})
+    ...(Array.isArray(input.liveCandidates) ? { liveCandidates: input.liveCandidates.map(liveCandidate) } : {}),
+    ...(input.currentActivity === undefined ? {} : { currentActivity: currentActivity(input.currentActivity) })
   };
 }
 

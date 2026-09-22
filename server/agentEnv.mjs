@@ -14,6 +14,7 @@ export const AGENT_TEMPLATES = [
   ['thinking-mode', 'Thinking mode'],
   ['coding-mode', 'Coding mode'],
   ['vault-operation', 'Vault operation'],
+  ['assistant-chat', 'Thinking OS Chat agent'],
   ['local-agent', 'Local AGENTS.md'],
   ['index', 'INDEX.md']
 ];
@@ -31,6 +32,7 @@ const GLOBAL_FILES = [
 
 const PROJECT_FILES = [
   ['agents', 'shared', 'Project instructions', 'AGENTS.md', 'markdown', 'instructions'],
+  ['chat-agent', 'shared', 'Thinking OS Chat agent', 'agents/chat.md', 'markdown', 'instructions'],
   ['claude', 'claude', 'Project instructions', 'CLAUDE.md', 'markdown', 'instructions'],
   ['vault-operations', 'shared', 'Vault operations', 'VAULT_OPERATIONS.md', 'markdown', 'instructions'],
   ['index', 'shared', 'Navigation index', 'INDEX.md', 'markdown', 'instructions'],

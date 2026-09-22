@@ -439,8 +439,8 @@ export const AssistantDock: React.FC = () => {
               const report = run?.reportId ? scouts.snapshot?.reports.find(item => item.id === run.reportId) : undefined;
               return <AssistantScoutCard key={entry.id} brief={brief} run={run} report={report} busy={scouts.busy !== null}
                 agentTitle={entry.agentRun?.title || 'Literature Scout Agent'}
-                onSave={input => scouts.saveBrief(brief.id, input)} onRun={() => scouts.startRun(brief.id)}
-                onCancel={() => run ? scouts.cancelRun(run.id) : Promise.resolve(false)} onOpenReport={() => report && openScoutReport(report.id)} />;
+                onSave={async input => Boolean(await scouts.saveBrief(brief.id, input))} onRun={async () => Boolean(await scouts.startRun(brief.id))}
+                onCancel={async () => run ? Boolean(await scouts.cancelRun(run.id)) : false} onOpenReport={() => report && openScoutReport(report.id)} />;
             })}
             {turn.reply && (
               <div className="w-full min-w-0 px-1 [&_*]:break-words [&_*]:[overflow-wrap:anywhere]">

@@ -54,6 +54,17 @@ function cardText(value) {
   return value.length <= CARD_TEXT_LIMIT ? value : `${value.slice(0, CARD_TEXT_LIMIT - 1).trimEnd()}\u2026`;
 }
 
+function liveCandidateCards(candidates) {
+  return (candidates || []).slice(0, 20).map(candidate => ({
+    id: candidate.id,
+    title: cardText(candidate.title),
+    authors: cardText(candidate.authors || ''),
+    ...(candidate.year ? { year: candidate.year } : {}),
+    sources: candidate.sources || [],
+    status: 'retrieved'
+  }));
+}
+
 function candidateKeys(candidate) {
   return new Set([candidate.id, ...candidate.identities.map(identity => `${identity.kind}:${identity.value.toLowerCase()}`)]);
 }
@@ -89,26 +100,37 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
 
   async function executeRun(root, run, controller) {
     try {
-      const retrieving = { ...run, state: 'retrieving', activeStage: 'retrieving', updatedAt: now() };
+      let retrieving = { ...run, state: 'retrieving', activeStage: 'retrieving', updatedAt: now(), currentActivity: {
+        label: 'Preparing provider searches', detail: 'Building the first academic database request.', startedAt: now()
+      } };
       await withVaultLock(root, () => saveScoutRun(root, retrieving));
-      const result = await retrieve(run.inputSnapshot, { signal: controller.signal });
+      const result = await retrieve(run.inputSnapshot, { signal: controller.signal, onProgress: async progress => {
+        const running = progress.status === 'running';
+        const verification = progress.lane === 'doi-verification';
+        const detail = verification
+          ? `Checking DOI ${progress.query}${progress.verificationTotal ? ` (${progress.verificationCount}/${progress.verificationTotal})` : ''}.`
+          : `${running ? 'Searching' : 'Finished'} “${progress.query}”.`;
+        retrieving = { ...retrieving, executedQueries: [...new Set([...retrieving.executedQueries, progress.query])],
+          providerAttempts: progress.attempts, counters: { ...retrieving.counters, retrieved: progress.candidates.length },
+          liveCandidates: liveCandidateCards(progress.candidates), updatedAt: now(), currentActivity: {
+            label: `${progress.provider} · ${progress.lane.replaceAll('-', ' ')}`, detail, startedAt: progress.startedAt
+          } };
+        await withVaultLock(root, () => saveScoutRun(root, retrieving));
+      } });
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
-      const liveCandidates = (result.candidates || []).slice(0, 20).map(c => ({
-        id: c.id,
-        title: cardText(c.title),
-        authors: cardText(c.authors || ''),
-        ...(c.year ? { year: c.year } : {}),
-        sources: c.sources || [],
-        status: 'retrieved'
-      }));
+      const liveCandidates = liveCandidateCards(result.candidates);
       const normalizing = { ...retrieving, state: 'normalizing', activeStage: 'normalizing', executedQueries: result.executedQueries,
         providerAttempts: result.attempts, counters: { retrieved: result.retrievedCount ?? result.candidates.length, normalized: result.normalizedCount ?? result.candidates.length, screened: 0 },
-        checkpoints: ['retrieval-complete'], updatedAt: now(), liveCandidates };
+        checkpoints: ['retrieval-complete'], updatedAt: now(), liveCandidates, currentActivity: {
+          label: 'Deduplicating candidate papers', detail: `Comparing ${result.retrievedCount ?? result.candidates.length} retrieved records by durable identifiers and title.`, startedAt: now()
+        } };
       await withVaultLock(root, () => saveScoutRun(root, normalizing));
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
       const discoveryAttempts = result.attempts.filter(attempt => attempt.lane !== 'doi-verification');
       if (discoveryAttempts.length && discoveryAttempts.every(attempt => attempt.status === 'failed')) throw new Error('Every discovery provider failed.');
-      const screeningRun = { ...normalizing, state: 'screening', activeStage: 'screening', updatedAt: now() };
+      const screeningRun = { ...normalizing, state: 'screening', activeStage: 'screening', updatedAt: now(), currentActivity: {
+        label: 'Screening candidate papers', detail: `Assessing 0 of ${result.candidates.length} titles and abstracts.`, startedAt: now()
+      } };
       await withVaultLock(root, () => saveScoutRun(root, screeningRun));
       let checkpointRun = screeningRun;
       const screening = await screen(run.inputSnapshot, result.candidates, { signal: controller.signal, onBatch: async progress => {
@@ -123,13 +145,19 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
         });
         checkpointRun = { ...checkpointRun, counters: { ...checkpointRun.counters, screened: progress.completed },
           checkpoints: [...checkpointRun.checkpoints, `screening:${progress.completed}`], updatedAt: now(),
-          liveCandidates: updatedLive };
+          liveCandidates: updatedLive, currentActivity: {
+            label: 'Screening candidate papers',
+            detail: progress.completed < progress.total ? `Assessed ${progress.completed} of ${progress.total}; reviewing the next batch.` : `Assessed all ${progress.total} candidates; preparing the shortlist.`,
+            startedAt: checkpointRun.currentActivity?.startedAt ?? now()
+          } };
         await withVaultLock(root, () => saveScoutRun(root, checkpointRun));
       } });
       if (controller.signal.aborted) throw controller.signal.reason ?? new DOMException('Cancelled', 'AbortError');
       const assembling = { ...checkpointRun, state: 'assembling', activeStage: 'assembling',
         counters: { ...checkpointRun.counters, screened: screening.assessed.length }, checkpoints: [...checkpointRun.checkpoints, 'screening-complete'], updatedAt: now(),
-        liveCandidates: checkpointRun.liveCandidates };
+        liveCandidates: checkpointRun.liveCandidates, currentActivity: {
+          label: 'Building the recommendation report', detail: 'Ranking reading value, preserving uncertainty, and recording limitations.', startedAt: now()
+        } };
       await withVaultLock(root, () => saveScoutRun(root, assembling));
       const novelty = await removeRepeatedCandidates(root, run, screening);
       const retrieval = novelty.repeatCount ? { ...result, limitations: [...result.limitations, `${novelty.repeatCount} previously surfaced candidate(s) were omitted for this watch.`] } : result;
@@ -168,7 +196,8 @@ export function scoutPlugin({ now = Date.now, intervalMs = 30_000, retrieve = re
       const startedAt = now();
       const created = { id: `scout-run-${crypto.randomUUID()}`, source: { kind, id }, inputSnapshot: source,
         state: 'queued', activeStage: 'queued', executedQueries: [], providerAttempts: [],
-        counters: { retrieved: 0, normalized: 0, screened: 0 }, checkpoints: ['created'], startedAt, updatedAt: startedAt };
+        counters: { retrieved: 0, normalized: 0, screened: 0 }, checkpoints: ['created'], startedAt, updatedAt: startedAt,
+        currentActivity: { label: 'Planning the scout run', detail: 'Preparing search directions and provider requests.', startedAt } };
       await saveScoutRun(root, created);
       if (kind === 'watch') await persistTopicWatch(root, { ...source, lastRunAt: startedAt,
         ...(source.enabled && source.schedule.cadence === 'daily'

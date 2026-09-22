@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { agentPlugin, buildTurnMessage, isLocalRequest } from './agent.mjs';
+import { agentPlugin, buildTurnMessage, isLocalRequest, loadChatInstructions } from './agent.mjs';
 
 test('the assistant endpoint stays same-origin and loopback only', () => {
   const request = { socket: { remoteAddress: '127.0.0.1' }, headers: { host: 'localhost:3000', origin: 'http://localhost:3000' } };
@@ -14,6 +14,12 @@ test('the assistant endpoint stays same-origin and loopback only', () => {
   assert.equal(isLocalRequest({ ...request, socket: { remoteAddress: '192.168.1.2' } }), false);
   assert.equal(isLocalRequest({ ...request, headers: { host: 'evil.example' } }), false);
   assert.equal(isLocalRequest({ ...request, headers: { ...request.headers, origin: 'https://evil.example' } }), false);
+});
+
+test('chat instructions fall back to the repository template for older workspaces', async () => {
+  const instructions = await loadChatInstructions(await realpath(tmpdir()));
+  assert.match(instructions, /^# Thinking OS Chat Agent/);
+  assert.doesNotMatch(instructions, /learn/i);
 });
 
 async function fixture(context, codex, codexHome, clientOptions = [], imageDir) {
@@ -74,7 +80,7 @@ test('uploaded images round-trip locally and reach the SDK with text or alone', 
   assert.equal((await post({ ...body, images: [{ ...image, id: `${'f'.repeat(64)}.png` }] })).status, 400);
 });
 
-test('agent, fixed 9router provider, context, and resumed session reach the SDK', async context => {
+test('agent, fixed 9router provider, portable chat instructions, context, and resumed session reach the SDK', async context => {
   const starts = [];
   const resumes = [];
   const messages = [];
@@ -91,6 +97,10 @@ test('agent, fixed 9router provider, context, and resumed session reach the SDK'
     }
   };
   const clientOptions = [];
+  const workspace = await mkdtemp(path.join(tmpdir(), 'thinking-os-workspace-'));
+  context.after(() => rm(workspace, { recursive: true, force: true }));
+  await mkdir(path.join(workspace, 'agents'));
+  await writeFile(path.join(workspace, 'agents', 'chat.md'), '# Portable chat agent\n\nUse the workspace instructions.\n');
   const { get, post } = await fixture(context, {
     startThread: options => { starts.push(options); return thread; },
     resumeThread: (id, options) => { resumes.push([id, options]); return thread; }
@@ -99,21 +109,17 @@ test('agent, fixed 9router provider, context, and resumed session reach the SDK'
   assert.deepEqual(await (await get()).json(), { agents: [{ id: 'codex', label: 'Codex' }] });
 
   const attached = [{ type: 'node', id: 'claim-1', label: 'Claim one', sourceId: 'claim-1', kind: 'claim' }];
-  const body = { agent: 'codex', conversationId: randomUUID(), dir: tmpdir(), mode: 'chat', message: 'hello\nworld', contexts: attached };
+  const body = { agent: 'codex', conversationId: randomUUID(), dir: workspace, mode: 'chat', message: 'hello\nworld', contexts: attached };
   const events = (await (await post(body)).text()).trim().split('\n').map(line => JSON.parse(line));
   assert.deepEqual(events.map(event => event.type), ['thread.started', 'item.completed', 'item.completed', 'turn.completed']);
-  assert.deepEqual(messages, [buildTurnMessage('hello\nworld', attached, 'chat')]);
-  assert.match(messages[0], /Read INDEX\.md first/);
-  assert.match(messages[0], /Direction -> Task/);
-  assert.match(messages[0], /paper-backed evidence and a claim-evidence link/);
-  assert.match(messages[0], /attached objects as the user's current focus, not as the complete workspace/);
-  assert.match(messages[0], /press Run scout/);
+  assert.deepEqual(messages, [buildTurnMessage('hello\nworld', attached, 'chat', '# Portable chat agent\n\nUse the workspace instructions.')]);
+  assert.match(messages[0], /Portable chat agent/);
   assert.equal(clientOptions.length, 1);
   assert.equal(clientOptions[0].config.model_provider, '9router');
   assert.equal(clientOptions[0].config.mcp_servers.thinking_os_scout.command, process.execPath);
-  assert.equal(clientOptions[0].config.mcp_servers.thinking_os_scout.args[1], await realpath(tmpdir()));
+  assert.equal(clientOptions[0].config.mcp_servers.thinking_os_scout.args[1], await realpath(workspace));
   assert.match(clientOptions[0].config.mcp_servers.thinking_os_scout.args[2], /^http:\/\/127\.0\.0\.1:/);
-  assert.deepEqual(starts, [{ workingDirectory: await realpath(tmpdir()), skipGitRepoCheck: true }]);
+  assert.deepEqual(starts, [{ workingDirectory: await realpath(workspace), skipGitRepoCheck: true }]);
 
   const rawConversation = randomUUID();
   await (await post({ ...body, conversationId: rawConversation, mode: 'codex' })).text();

@@ -36,6 +36,7 @@ test('registered projects expose their own instruction files', async t => {
   assert.equal(projects.length, 1);
   assert.equal(projects[0].path, project);
   assert.ok(entries.some(entry => entry.id === `project:${projectId}:agents` && entry.path === path.join(project, 'AGENTS.md')));
+  assert.ok(entries.some(entry => entry.id === `project:${projectId}:chat-agent` && entry.path === path.join(project, 'agents/chat.md')));
   assert.ok(!entries.some(entry => entry.scope === 'workspace'));
 
   for (const [key, filename] of [['vault-operations', 'VAULT_OPERATIONS.md'], ['index', 'INDEX.md']]) {
