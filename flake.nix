@@ -23,6 +23,10 @@
       forEachSystem = nixpkgs.lib.genAttrs (import systems);
     in
     {
+      packages = forEachSystem (system: {
+        default = nixpkgs.legacyPackages.${system}.callPackage ./package.nix { };
+      });
+
       devShells = forEachSystem (
         system:
         let
