@@ -325,7 +325,7 @@ export function KanbanBoard({ initialGoalFilter, onNavigateToDirection, onNaviga
       )}
 
       {/* Goal Quick-Filter Chips Bar */}
-      <div className="mx-6 mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+      <div className="kanban-goal-filters mx-6 mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
         <span className="mr-1 flex items-center gap-1 font-mono text-[0.6875rem] uppercase text-[var(--color-ink-muted)]">
           <Target size={12} />
           Milestones:

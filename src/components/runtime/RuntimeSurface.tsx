@@ -186,7 +186,7 @@ export function RuntimeSurface() {
   }, [refreshModels]);
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--color-paper)]">
       {/* Surface Header with Sub-tab Navigation */}
       <header className="px-5 py-3 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
         <div className="flex items-center gap-3">

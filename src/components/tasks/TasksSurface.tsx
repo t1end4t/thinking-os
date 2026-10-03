@@ -79,7 +79,7 @@ export function TasksSurface() {
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-[var(--color-paper)]" id="tasks-pipeline-surface">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--color-paper)]" id="tasks-pipeline-surface">
       {/* Surface Header */}
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-rule)] bg-[var(--color-surface)] px-5 py-3 shrink-0 shadow-2xs">
         <div className="flex items-center gap-3">

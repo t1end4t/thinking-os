@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import './manuscript.css';
 import {
   ScrollText,
   BookOpen,
@@ -28,6 +29,9 @@ import {
   Minimize2,
   PanelRightClose,
   PanelRightOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
   Tag,
   Lightbulb,
   Image,
@@ -102,7 +106,30 @@ export const ManuscriptSurface: React.FC = () => {
 
   // Right sidebar tab: 'locker' | 'citations'
   const [rightTab, setRightTab] = useState<'locker' | 'citations'>('locker');
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState<boolean | null>(null);
+  const [isOutlineOpen, setIsOutlineOpen] = useState<boolean | null>(null);
+  const [isWideLayout, setIsWideLayout] = useState(false);
+  const surface = useRef<HTMLDivElement>(null);
+  const outlineToggle = useRef<HTMLButtonElement>(null);
+  const referencesToggle = useRef<HTMLButtonElement>(null);
+  const showOutline = isOutlineOpen ?? isWideLayout;
+  const showReferences = (isRightSidebarOpen ?? isWideLayout) && (isWideLayout || !showOutline);
+
+  useEffect(() => {
+    const element = surface.current;
+    if (!element) return;
+    const update = () => setIsWideLayout(element.clientWidth >= 74 * parseFloat(getComputedStyle(document.documentElement).fontSize));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const closeSidebar = (panel: 'outline' | 'references') => {
+    if (panel === 'outline') setIsOutlineOpen(false);
+    else setIsRightSidebarOpen(false);
+    (panel === 'outline' ? outlineToggle : referencesToggle).current?.focus();
+  };
 
   // Editor preview mode: 'edit' | 'preview'
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
@@ -215,7 +242,15 @@ export const ManuscriptSurface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-[var(--color-surface)] text-[var(--color-ink)] overflow-hidden">
+    <div
+      ref={surface}
+      className="manuscript-surface min-w-0 flex flex-col w-full h-full bg-[var(--color-surface)] text-[var(--color-ink)] overflow-hidden"
+      onKeyDown={event => {
+        if (event.key !== 'Escape' || isWideLayout || (!showOutline && !showReferences)) return;
+        event.stopPropagation();
+        closeSidebar(showOutline ? 'outline' : 'references');
+      }}
+    >
       {/* Top Header Toolbar */}
       <header className="px-5 py-2.5 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-4 select-none shrink-0 shadow-2xs">
         {/* Title & Multi-Paper Switcher */}
@@ -225,11 +260,11 @@ export const ManuscriptSurface: React.FC = () => {
           </div>
 
           <div className="min-w-0 relative">
-            <div className="flex items-center gap-2">
+            <div className="manuscript-identity flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsPaperDropdownOpen(prev => !prev)}
-                className="flex items-center gap-1.5 text-left max-w-sm sm:max-w-md group py-0.5 px-1.5 -ml-1.5 rounded-lg hover:bg-[var(--color-paper)] transition-colors"
+                className="manuscript-paper-title min-w-0 flex items-center gap-1.5 text-left max-w-sm sm:max-w-md group py-0.5 px-1.5 -ml-1.5 rounded-lg hover:bg-[var(--color-paper)] transition-colors"
                 title="Switch paper or create a new paper"
               >
                 <h2 className="text-sm font-bold text-[var(--color-ink)] truncate tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-400">
@@ -238,7 +273,7 @@ export const ManuscriptSurface: React.FC = () => {
                 <ChevronDown size={14} className={`text-[var(--color-ink-muted)] shrink-0 transition-transform ${isPaperDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              <span className={`text-[0.65rem] font-mono px-2 py-0.5 rounded-full shrink-0 border ${
+              <span className={`text-[length:var(--manuscript-metadata-size)] font-mono px-2 py-0.5 rounded-full shrink-0 border ${
                 manuscript.meta.status === 'review_ready'
                   ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
                   : manuscript.meta.status === 'submitted'
@@ -249,7 +284,7 @@ export const ManuscriptSurface: React.FC = () => {
               </span>
 
               {manuscript.meta.targetVenue ? (
-                <span className="text-[0.65rem] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 shrink-0 border border-purple-200/40">
+                <span className="text-[length:var(--manuscript-metadata-size)] font-mono px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 shrink-0 border border-purple-200/40">
                   {manuscript.meta.targetVenue}
                 </span>
               ) : null}
@@ -257,7 +292,7 @@ export const ManuscriptSurface: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsMetaModalOpen(true)}
-                className="text-[10px] text-purple-600 dark:text-purple-400 hover:underline shrink-0"
+                className="text-xs text-purple-600 dark:text-purple-400 hover:underline shrink-0"
                 title="Edit metadata"
               >
                 (edit)
@@ -279,7 +314,7 @@ export const ManuscriptSurface: React.FC = () => {
                 color="purple"
               />
             </div>
-            <p className="text-[0.7rem] text-[var(--color-ink-muted)] truncate">
+            <p className="text-xs text-[var(--color-ink-muted)] truncate">
               {manuscript.meta.authors.map(a => a.name).join(', ')} ·{' '}
               <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                 {totalWords.toLocaleString()}
@@ -298,7 +333,7 @@ export const ManuscriptSurface: React.FC = () => {
                   onClick={() => setIsPaperDropdownOpen(false)}
                 />
                 <div className="absolute top-full left-0 mt-1.5 w-80 bg-[var(--color-surface)] border border-[var(--color-rule)] rounded-xl shadow-xl z-50 p-2 overflow-hidden">
-                  <div className="flex items-center justify-between px-2 py-1 border-b border-[var(--color-rule)] mb-1 text-[11px] font-mono text-[var(--color-ink-muted)]">
+                  <div className="flex items-center justify-between px-2 py-1 border-b border-[var(--color-rule)] mb-1 text-xs font-mono text-[var(--color-ink-muted)]">
                     <span>Papers ({manuscripts.length})</span>
                     <button
                       type="button"
@@ -337,7 +372,7 @@ export const ManuscriptSurface: React.FC = () => {
                               {isActive && <Check size={12} className="text-purple-600 shrink-0" />}
                               <div className="truncate font-semibold">{item.meta.title}</div>
                             </div>
-                            <div className="text-[10px] text-[var(--color-ink-muted)] mt-0.5 flex items-center gap-2">
+                            <div className="text-xs text-[var(--color-ink-muted)] mt-0.5 flex items-center gap-2">
                               {item.meta.targetVenue ? (
                                 <>
                                   <span>{item.meta.targetVenue}</span>
@@ -481,13 +516,36 @@ export const ManuscriptSurface: React.FC = () => {
           </button>
 
           {viewMode === 'composer' && (
-            <button
-              onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-              title={isRightSidebarOpen ? 'Hide locker' : 'Open locker'}
-              className="p-1.5 rounded-lg border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)] transition-colors"
-            >
-              {isRightSidebarOpen ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
-            </button>
+            <>
+              <button
+                ref={outlineToggle}
+                type="button"
+                aria-controls="manuscript-outline"
+                aria-expanded={showOutline}
+                onClick={() => {
+                  setIsOutlineOpen(!showOutline);
+                  if (!isWideLayout) setIsRightSidebarOpen(false);
+                }}
+                className="manuscript-panel-toggle"
+              >
+                {showOutline ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+                Outline
+              </button>
+              <button
+                ref={referencesToggle}
+                type="button"
+                aria-controls="manuscript-references"
+                aria-expanded={showReferences}
+                onClick={() => {
+                  setIsRightSidebarOpen(!showReferences);
+                  if (!isWideLayout) setIsOutlineOpen(false);
+                }}
+                className="manuscript-panel-toggle"
+              >
+                {showReferences ? <PanelRightClose size={14} /> : <PanelRightOpen size={14} />}
+                References
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -505,28 +563,33 @@ export const ManuscriptSurface: React.FC = () => {
       {viewMode === 'preprint' && <PreprintView />}
 
       {viewMode === 'composer' && (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="manuscript-composer min-h-0 min-w-0 flex-1 flex overflow-hidden relative" data-compact={!isWideLayout}>
+          {!isWideLayout && (showOutline || showReferences) && (
+            <button type="button" className="manuscript-panel-backdrop" aria-label="Close manuscript panel" onClick={() => closeSidebar(showOutline ? 'outline' : 'references')} />
+          )}
           {/* Left Column: Document Outline */}
-          <aside className="w-80 border-r border-[var(--color-rule)] bg-[var(--color-paper)]/40 flex flex-col shrink-0 select-none overflow-hidden">
+          {showOutline && <aside id="manuscript-outline" aria-label="Manuscript outline" className="manuscript-sidebar manuscript-outline w-80 border-r border-[var(--color-rule)] bg-[var(--color-paper)]/40 flex flex-col shrink-0 select-none overflow-hidden">
             {/* Outline Header */}
             <div className="p-3 border-b border-[var(--color-rule)] flex items-center justify-between bg-[var(--color-surface)]">
               <div>
                 <span className="text-xs font-semibold text-[var(--color-ink)]">
                   Narrative Outline
                 </span>
-                <span className="text-[0.65rem] font-mono text-[var(--color-ink-muted)] ml-1.5">
+                <span className="text-[length:var(--manuscript-metadata-size)] font-mono text-[var(--color-ink-muted)] ml-1.5">
                   ({manuscript.sections.length} sections)
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   const newId = addManuscriptSection(activeSectionId);
                   setActiveSectionId(newId);
                 }}
-                className="flex items-center gap-1 text-[0.7rem] px-2 py-1 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors shadow-2xs"
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors shadow-2xs"
               >
                 <Plus size={12} /> Section
               </button>
+              <button type="button" aria-label="Close outline" className="manuscript-panel-close" onClick={() => closeSidebar('outline')}><X size={14} /></button>
             </div>
 
             {/* Outline List */}
@@ -553,9 +616,9 @@ export const ManuscriptSurface: React.FC = () => {
                     onClick={() => setActiveSectionId(sec.id)}
                     className={`p-3 rounded-xl border transition-all cursor-pointer space-y-2 ${
                       isOver
-                        ? 'border-indigo-500 ring-2 ring-indigo-400/40 bg-indigo-50/40 dark:bg-indigo-950/40 scale-[1.01]'
+                        ? 'border-[var(--color-rule)] bg-[var(--accent-indigo-soft)]'
                         : isActive
-                        ? 'border-indigo-400 dark:border-indigo-700 bg-[var(--color-surface)] shadow-xs ring-1 ring-indigo-300/40'
+                        ? 'border-[var(--color-rule)] bg-[var(--accent-indigo-soft)] shadow-xs'
                         : 'border-[var(--color-rule)] bg-[var(--color-surface)]/70 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
@@ -566,7 +629,7 @@ export const ManuscriptSurface: React.FC = () => {
                           §{sec.sectionNumber}
                         </span>
                         <span
-                          className={`text-[0.62rem] font-mono px-1.5 py-0.5 rounded font-semibold ${roleInfo.color}`}
+                          className={`text-[length:var(--manuscript-metadata-size)] font-mono px-1.5 py-0.5 rounded font-semibold ${roleInfo.color}`}
                         >
                           {roleInfo.label}
                         </span>
@@ -574,6 +637,7 @@ export const ManuscriptSurface: React.FC = () => {
 
                       <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100">
                         <button
+                          aria-label={`Move ${sec.title} up`}
                           onClick={e => {
                             e.stopPropagation();
                             moveSection(idx, 'up');
@@ -584,6 +648,7 @@ export const ManuscriptSurface: React.FC = () => {
                           <ChevronUp size={12} />
                         </button>
                         <button
+                          aria-label={`Move ${sec.title} down`}
                           onClick={e => {
                             e.stopPropagation();
                             moveSection(idx, 'down');
@@ -598,15 +663,15 @@ export const ManuscriptSurface: React.FC = () => {
 
                     {/* Section Title */}
                     <h4 className="text-xs font-semibold text-[var(--color-ink)] line-clamp-2 leading-snug">
-                      {sec.title}
+                      <button type="button" className="w-full text-left" aria-current={isActive ? 'true' : undefined} onClick={() => setActiveSectionId(sec.id)}>{sec.title}</button>
                     </h4>
 
                     {/* Grounded items badges */}
-                    <div className="flex items-center gap-1 flex-wrap pt-0.5 text-[0.6rem] font-mono">
+                    <div className="flex items-center gap-1 flex-wrap pt-0.5 text-[length:var(--manuscript-metadata-size)] font-mono">
                       {sec.attachedClaimIds.map(cId => (
                         <span
                           key={cId}
-                          className="px-1 py-0.5 rounded bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 font-bold"
+                          className="px-1 py-0.5 rounded bg-[var(--color-paper)] text-[var(--color-ink-muted)]"
                         >
                           {cId}
                         </span>
@@ -629,7 +694,7 @@ export const ManuscriptSurface: React.FC = () => {
                       })}
 
                       {sec.attachedCitationKeys.length > 0 && (
-                        <span className="px-1 py-0.5 rounded bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 flex items-center gap-0.5">
+                        <span className="px-1 py-0.5 rounded bg-[var(--color-paper)] text-[var(--color-ink-muted)] flex items-center gap-0.5">
                           <BookMarked size={9} />
                           {sec.attachedCitationKeys.length} refs
                         </span>
@@ -638,7 +703,7 @@ export const ManuscriptSurface: React.FC = () => {
 
                     {/* Word count meter */}
                     <div className="space-y-1 pt-1 border-t border-[var(--color-rule)]/50">
-                      <div className="flex justify-between text-[0.62rem] text-[var(--color-ink-muted)] font-mono">
+                      <div className="flex justify-between text-[length:var(--manuscript-metadata-size)] text-[var(--color-ink-muted)] font-mono">
                         <span>{secWords} words</span>
                         <span>{wordPct}% target</span>
                       </div>
@@ -657,16 +722,18 @@ export const ManuscriptSurface: React.FC = () => {
                 );
               })}
             </div>
-          </aside>
+          </aside>}
 
           {/* Center Column: Section Editor Canvas */}
-          <main className="flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">
+          <main className="manuscript-editor min-w-0 flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">
             {activeSection ? (
-              <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="manuscript-editor-body min-h-0 flex-1 flex flex-col overflow-hidden">
+                <details className="manuscript-section-details min-h-0" open={isWideLayout}>
+                  <summary className="manuscript-section-summary">Section details: {activeSection.sectionNumber}. {activeSection.title}</summary>
                 {/* Section Meta & Narrative Goal Bar */}
                 <div className="p-4 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/30 space-y-3 shrink-0">
                   {/* Title & Section Number Row */}
-                  <div className="flex items-center gap-2">
+                  <div className="manuscript-section-fields flex flex-wrap items-center gap-2">
                     <input
                       type="text"
                       value={activeSection.sectionNumber}
@@ -684,7 +751,7 @@ export const ManuscriptSurface: React.FC = () => {
                         updateManuscriptSection(activeSection.id, { title: e.target.value })
                       }
                       placeholder="Section Title..."
-                      className="flex-1 px-3 py-1 text-sm font-serif font-bold text-[var(--color-ink)] rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] focus:outline-none focus:border-indigo-500"
+                      className="min-w-0 flex-1 px-3 py-1 text-sm font-serif font-bold text-[var(--color-ink)] rounded-lg border border-[var(--color-rule)] bg-[var(--color-surface)] focus:outline-none focus:border-indigo-500"
                     />
 
                     {/* Argument Role Selector */}
@@ -756,7 +823,7 @@ export const ManuscriptSurface: React.FC = () => {
                   <div className="flex items-start gap-2 p-2.5 rounded-lg bg-indigo-50/40 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40">
                     <Sparkles size={14} className="text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
                     <div className="flex-1 space-y-1">
-                      <div className="text-[0.68rem] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 font-mono">
+                      <div className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 font-mono">
                         Argumentation: Narrative Goal of this Section
                       </div>
                       <input
@@ -773,7 +840,7 @@ export const ManuscriptSurface: React.FC = () => {
 
                   {/* Attached Grounding Elements Row */}
                   <div className="flex items-center gap-2 flex-wrap text-xs">
-                    <span className="text-[0.68rem] font-mono text-[var(--color-ink-muted)] font-semibold">
+                    <span className="text-xs font-mono text-[var(--color-ink-muted)] font-semibold">
                       Attached Elements:
                     </span>
 
@@ -783,7 +850,7 @@ export const ManuscriptSurface: React.FC = () => {
                       return (
                         <span
                           key={cId}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-[0.68rem] font-mono"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-xs font-mono"
                         >
                           <strong>{cId}</strong>
                           <button
@@ -800,7 +867,7 @@ export const ManuscriptSurface: React.FC = () => {
                     {activeSection.attachedCitationKeys.map(key => (
                       <span
                         key={key}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 text-[0.68rem] font-mono"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 text-xs font-mono"
                       >
                         <BookMarked size={10} />
                         @{key}
@@ -820,7 +887,7 @@ export const ManuscriptSurface: React.FC = () => {
                       return (
                         <span
                           key={artId}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-[var(--color-ink)] text-[0.68rem]"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-[var(--color-ink)] text-xs"
                         >
                           {art.type === 'figure' && <Image size={10} />}
                           {art.type === 'table' && <Table2 size={10} />}
@@ -839,15 +906,17 @@ export const ManuscriptSurface: React.FC = () => {
                     {activeSection.attachedClaimIds.length === 0 &&
                       activeSection.attachedCitationKeys.length === 0 &&
                       activeSection.attachedArtifactIds.length === 0 && (
-                        <span className="text-[0.68rem] text-[var(--color-ink-muted)] italic">
+                        <span className="text-xs text-[var(--color-ink-muted)] italic">
                           None attached. Drag figures, tables, claims, or citations here to ground this section.
                         </span>
                       )}
                   </div>
                 </div>
 
+                </details>
+
                 {/* Editor Toolbar */}
-                <div className="px-4 py-2 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex items-center justify-between gap-2 select-none shrink-0">
+                <div className="manuscript-editor-toolbar px-4 py-2 border-b border-[var(--color-rule)] bg-[var(--color-surface)] flex flex-wrap items-center justify-between gap-2 select-none shrink-0">
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleInsertTag('**bold text**')}
@@ -872,7 +941,7 @@ export const ManuscriptSurface: React.FC = () => {
                     </button>
                     <button
                       onClick={() => handleInsertTag('$$\nE = mc^2\n$$')}
-                      className="px-1.5 py-0.5 rounded text-[0.68rem] font-mono text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)]"
+                      className="px-1.5 py-0.5 rounded text-xs font-mono text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper)]"
                       title="Math Equation Block"
                     >
                       $$fx$$
@@ -894,7 +963,7 @@ export const ManuscriptSurface: React.FC = () => {
                           handleInsertTag(`\\cite{${manuscript.citations[0].key}}`);
                         }
                       }}
-                      className="flex items-center gap-1 text-[0.68rem] font-mono px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800"
+                      className="flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800"
                     >
                       <BookMarked size={11} /> \cite&#123;ref&#125;
                     </button>
@@ -978,8 +1047,8 @@ export const ManuscriptSurface: React.FC = () => {
           </main>
 
           {/* Right Column: Synthesis Locker & Citation Manager */}
-          {isRightSidebarOpen && (
-            <aside className="w-80 md:w-96 border-l border-[var(--color-rule)] flex flex-col shrink-0 overflow-hidden bg-[var(--color-surface)]">
+          {showReferences && (
+            <aside id="manuscript-references" aria-label="Manuscript references" className="manuscript-sidebar manuscript-references w-80 md:w-96 border-l border-[var(--color-rule)] flex flex-col shrink-0 overflow-hidden bg-[var(--color-surface)]">
               {/* Tabs Switcher for Locker vs Citations */}
               <div className="px-3 py-2 border-b border-[var(--color-rule)] bg-[var(--color-paper)]/60 flex items-center justify-between select-none">
                 <div className="flex gap-1">
@@ -1006,6 +1075,7 @@ export const ManuscriptSurface: React.FC = () => {
                     <span>Citations ({manuscript.citations.length})</span>
                   </button>
                 </div>
+                <button type="button" aria-label="Close references" className="manuscript-panel-close" onClick={() => closeSidebar('references')}><X size={14} /></button>
               </div>
 
               <div className="flex-1 overflow-hidden">

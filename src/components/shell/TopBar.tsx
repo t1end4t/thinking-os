@@ -314,6 +314,9 @@ export const TopBar: React.FC = () => {
         <button
           id="dock-toggle-btn"
           onClick={toggleDock}
+          aria-label="Toggle Assistant panel"
+          aria-expanded={isDockOpen}
+          aria-controls="instrument-assistant-dock"
           title="Toggle right panel (Ctrl/Cmd+J)"
           className={`px-3 py-1.5 flex items-center gap-2 rounded-lg border transition-all duration-150 font-mono text-[0.8125rem] select-none ${
             isDockOpen

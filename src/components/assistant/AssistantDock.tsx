@@ -156,6 +156,8 @@ export const AssistantDock: React.FC = () => {
   const composer = useRef<HTMLTextAreaElement>(null);
   const [resizing, setResizing] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isCompact, setIsCompact] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
+  const drawer = useRef<HTMLDialogElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [toast, setToast] = useState('');
   const transcriptEnd = useRef<HTMLDivElement>(null);
@@ -163,6 +165,22 @@ export const AssistantDock: React.FC = () => {
   const tabs = useRef<HTMLDivElement>(null);
   const historyDialog = useRef<HTMLDialogElement>(null);
   const [historySearch, setHistorySearch] = useState('');
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1023px)');
+    const change = (event: MediaQueryListEvent) => {
+      setIsCompact(event.matches);
+    };
+    query.addEventListener('change', change);
+    return () => query.removeEventListener('change', change);
+  }, [setIsDockOpen]);
+
+  useEffect(() => {
+    const dialog = drawer.current;
+    if (!isCompact || !isDockOpen || !dialog) return;
+    dialog.showModal();
+    return () => dialog.close();
+  }, [isCompact, isDockOpen]);
 
   useEffect(() => { tabs.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [session?.id]);
 
@@ -189,7 +207,7 @@ export const AssistantDock: React.FC = () => {
     const move = (event: MouseEvent) => {
       const rail = 4 * parseFloat(getComputedStyle(document.documentElement).fontSize);
       const width = dockPosition === 'left' ? event.clientX - rail : window.innerWidth - event.clientX;
-      setDockWidth(Math.min(Math.max(width, 320), window.innerWidth - rail));
+      setDockWidth(Math.min(Math.max(width, 320), window.innerWidth * .35));
     };
     const finish = () => setResizing(false);
     window.addEventListener('mousemove', move);
@@ -317,18 +335,31 @@ export const AssistantDock: React.FC = () => {
     if (!turn.prompt?.state || turn.prompt.state === 'complete') turn.reply = turn.entries.filter(entry => !entry.kind).at(-1);
   }
 
-  return (
+  const dock = (
     <aside
       id="instrument-assistant-dock"
       aria-label="Assistant"
-      style={{ width: isFullScreen ? '100vw' : `min(${dockWidth}px, calc(100vw - 4rem))`, '--assistant-font-size': `${preferences.fontSize}px` } as React.CSSProperties}
+      style={{ width: isCompact ? '100%' : isFullScreen ? '100vw' : `min(${dockWidth}px, 35vw)`, '--assistant-font-size': `${preferences.fontSize}px` } as React.CSSProperties}
       onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; if (!dragOver) setDragOver(true); }}
       onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOver(false); }}
       onDrop={drop}
       className={`assistant-dock flex flex-col min-w-0 bg-[var(--color-surface)] text-[var(--color-ink)] ${isFullScreen ? 'fixed inset-0 z-[60] h-screen w-screen' : `relative z-30 h-full shrink-0 ${dockPosition === 'left' ? 'border-r' : 'border-l'} border-[var(--color-rule)]`} ${dragOver ? 'ring-2 ring-[var(--accent-indigo)]/40' : ''}`}
     >
-      {!isFullScreen && (
+      {!isFullScreen && !isCompact && (
         <div
+          role="separator"
+          aria-label="Resize Assistant panel"
+          aria-orientation="vertical"
+          aria-valuemin={320}
+          aria-valuemax={Math.round(window.innerWidth * .35)}
+          aria-valuenow={Math.round(Math.min(dockWidth, window.innerWidth * .35))}
+          tabIndex={0}
+          onKeyDown={event => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            const step = (event.key === 'ArrowLeft' ? 24 : -24) * (dockPosition === 'left' ? -1 : 1);
+            setDockWidth(Math.min(Math.max(dockWidth + step, 320), window.innerWidth * .35));
+          }}
           onMouseDown={event => { event.preventDefault(); setResizing(true); }}
           title="Drag to resize panel"
           className={`absolute top-0 bottom-0 w-2 cursor-ew-resize z-40 hover:bg-[var(--accent-indigo)]/30 ${dockPosition === 'left' ? 'right-0' : 'left-0'}`}
@@ -350,7 +381,7 @@ export const AssistantDock: React.FC = () => {
           <button type="button" className={iconButton} onClick={() => setIsFullScreen(current => !current)} aria-label={isFullScreen ? 'Exit full screen' : 'Enter full screen'} aria-pressed={isFullScreen} title={isFullScreen ? 'Exit full screen' : 'Enter full screen'}>
             {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
-          <button type="button" id="assistant-dock-close-btn" className={iconButton} onClick={() => setIsDockOpen(false)} aria-label="Close Assistant Panel"><X className="w-4 h-4" /></button>
+          <button type="button" id="assistant-dock-close-btn" className={iconButton} onClick={() => { drawer.current?.close(); setIsDockOpen(false); }} aria-label="Close Assistant Panel"><X className="w-4 h-4" /></button>
         </div>
       </header>
 
@@ -518,4 +549,20 @@ export const AssistantDock: React.FC = () => {
       </div>
     </aside>
   );
+
+  return isCompact ? (
+    <dialog
+      ref={drawer}
+      aria-label="Assistant panel"
+      className={`assistant-drawer ${isFullScreen ? 'assistant-drawer-fullscreen' : ''}`}
+      onClose={event => { if (event.target === event.currentTarget) setIsDockOpen(false); }}
+      onClick={event => {
+        if (event.target !== event.currentTarget) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) event.currentTarget.close();
+      }}
+    >
+      {dock}
+    </dialog>
+  ) : dock;
 };

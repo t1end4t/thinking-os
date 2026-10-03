@@ -11,7 +11,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 1000 } });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    let data = { tasks: [] };
+    let data = { tasks: [], goals: [{ id: 'sync-goal', title: 'Sync check', description: '', horizon: 'one-year', status: 'active', createdAt: '2026-09-10T00:00:00Z' }] };
     let revision = 0;
     const requests = [];
     const releaseSave = Promise.withResolvers();
@@ -50,7 +50,7 @@ try {
       await route.fulfill({ contentType: 'application/x-ndjson', body: events.map(event => JSON.stringify(event)).join('\n') + '\n' }).catch(() => {});
     });
     await page.goto(`http://127.0.0.1:${server.httpServer.address().port}`);
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#workspace-dir-btn')).toHaveText('/tmp/sync-ui');
     requests.length = 0;
     await page.evaluate(theme => document.documentElement.classList.toggle('dark', theme === 'dark'), theme);
     const panel = page.getByRole('complementary', { name: 'Assistant', exact: true });
@@ -58,12 +58,13 @@ try {
     await page.locator('#add-task-col-backlog').click();
     await page.locator('#task-title-input').fill('Manual pending task');
     await page.getByRole('button', { name: 'Create task', exact: true }).click();
+    if (width < 1024) await page.locator('#dock-toggle-btn').click();
     const modeMenu = panel.locator('details.assistant-mode-menu');
     await modeMenu.locator('summary').click();
     await modeMenu.getByRole('button', { name: /^Codex/ }).click();
     await input.fill('Create a backlog task');
     await input.press('Enter');
-    await expect(page.getByRole('status', { name: 'Workspace sync' })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Workspace sync', includeHidden: true })).toBeVisible();
     await expect.poll(() => requests.filter(method => method === 'PUT').length).toBe(1);
     assert.equal(requests.includes('ASSISTANT'), false, 'Assistant waits for the in-flight save');
     releaseSave.resolve();

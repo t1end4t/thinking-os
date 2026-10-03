@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -35,6 +36,7 @@ dialog::backdrop {
     --accent-emerald-soft: #E9F4E6;
     --accent-rose: #D20F39;
     --accent-rose-soft: #FAE6EA;
+    --task-button-ink: #FFFFFF;
     --accent-teal: #179299;
     --accent-teal-soft: #E4F1F2;
     --accent-sky: #04A5E5;
@@ -63,6 +65,7 @@ dialog::backdrop {
     --accent-emerald-soft: #253022;
     --accent-rose: #E07A6B;
     --accent-rose-soft: #372725;
+    --task-button-ink: #262624;
     --accent-teal: #7FBFB6;
     --accent-teal-soft: #22302E;
     --accent-sky: #7FB4D9;
@@ -91,6 +94,7 @@ dialog::backdrop {
     --accent-emerald-soft: #26332A;
     --accent-rose: #F38BA8;
     --accent-rose-soft: #382630;
+    --task-button-ink: #1E1E2E;
     --accent-teal: #94E2D5;
     --accent-teal-soft: #243331;
     --accent-sky: #89DCEB;
@@ -182,9 +186,9 @@ dialog::backdrop {
 }
 
 /* Productivity surfaces inherit the research shell token system. */
-.kanban-container { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--color-paper); }
+.kanban-container { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--color-paper); }
 .kanban-controls-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--color-rule); background: var(--color-surface); flex-wrap: wrap; }
-.kanban-search-box { position: relative; display: flex; align-items: center; flex: 1; min-width: 200px; max-width: 440px; }
+.kanban-search-box { position: relative; display: flex; align-items: center; flex: 1; min-width: min(200px, 100%); max-width: 440px; }
 .kanban-search-icon { position: absolute; left: 10px; color: var(--color-ink-muted); pointer-events: none; }
 .kanban-search-box input { width: 100%; height: 32px; padding: 0 28px 0 30px; border: 1px solid var(--color-rule); border-radius: 8px; background: var(--color-paper); color: var(--color-ink); font: 0.8125rem/1 "IBM Plex Mono", monospace; }
 .kanban-search-box input:focus { outline: none; border-color: var(--accent-rose); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-rose) 15%, transparent); }
@@ -192,13 +196,21 @@ dialog::backdrop {
 .kanban-clear-btn:hover { color: var(--color-ink); }
 
 .kanban-filters-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kanban-goal-filters > * { flex-shrink: 0; white-space: nowrap; }
 .kanban-filter-select-wrap { position: relative; display: flex; align-items: center; }
 .kanban-filter-select-wrap .filter-icon { position: absolute; left: 9px; color: var(--color-ink-muted); pointer-events: none; }
 .kanban-filter-select-wrap select { height: 32px; padding: 0 10px 0 27px; border: 1px solid var(--color-rule); border-radius: 8px; background: var(--color-surface); color: var(--color-ink); font: 0.8125rem "IBM Plex Mono", monospace; cursor: pointer; }
 .kanban-filter-select-wrap select:focus { outline: none; border-color: var(--accent-rose); }
 
-.kanban-primary-add-btn { height: 32px; padding: 0 13px; border: 0; border-radius: 8px; background: var(--accent-rose); color: white; display: flex; align-items: center; gap: 6px; font: 600 0.8125rem "IBM Plex Mono", monospace; cursor: pointer; transition: opacity 120ms ease; }
+.kanban-primary-add-btn { height: 32px; padding: 0 13px; border: 0; border-radius: 8px; background: var(--accent-rose); color: var(--task-button-ink); display: flex; align-items: center; gap: 6px; white-space: nowrap; font: 600 0.8125rem "IBM Plex Mono", monospace; cursor: pointer; transition: opacity 120ms ease; }
 .kanban-primary-add-btn:hover { opacity: .9; }
+
+@media (max-width: 640px) {
+  #instrument-top-bar { padding-inline: 12px; gap: 8px; }
+  .topbar-version, .topbar-workspace, .topbar-workspace-divider, .topbar-control-label, .topbar-shortcut { display: none; }
+  .topbar-identity > span:first-of-type { font-size: .75rem; }
+  .kanban-controls-bar { padding: 12px; }
+}
 
 .kanban-board-scroll-area { flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; padding: 18px 24px 22px; }
 .kanban-board-columns { display: flex; gap: 14px; height: 100%; min-width: min-content; align-items: stretch; }

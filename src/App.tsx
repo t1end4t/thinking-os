@@ -53,14 +53,14 @@ const WorkspaceShell: React.FC = () => {
   return (
     <div
       id="instrument-root-layout"
-      className="flex flex-col w-screen h-screen overflow-hidden bg-[var(--color-surface)] text-[var(--color-ink)] font-sans antialiased"
+      className="flex flex-col w-full h-dvh overflow-hidden bg-[var(--color-surface)] text-[var(--color-ink)] font-sans antialiased"
     >
       {/* Top Bar */}
       <div inert={workspaceSyncing}><TopBar /></div>
       {workspaceSyncing && <p role="status" aria-label="Workspace sync" className="px-4 py-1 text-xs text-[var(--color-ink-muted)] border-b border-[var(--color-rule)]">Assistant working. Workspace editing is paused; file changes load automatically when it finishes.</p>}
 
       {/* Main Surface Body Row */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="min-h-0 min-w-0 flex-1 flex overflow-hidden relative">
         {/* Left Surface Rail */}
         <Rail />
 
@@ -68,14 +68,14 @@ const WorkspaceShell: React.FC = () => {
         {dockPosition === 'left' && <AssistantDock />}
 
         {/* Central Work Canvas / Active Surface */}
-        <div inert={workspaceSyncing} className="flex-1 flex flex-col overflow-hidden relative">
+        <div inert={workspaceSyncing} className="min-w-0 flex-1 flex flex-col overflow-hidden relative">
           {sourceEvidenceId && (
             <div className="flex items-center gap-3 border-b border-[var(--color-rule)] px-4 py-2 text-xs">
               <button type="button" className="argument-micro-btn" onClick={() => setActiveSurface('map')}>Back to Graph</button>
               <span className="truncate text-[var(--color-ink-muted)]">Evidence source · {sourceEvidenceId}</span>
             </div>
           )}
-          <div className="flex-1 flex overflow-hidden relative">
+          <div className="min-h-0 min-w-0 flex-1 flex overflow-hidden relative">
             {(activeSurface === 'map' || sourceEvidenceId) && (
               <div className={activeSurface === 'map' ? 'flex min-w-0 flex-1' : 'hidden'}><MapSurface /></div>
             )}

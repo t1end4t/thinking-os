@@ -465,7 +465,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
   // Assistant Dock
-  const [isDockOpen, setIsDockOpen] = useState<boolean>(true);
+  const [isDockOpen, setIsDockOpen] = useState<boolean>(() => !window.matchMedia('(max-width: 1023px)').matches);
   const [dockWidth, setDockWidth] = useState<number>(() => Math.max(320, window.innerWidth / 3));
   const [dockPosition, setDockPositionState] = useState<'left' | 'right'>(() => {
     const saved = localStorage.getItem('thinking_os_dock_position');

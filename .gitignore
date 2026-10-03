@@ -74,5 +74,7 @@ TEST-results.xml
 .devenv/
 .direnv/
 
+# other files
 templates/*.bak
 templates/*.thinking-os.tmp
+.omo/*
